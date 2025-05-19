@@ -15,8 +15,6 @@
     * Link GitHub account?
     * Submit SSH public key?
 
----
-
 ### **Team Management**
 
 * **Create Team Form**
@@ -50,8 +48,6 @@
       * Create repository: `{category}-{team name}`
 * Editing/deleting a team should also revert associated resources
 
----
-
 ### **Event Management**
 
 * **Create Event Form**
@@ -83,13 +79,10 @@
         * When members click "Request VM", attach their Compsole user to the event competition
 * Editing/deleting an event should revert changes and associated resources
 
----
-
 ### **Inventory (Check-In / Check-Out)**
 
 * Allow admins to manage shared items and track check-out/check-in history.
 
----
 
 ### **VPN Requests**
 
@@ -189,8 +182,6 @@
 * VPN request (if eligible)
 * Member QR code
 
----
-
 ### **Member View**
 
 #### **Dashboard**
@@ -219,7 +210,6 @@
 * Linked accounts
 * QR code (wallet integration?)
 
----
 
 ### **PI View (Optional)**
 
