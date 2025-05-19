@@ -1,0 +1,63 @@
+const swaggerJsdoc = require('swagger-jsdoc');
+
+const options = {
+  definition: {
+    openapi: '3.0.0',
+    info: {
+      title: 'Member Relationship Management (MRM) 360 API Documentation',
+      version: '1.0.0',
+      description: 'API documentation for Member Relationship Management (MRM) 360',
+    },
+    servers: [
+      {
+        url: 'https://mrm.psuccso.org/api',
+      },
+    ],
+    components: {
+      securitySchemes: {
+        BearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+          description: 'Enter your JWT token in the format: Bearer <token>'
+        }
+      }
+    },
+    tags: [
+      {
+        name: 'Users',
+        description: 'User management endpoints'
+      },
+      {
+        name: 'Teams',
+        description: 'Team management endpoints'
+      },
+      {
+        name: 'Events',
+        description: 'Event management endpoints'
+      },
+      {
+        name: 'Inventory',
+        description: 'Inventory management endpoints'
+      },
+      {
+        name: 'VPN',
+        description: 'VPN access management endpoints'
+      },
+      {
+        name: 'Analytics',
+        description: 'Analytics and statistics endpoints'
+      },
+      {
+        name: 'Tasks',
+        description: 'Task queue management endpoints'
+      }
+    ]
+  },
+  apis: [
+    './routes/*.js'
+  ],
+};
+
+const swaggerSpec = swaggerJsdoc(options);
+module.exports = swaggerSpec;

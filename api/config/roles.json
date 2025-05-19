@@ -1,0 +1,104 @@
+{
+    "roles": {
+        "admin": {
+            "description": "Full system access",
+            "permissions": [
+                "*"
+            ],
+            "groups": [
+                "admin"
+            ]
+        },
+        "executive": {
+            "description": "Executive board access",
+            "permissions": [
+                "user.*",
+                "team.*",
+                "event.*",
+                "inventory.*",
+                "analytics.*"
+            ],
+            "groups": [
+                "executive"
+            ]
+        },
+        "tech_lead": {
+            "description": "Technical team lead access",
+            "permissions": [
+                "team.view",
+                "team.edit",
+                "event.view",
+                "event.edit",
+                "inventory.view",
+                "inventory.edit",
+                "vpn.approve"
+            ],
+            "groups": [
+                "tech-lead"
+            ]
+        },
+        "team_lead": {
+            "description": "Team lead access",
+            "permissions": [
+                "team.view",
+                "team.edit",
+                "event.view",
+                "event.edit",
+                "inventory.view"
+            ],
+            "groups": [
+                "team-lead"
+            ]
+        },
+        "member": {
+            "description": "Regular member access",
+            "permissions": [
+                "user.view",
+                "team.view",
+                "event.view",
+                "inventory.view",
+                "vpn.request"
+            ],
+            "groups": [
+                "member"
+            ]
+        }
+    },
+    "permissions": {
+        "user": {
+            "view": "View user profiles",
+            "edit": "Edit user profiles",
+            "create": "Create new users",
+            "delete": "Delete users"
+        },
+        "team": {
+            "view": "View teams",
+            "edit": "Edit team details",
+            "create": "Create new teams",
+            "delete": "Delete teams"
+        },
+        "event": {
+            "view": "View events",
+            "edit": "Edit event details",
+            "create": "Create new events",
+            "delete": "Delete events",
+            "attendance": "Manage event attendance"
+        },
+        "inventory": {
+            "view": "View inventory",
+            "edit": "Edit inventory items",
+            "create": "Create new inventory items",
+            "delete": "Delete inventory items",
+            "checkout": "Check out items",
+            "checkin": "Check in items"
+        },
+        "vpn": {
+            "request": "Request VPN access",
+            "approve": "Approve VPN requests",
+            "revoke": "Revoke VPN access"
+        },
+        "analytics": {
+            "view": "View analytics and statistics"
+        }
+    }
+}
