@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: \\wsl.localhost\Ubuntu-22.04\home\tgm\CCSO\Workspaces\mrm360\frontend
+      dockerfile: .devcontainer/Dockerfile
+    volumes:
+      - \\wsl.localhost\Ubuntu-22.04\home\tgm\CCSO\Workspaces\mrm360\frontend:/app
+    networks:
+      - app-network
+    ports:
+      - "3010:3000" # Vue Dev Server
+    environment:
+      - VITE_APP_TITLE=MRM360
+      - VITE_BACKEND_URL=http://localhost:3011
+      - CHOKIDAR_USEPOLLING=true
+      - CHOKIDAR_INTERVAL=1000
+      - WATCHPACK_POLLING=true
+
+  backend:
+    build:
+      context: \\wsl.localhost\Ubuntu-22.04\home\tgm\CCSO\Workspaces\mrm360\backend
+      dockerfile: .devcontainer/Dockerfile
+    volumes:
+      - \\wsl.localhost\Ubuntu-22.04\home\tgm\CCSO\Workspaces\mrm360\backend:/app
+    networks:
+      - app-network
+    ports:
+      - "3011:3000" # API
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://mrm360:mrm360@postgres:5432/mrm360
+      - REDIS_URL=redis://redis:6379
+      - WATCHPACK_POLLING=true
+      - CHOKIDAR_USEPOLLING=true
+      - CHOKIDAR_INTERVAL=1000
+
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    networks:
+      - app-network
+    environment:
+      - POSTGRES_USER=mrm360
+      - POSTGRES_PASSWORD=mrm360
+      - POSTGRES_DB=mrm360
+    ports:
+      - "3012:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    networks:
+      - app-network
+    ports:
+      - "3013:6379"
+
+  adminer:
+    image: adminer
+    restart: unless-stopped
+    networks:
+      - app-network
+    ports:
+      - "3014:8080"
+
+volumes:
+  postgres_data:
+
+networks:
+  app-network:
