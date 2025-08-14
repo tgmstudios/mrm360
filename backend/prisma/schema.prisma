@@ -1,0 +1,240 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Background task enums and models for orchestrated provisioning
+enum TaskStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+model BackgroundTask {
+  id          String            @id @default(cuid())
+  name        String
+  description String?
+  status      TaskStatus        @default(PENDING)
+  progress    Int               @default(0)
+  result      Json?
+  error       String?
+  entityType  String?
+  entityId    String?
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  // Relations
+  subtasks    BackgroundSubtask[]
+
+  @@map("background_tasks")
+}
+
+model BackgroundSubtask {
+  id         String     @id @default(cuid())
+  taskId     String
+  name       String
+  status     TaskStatus @default(PENDING)
+  progress   Int        @default(0)
+  stepIndex  Int        @default(0)
+  result     Json?
+  error      String?
+  startedAt  DateTime?
+  finishedAt DateTime?
+
+  // Relations
+  task       BackgroundTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@map("background_subtasks")
+}
+
+model User {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  username    String?  @unique
+  password    String?  // Hashed password for local auth
+  firstName   String
+  lastName    String
+  displayName String?
+  paidStatus  Boolean  @default(false)
+  qrCode      String?  @unique
+  role        Role     @default(MEMBER)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  userGroups  UserGroup[]
+  userTeams   UserTeam[]
+  rsvps       RSVP[]
+  checkIns    CheckIn[]
+  
+  @@map("users")
+}
+
+model Group {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  externalId  String?  // Authentik group ID
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  userGroups  UserGroup[]
+  teams       Team[]
+  
+  @@map("groups")
+}
+
+model UserGroup {
+  id        String   @id @default(cuid())
+  userId    String
+  groupId   String
+  joinedAt  DateTime @default(now())
+  
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, groupId])
+  @@map("user_groups")
+}
+
+model Team {
+  id          String     @id @default(cuid())
+  name        String
+  description String?
+  type        TeamType
+  subtype     TeamSubtype?
+  parentTeamId String?   // For subteams
+  groupId     String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  
+  // Relations
+  group       Group?     @relation(fields: [groupId], references: [id])
+  parentTeam  Team?      @relation("Subteams", fields: [parentTeamId], references: [id])
+  subteams    Team[]     @relation("Subteams")
+  userTeams   UserTeam[]
+  events      Event[]
+  
+  @@map("teams")
+}
+
+model UserTeam {
+  id       String   @id @default(cuid())
+  userId   String
+  teamId   String
+  role     TeamRole @default(MEMBER)
+  joinedAt DateTime @default(now())
+  
+  // Relations
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team     Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, teamId])
+  @@map("user_teams")
+}
+
+model Event {
+  id             String         @id @default(cuid())
+  title          String
+  description   String?
+  startTime     DateTime
+  endTime       DateTime
+  category      EventCategory
+  linkedTeamId  String?
+  attendanceType AttendanceType @default(SOFT)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  
+  // Relations
+  linkedTeam    Team?          @relation(fields: [linkedTeamId], references: [id])
+  rsvps         RSVP[]
+  checkIns      CheckIn[]
+  
+  @@map("events")
+}
+
+model RSVP {
+  id        String      @id @default(cuid())
+  userId    String
+  eventId   String
+  status    RSVPStatus @default(PENDING)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  
+  // Relations
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event     Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, eventId])
+  @@map("rsvps")
+}
+
+model CheckIn {
+  id        String   @id @default(cuid())
+  userId    String
+  eventId   String
+  qrCode    String
+  checkedInAt DateTime @default(now())
+  
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, eventId])
+  @@map("check_ins")
+}
+
+// Enums
+enum Role {
+  ADMIN
+  EXEC_BOARD
+  MEMBER
+}
+
+enum TeamType {
+  COMPETITION
+  DEVELOPMENT
+}
+
+enum TeamSubtype {
+  BLUE
+  RED
+  CTF
+}
+
+enum TeamRole {
+  LEADER
+  MEMBER
+}
+
+enum EventCategory {
+  MEETING
+  WORKSHOP
+  COMPETITION
+  SOCIAL
+  TRAINING
+}
+
+enum AttendanceType {
+  STRICT
+  SOFT
+}
+
+enum RSVPStatus {
+  PENDING
+  CONFIRMED
+  DECLINED
+  MAYBE
+}
