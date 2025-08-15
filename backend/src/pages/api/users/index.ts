@@ -175,7 +175,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         role: body.role,
       });
       
-      res.status(201).json(user);
+      res.status(201).json({ success: true, data: user });
     } else {
       res.status(405).json({ error: 'Method not allowed' });
     }

@@ -57,7 +57,7 @@ export const useEventStore = defineStore('events', () => {
       
       const response: PaginatedResponse<Event> = await apiService.getEvents(filters.value)
       
-      events.value = response.data
+      events.value = response.data ?? []
       pagination.value = response.pagination
       
       return response

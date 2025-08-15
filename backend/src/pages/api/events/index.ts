@@ -188,7 +188,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       const totalPages = Math.ceil(total / limit);
 
       res.status(200).json({
-        events: paginatedEvents,
+        success: true,
+        data: paginatedEvents,
         pagination: {
           page,
           limit,
@@ -201,7 +202,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       const body = createEventSchema.parse(req.body);
       
       const event = await eventManager.createEvent(body);
-
+      
       // Enqueue simulated event setup task
       const subtaskNames = [
         'Validate event details',
@@ -220,7 +221,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         payload: { eventId: event.id }
       });
 
-      res.status(201).json(event);
+      res.status(201).json({ success: true, data: event });
     } else {
       res.status(405).json({ error: 'Method not allowed' });
     }

@@ -1,4 +1,4 @@
-import { Queue, Worker, QueueScheduler } from 'bullmq';
+import { Queue } from 'bullmq';
 import Redis from 'ioredis';
 import { logger } from '@/utils/logger';
 
@@ -53,11 +53,7 @@ export const provisionQueue = new Queue(QUEUE_NAMES.PROVISION, {
     attempts: 1
   }
 });
-// Create schedulers for delayed jobs
-export const emailScheduler = new QueueScheduler(QUEUE_NAMES.EMAIL, { connection: redis });
-export const qrCodeScheduler = new QueueScheduler(QUEUE_NAMES.QR_CODE, { connection: redis });
-export const syncGroupsScheduler = new QueueScheduler(QUEUE_NAMES.SYNC_GROUPS, { connection: redis });
-export const provisionScheduler = new QueueScheduler(QUEUE_NAMES.PROVISION, { connection: redis });
+// Note: Not using QueueScheduler due to BullMQ version constraints
 
 // Queue event handlers
 emailQueue.on('completed', (job) => {
