@@ -59,7 +59,25 @@ export const useUserStore = defineStore('users', () => {
       
       const response: PaginatedResponse<User> = await apiService.getUsers(filters.value)
       
-      users.value = response.data
+      const raw = (response.data ?? []) as any[]
+      users.value = raw.map((u: any) => ({
+        id: u.id,
+        email: u.email,
+        firstName: u.firstName,
+        lastName: u.lastName,
+        displayName: u.displayName || `${u.firstName} ${u.lastName}`,
+        avatar: u.avatar,
+        isActive: u.isActive ?? true,
+        isPaid: (u.isPaid ?? u.paidStatus) ?? false,
+        paidUntil: u.paidUntil,
+        createdAt: u.createdAt || new Date().toISOString(),
+        updatedAt: u.updatedAt || new Date().toISOString(),
+        authentikGroups: Array.isArray(u.userGroups)
+          ? u.userGroups.map((ug: any) => ug.group?.id || ug.groupId || ug.group?.name).filter(Boolean)
+          : (u.authentikGroups || []),
+        teams: Array.isArray(u.teams) ? u.teams : [],
+        events: Array.isArray(u.events) ? u.events : []
+      })) as unknown as User[]
       pagination.value = response.pagination
       
       return response

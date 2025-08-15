@@ -209,7 +209,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         payload: { teamId: team.id }
       });
 
-      res.status(201).json(team);
+      res.status(201).json({ success: true, data: team });
     } else {
       res.status(405).json({ error: 'Method not allowed' });
     }
