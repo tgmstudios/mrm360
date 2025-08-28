@@ -6,21 +6,21 @@ export interface WikiJsPage {
   id: string;
   path: string;
   title: string;
-  description: string;
   content: string;
-  contentType: string;
+  createdAt: string;
+  updatedAt: string;
+  locale: string;
   isPublished: boolean;
   isPrivate: boolean;
   privateNS?: string;
   tags: string[];
-  createdAt: string;
-  updatedAt: string;
-  locale: string;
-  hash: string;
-  publishStartDate?: string;
-  publishEndDate?: string;
-  render?: string;
-  toc?: string;
+  description?: string;
+  isHomePage: boolean;
+  isTemplate: boolean;
+  templateId?: string;
+  scriptCss?: string;
+  scriptJs?: string;
+  metadata?: Record<string, any>;
 }
 
 export interface WikiJsUser {
@@ -114,13 +114,13 @@ export class WikiJsApiClient {
         }
       );
 
-      if (response.data?.errors && response.data.errors.length > 0) {
-        const errorMessages = response.data.errors.map(e => e.message).join('; ');
-        throw new Error(`GraphQL execution failed: ${errorMessages}`);
+      if (response.data.errors && response.data.errors.length > 0) {
+        const errorMessage = response.data.errors.map(e => e.message).join('; ');
+        throw new Error(`GraphQL errors: ${errorMessage}`);
       }
 
-      if (!response.data?.data) {
-        throw new Error('No data received from GraphQL query');
+      if (!response.data.data) {
+        throw new Error('No data returned from GraphQL query');
       }
 
       return response.data.data;
@@ -201,19 +201,9 @@ export class WikiJsApiClient {
 
   async createPage(pageData: WikiJsPageInput): Promise<WikiJsPage> {
     const query = `
-      mutation CreatePage($path: String!, $title: String!, $content: String!, $description: String!, $editor: String!, $isPublished: Boolean!, $isPrivate: Boolean!, $locale: String!, $tags: [String]!) {
+      mutation CreatePage($pageData: PageInput!) {
         pages {
-          create(
-            path: $path
-            title: $title
-            content: $content
-            description: $description
-            editor: $editor
-            isPublished: $isPublished
-            isPrivate: $isPrivate
-            locale: $locale
-            tags: $tags
-          ) {
+          create(page: $pageData) {
             responseResult {
               succeeded
               errorCode
@@ -224,21 +214,21 @@ export class WikiJsApiClient {
               id
               path
               title
-              description
               content
-              contentType
-              isPublished
-              isPrivate
-              privateNS
               createdAt
               updatedAt
               locale
+              isPublished
+              isPrivate
+              privateNS
               tags
-              hash
-              publishStartDate
-              publishEndDate
-              render
-              toc
+              description
+              isHomePage
+              isTemplate
+              templateId
+              scriptCss
+              scriptJs
+              metadata
             }
           }
         }
@@ -252,7 +242,7 @@ export class WikiJsApiClient {
           page: WikiJsPage;
         };
       };
-    }>(query, pageData);
+    }>(query, { pageData });
 
     if (!result.pages.create.responseResult.succeeded) {
       throw new Error(`Failed to create page: ${result.pages.create.responseResult.message || 'Unknown error'}`);
@@ -263,17 +253,9 @@ export class WikiJsApiClient {
 
   async updatePage(id: string, pageData: Partial<WikiJsPageInput>): Promise<WikiJsPage> {
     const query = `
-      mutation UpdatePage($id: Int!, $content: String, $description: String, $title: String, $isPublished: Boolean, $isPrivate: Boolean, $tags: [String]) {
+      mutation UpdatePage($id: Int!, $pageData: PageInput!) {
         pages {
-          update(
-            id: $id
-            content: $content
-            description: $description
-            title: $title
-            isPublished: $isPublished
-            isPrivate: $isPrivate
-            tags: $tags
-          ) {
+          update(id: $id, page: $pageData) {
             responseResult {
               succeeded
               errorCode
@@ -284,21 +266,21 @@ export class WikiJsApiClient {
               id
               path
               title
-              description
               content
-              contentType
-              isPublished
-              isPrivate
-              privateNS
               createdAt
               updatedAt
               locale
+              isPublished
+              isPrivate
+              privateNS
               tags
-              hash
-              publishStartDate
-              publishEndDate
-              render
-              toc
+              description
+              isHomePage
+              isTemplate
+              templateId
+              scriptCss
+              scriptJs
+              metadata
             }
           }
         }
@@ -312,7 +294,7 @@ export class WikiJsApiClient {
           page: WikiJsPage;
         };
       };
-    }>(query, { id: parseInt(id), ...pageData });
+    }>(query, { id: parseInt(id), pageData });
 
     if (!result.pages.update.responseResult.succeeded) {
       throw new Error(`Failed to update page: ${result.pages.update.responseResult.message || 'Unknown error'}`);
@@ -465,9 +447,35 @@ export class WikiJsApiClient {
   async getGroups(): Promise<WikiJsGroup[]> {
     const query = `
       query GetGroups {
-        users {
-          groups {
-            list {
+        groups {
+          list {
+            id
+            name
+            description
+            permissions
+            createdAt
+            updatedAt
+          }
+        }
+      }
+    `;
+
+    const result = await this.executeGraphQL<{ groups: { list: WikiJsGroup[] } }>(query);
+    return result.groups.list;
+  }
+
+  async createGroup(groupData: WikiJsGroupInput): Promise<WikiJsGroup> {
+    const query = `
+      mutation CreateGroup($groupData: GroupInput!) {
+        groups {
+          create(group: $groupData) {
+            responseResult {
+              succeeded
+              errorCode
+              slug
+              message
+            }
+            group {
               id
               name
               description
@@ -480,82 +488,40 @@ export class WikiJsApiClient {
       }
     `;
 
-    const result = await this.executeGraphQL<{ users: { groups: { list: WikiJsGroup[] } } }>(query);
-    return result.users.groups.list;
-  }
-
-  async createGroup(groupData: WikiJsGroupInput): Promise<WikiJsGroup> {
-    const query = `
-      mutation CreateGroup($groupData: GroupInput!) {
-        users {
-          groups {
-            create(group: $groupData) {
-              responseResult {
-                succeeded
-                errorCode
-                slug
-                message
-              }
-              group {
-                id
-                name
-                description
-                permissions
-                createdAt
-                updatedAt
-              }
-            }
-          }
-        }
-      }
-    `;
-
     const result = await this.executeGraphQL<{
-      users: {
-        groups: {
-          create: {
-            responseResult: WikiJsResponseResult;
-            group: WikiJsGroup;
-          };
+      groups: {
+        create: {
+          responseResult: WikiJsResponseResult;
+          group: WikiJsGroup;
         };
       };
     }>(query, { groupData });
 
-    if (!result.users.groups.create.responseResult.succeeded) {
-      throw new Error(`Failed to create group: ${result.users.groups.create.responseResult.message || 'Unknown error'}`);
+    if (!result.groups.create.responseResult.succeeded) {
+      throw new Error(`Failed to create group: ${result.groups.create.responseResult.message || 'Unknown error'}`);
     }
 
-    return result.users.groups.create.group;
+    return result.groups.create.group;
   }
 
   // Health check
   async healthCheck(): Promise<boolean> {
     try {
-      const query = `
-        query HealthCheck {
-          system {
-            info {
-              version
-              platform
-              nodeVersion
-            }
-          }
-        }
-      `;
-
-      await this.executeGraphQL<{ system: { info: any } }>(query);
+      await this.getPages();
       return true;
     } catch (error) {
-      logger.error('Health check failed:', error);
+      logger.error('Wiki.js health check failed:', error);
       return false;
     }
   }
 
-  // Get configuration
+  /**
+   * Get API client configuration
+   */
   getConfig(): { baseUrl: string; token: string } {
     return {
-      baseUrl: this.httpClient['baseUrl'],
-      token: this.httpClient['token']
+      baseUrl: this.httpClient['config']['baseUrl'],
+      token: this.httpClient['config']['token'] || ''
     };
   }
 }
