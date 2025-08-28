@@ -228,12 +228,14 @@ export class TeamManager {
         throw Errors.NOT_FOUND('Team');
       }
 
-      if (team._count.userTeams > 0) {
-        throw Errors.CONFLICT('Cannot delete team with members');
-      }
-
       if (team._count.subteams > 0) {
         throw Errors.CONFLICT('Cannot delete team with subteams');
+      }
+
+      // Remove memberships first if any
+      if (team._count.userTeams > 0) {
+        await prisma.userTeam.deleteMany({ where: { teamId: id } });
+        logger.info(`Removed ${team._count.userTeams} membership(s) from team before deletion: ${id}`);
       }
 
       await prisma.team.delete({

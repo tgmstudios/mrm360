@@ -76,14 +76,14 @@ async function checkPermissions(user: any, requiredPermissions: string[]): Promi
       'users:read', 'users:create', 'users:update', 'users:delete',
       'groups:read', 'groups:create', 'groups:update', 'groups:delete',
       'events:read', 'events:create', 'events:update', 'events:delete',
-      'teams:read', 'teams:create', 'teams:update', 'teams:delete',
-      'tasks:read', 'tasks:create', 'tasks:update', 'tasks:delete'
+      'teams:read', 'teams:write', 'teams:create', 'teams:update', 'teams:delete',
+      'tasks:read', 'tasks:create', 'tasks:update', 'tasks:delete', 'tasks:enqueue'
     ],
     'EXEC_BOARD': [
       'users:read', 'users:create', 'users:update',
       'groups:read', 'groups:create', 'groups:update',
       'events:read', 'events:create', 'events:update',
-      'teams:read', 'teams:create', 'teams:update',
+      'teams:read', 'teams:write', 'teams:create', 'teams:update',
       'tasks:read', 'tasks:create', 'tasks:update'
     ],
     'MEMBER': [

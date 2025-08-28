@@ -169,10 +169,7 @@
                 <div>
                   <h4 class="text-sm font-medium text-gray-900">{{ event.title }}</h4>
                   <p class="text-sm text-gray-500">
-                    {{ formatDate(event.startDate) }} - {{ formatDate(event.endDate) }}
-                  </p>
-                  <p v-if="event.location" class="text-sm text-gray-500 mt-1">
-                    📍 {{ event.location }}
+                    {{ formatDate(event.startTime) }} - {{ formatDate(event.endTime) }}
                   </p>
                 </div>
                 <router-link
@@ -197,15 +194,25 @@
         <div class="bg-white shadow rounded-lg">
           <div class="px-4 py-5 sm:p-6">
             <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">
-              Authentik Groups
+              Groups
             </h3>
-            <div v-if="user.authentikGroups.length > 0" class="flex flex-wrap gap-2">
+            <div v-if="groupStore.isLoading" class="text-center py-4">
+              <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto"></div>
+              <p class="mt-2 text-sm text-gray-500">Loading groups...</p>
+            </div>
+            <div v-else-if="userGroups.length > 0" class="flex flex-wrap gap-2">
               <span
-                v-for="group in user.authentikGroups"
-                :key="group"
-                class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800"
+                v-for="group in userGroups"
+                :key="group.id"
+                :class="[
+                  'inline-flex items-center px-3 py-1 rounded-full text-sm font-medium',
+                  group.found 
+                    ? 'bg-purple-100 text-purple-800' 
+                    : 'bg-gray-100 text-gray-600'
+                ]"
+                :title="group.description || group.name"
               >
-                {{ group }}
+                {{ group.name }}
               </span>
             </div>
             <div v-else class="text-center py-4">
@@ -285,110 +292,14 @@
     </div>
 
     <!-- Edit User Modal -->
-    <BaseModal
+    <UserEditModal
       :is-open="showEditModal"
-      title="Edit Member Profile"
-      size="lg"
+      :user="user"
+      :available-groups="groups"
+      :is-edit-mode="true"
       @close="showEditModal = false"
-    >
-      <form @submit.prevent="handleSubmit" class="space-y-4">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label for="firstName" class="block text-sm font-medium text-gray-700">
-              First Name *
-            </label>
-            <input
-              id="firstName"
-              v-model="form.firstName"
-              type="text"
-              required
-              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-            />
-          </div>
-          
-          <div>
-            <label for="lastName" class="block text-sm font-medium text-gray-700">
-              Last Name *
-            </label>
-            <input
-              id="lastName"
-              v-model="form.lastName"
-              type="text"
-              required
-              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-            />
-          </div>
-        </div>
-        
-        <div>
-          <label for="displayName" class="block text-sm font-medium text-gray-700">
-            Display Name *
-          </label>
-          <input
-            id="displayName"
-            v-model="form.displayName"
-            type="text"
-            required
-            class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-          />
-        </div>
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label for="isActive" class="flex items-center">
-              <input
-                id="isActive"
-                v-model="form.isActive"
-                type="checkbox"
-                class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-              />
-              <span class="ml-2 text-sm text-gray-700">Active Member</span>
-            </label>
-          </div>
-          
-          <div>
-            <label for="isPaid" class="flex items-center">
-              <input
-                id="isPaid"
-                v-model="form.isPaid"
-                type="checkbox"
-                class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-              />
-              <span class="ml-2 text-sm text-gray-700">Paid Member</span>
-            </label>
-          </div>
-        </div>
-        
-        <div>
-          <label for="paidUntil" class="block text-sm font-medium text-gray-700">
-            Paid Until
-          </label>
-          <input
-            id="paidUntil"
-            v-model="form.paidUntil"
-            type="date"
-            class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-          />
-        </div>
-      </form>
-      
-      <template #footer>
-        <div class="flex justify-end space-x-3">
-          <BaseButton
-            variant="outline"
-            @click="showEditModal = false"
-          >
-            Cancel
-          </BaseButton>
-          <BaseButton
-            :loading="isSubmitting"
-            @click="handleSubmit"
-          >
-            Update Profile
-          </BaseButton>
-        </div>
-      </template>
-    </BaseModal>
+      @submit="handleModalSubmit"
+    />
 
     <!-- Delete Confirmation Modal -->
     <BaseModal
@@ -434,16 +345,19 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/userStore'
+import { useGroupStore } from '@/stores/groupStore'
 import { usePermissions } from '@/composables/usePermissions'
 import { UserGroupIcon, CalendarIcon } from '@heroicons/vue/24/outline'
 import QRCodeVue3 from 'qrcode-vue3'
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseModal from '@/components/common/BaseModal.vue'
+import UserEditModal from '@/components/users/UserEditModal.vue'
 import type { User, UserUpdate } from '@/types/api'
 
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
+const groupStore = useGroupStore()
 const { can } = usePermissions()
 
 // State
@@ -457,14 +371,29 @@ const form = ref({
   firstName: '',
   lastName: '',
   displayName: '',
-  isActive: true,
-  isPaid: false,
-  paidUntil: ''
+  isPaid: false
 })
 
 // Computed
 const userId = computed(() => route.params.id as string)
 const user = computed(() => userStore.getUserById(userId.value))
+
+const groups = computed(() => groupStore.groups)
+
+const userGroups = computed(() => {
+  if (!user.value) return []
+  if (groupStore.isLoading) return []
+  
+  return user.value.authentikGroups.map(groupId => {
+    const group = groupStore.groups.find(g => g.id === groupId)
+    return {
+      id: groupId,
+      name: group?.name || `Unknown Group (${groupId.slice(0, 8)}...)`,
+      description: group?.description,
+      found: !!group
+    }
+  })
+})
 
 const qrCodeValue = computed(() => {
   if (!user.value) return ''
@@ -507,9 +436,7 @@ const handleSubmit = async () => {
       firstName: form.value.firstName,
       lastName: form.value.lastName,
       displayName: form.value.displayName,
-      isActive: form.value.isActive,
-      isPaid: form.value.isPaid,
-      paidUntil: form.value.paidUntil || undefined
+      isPaid: form.value.isPaid
     }
     
     await userStore.updateUser(user.value.id, updateData)
@@ -518,6 +445,17 @@ const handleSubmit = async () => {
     console.error('Error updating user:', error)
   } finally {
     isSubmitting.value = false
+  }
+}
+
+const handleModalSubmit = async (data: UserUpdate) => {
+  if (!user.value) return
+  
+  try {
+    await userStore.updateUser(user.value.id, data)
+    showEditModal.value = false
+  } catch (error) {
+    console.error('Error updating user:', error)
   }
 }
 
@@ -538,20 +476,34 @@ const confirmDelete = async () => {
 
 // Load user data on mount
 onMounted(async () => {
-  if (!user.value) {
+  try {
+    // Always fetch users to ensure we have the latest data
     await userStore.fetchUsers()
-  }
-  
-  // Initialize form with current user data
-  if (user.value) {
-    form.value = {
-      firstName: user.value.firstName,
-      lastName: user.value.lastName,
-      displayName: user.value.displayName,
-      isActive: user.value.isActive,
-      isPaid: user.value.isPaid,
-      paidUntil: user.value.paidUntil || ''
+    
+    // Fetch groups to get names
+    await groupStore.fetchGroups()
+    
+    // If user is still not found after fetching, try to fetch the specific user
+    if (!user.value) {
+      try {
+        await userStore.fetchUser(userId.value)
+      } catch (error) {
+        console.error('Error fetching user:', error)
+        // Handle error - could redirect to users list or show error message
+      }
     }
+    
+    // Initialize form with current user data
+    if (user.value) {
+      form.value = {
+        firstName: user.value.firstName,
+        lastName: user.value.lastName,
+        displayName: user.value.displayName,
+        isPaid: user.value.isPaid
+      }
+    }
+  } catch (error) {
+    console.error('Error loading data:', error)
   }
 })
 </script>

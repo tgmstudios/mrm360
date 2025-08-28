@@ -2,31 +2,50 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { z } from 'zod';
 import { prisma } from '../../../models/prismaClient';
 import { TeamManager } from '../../../managers/teamManager';
-import { TaskManager } from '@/managers/taskManager';
+import { BackgroundTaskManager } from '../../../managers/backgroundTaskManager';
 import { withCORS } from '../../../middleware/corsMiddleware';
 import { withAuth } from '../../../middleware/authMiddleware';
 import { withPermissions } from '../../../middleware/permissionMiddleware';
 import { logger } from '../../../utils/logger';
+import { addJobToQueue } from '../../../tasks/queue';
+import { handleApiError, ApiError } from '../../../middleware/errorHandler';
 
 // Validation schemas
 const createTeamSchema = z.object({
-  name: z.string().min(1).max(100),
+  name: z.string().min(1, 'Team name is required'),
   description: z.string().optional(),
-  teamType: z.enum(['COMPETITION', 'DEVELOPMENT']),
-  competitionSubtype: z.enum(['BLUE', 'RED', 'CTF']).optional(),
-  groupId: z.string().optional(),
-  memberIds: z.array(z.string()).optional(),
+  type: z.enum(['COMPETITION', 'DEVELOPMENT']),
+  subtype: z.enum(['BLUE', 'RED', 'CTF']).optional(),
   parentTeamId: z.string().optional(),
+  groupId: z.string().optional(),
+  memberIds: z.array(z.string()).default([]),
+  // Optional provisioning configuration
+  provisioningOptions: z.object({
+    wikijs: z.boolean().default(false),
+    nextcloudFolder: z.boolean().default(false),
+    nextcloudCalendar: z.boolean().default(false),
+    nextcloudDeck: z.boolean().default(false),
+    github: z.boolean().default(false),
+    discord: z.boolean().default(false)
+  }).optional()
+});
+
+const updateTeamSchema = z.object({
+  name: z.string().min(1, 'Team name is required').optional(),
+  description: z.string().optional(),
+  type: z.enum(['COMPETITION', 'DEVELOPMENT']).optional(),
+  subtype: z.enum(['BLUE', 'RED', 'CTF']).optional(),
+  parentTeamId: z.string().optional(),
+  groupId: z.string().optional(),
+  memberIds: z.array(z.string()).optional()
 });
 
 const listTeamsSchema = z.object({
   page: z.string().optional().transform(val => parseInt(val || '1')),
   limit: z.string().optional().transform(val => parseInt(val || '20')),
   search: z.string().optional(),
-  teamType: z.enum(['COMPETITION', 'DEVELOPMENT']).optional(),
-  competitionSubtype: z.enum(['BLUE', 'RED', 'CTF']).optional(),
-  groupId: z.string().optional(),
-  parentTeamId: z.string().optional(),
+  type: z.enum(['COMPETITION', 'DEVELOPMENT']).optional(),
+  groupId: z.string().optional()
 });
 
 /**
@@ -56,27 +75,16 @@ const listTeamsSchema = z.object({
  *           type: string
  *         description: Search term for team name
  *       - in: query
- *         name: teamType
+ *         name: type
  *         schema:
  *           type: string
  *           enum: [COMPETITION, DEVELOPMENT]
  *         description: Filter by team type
  *       - in: query
- *         name: competitionSubtype
- *         schema:
- *           type: string
- *           enum: [BLUE, RED, CTF]
- *         description: Filter by competition subtype
- *       - in: query
  *         name: groupId
  *         schema:
  *           type: string
- *         description: Filter by group
- *       - in: query
- *         name: parentTeamId
- *         schema:
- *           type: string
- *         description: Filter by parent team
+ *         description: Filter by group ID
  *     responses:
  *       200:
  *         description: List of teams
@@ -85,7 +93,7 @@ const listTeamsSchema = z.object({
  *             schema:
  *               type: object
  *               properties:
- *                 teams:
+ *                 data:
  *                   type: array
  *                   items:
  *                     $ref: '#/components/schemas/Team'
@@ -119,28 +127,33 @@ const listTeamsSchema = z.object({
  *             type: object
  *             required:
  *               - name
- *               - teamType
+ *               - type
  *             properties:
  *               name:
  *                 type: string
- *                 minLength: 1
- *                 maxLength: 100
+ *                 description: Team name
  *               description:
  *                 type: string
- *               teamType:
+ *                 description: Team description
+ *               type:
  *                 type: string
  *                 enum: [COMPETITION, DEVELOPMENT]
- *               competitionSubtype:
+ *                 description: Team type
+ *               subtype:
  *                 type: string
  *                 enum: [BLUE, RED, CTF]
+ *                 description: Team subtype
+ *               parentTeamId:
+ *                 type: string
+ *                 description: Parent team ID for subteams
  *               groupId:
  *                 type: string
+ *                 description: Associated group ID
  *               memberIds:
  *                 type: array
  *                 items:
  *                   type: string
- *               parentTeamId:
- *                 type: string
+ *                 description: Array of user IDs to add as team members
  *     responses:
  *       201:
  *         description: Team created successfully
@@ -154,62 +167,166 @@ const listTeamsSchema = z.object({
  *         description: Unauthorized
  *       403:
  *         description: Forbidden - insufficient permissions
+ *       409:
+ *         description: Conflict - team name already exists
  *       500:
  *         description: Internal server error
  */
 async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const teamManager = new TeamManager();
-  const taskManager = new TaskManager();
-
   try {
     if (req.method === 'GET') {
       // List teams
       const queryParams = listTeamsSchema.parse(req.query);
       
-      const result = await teamManager.getTeams({
-        page: queryParams.page,
-        limit: queryParams.limit,
-        search: queryParams.search,
-        type: queryParams.teamType as any,
-        groupId: queryParams.groupId,
-      } as any);
+      const { page = 1, limit = 20, search, type, groupId } = queryParams;
+      const skip = (page - 1) * limit;
 
-      res.status(200).json(result);
+      // Build where clause
+      const where: any = {};
+      if (search) {
+        where.name = { contains: search, mode: 'insensitive' };
+      }
+      if (type) {
+        where.type = type;
+      }
+      if (groupId) {
+        where.groupId = groupId;
+      }
+
+      // Get total count
+      const total = await prisma.team.count({ where });
+
+      // Get teams with pagination
+      const teams = await prisma.team.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { name: 'asc' },
+        include: {
+          group: true,
+          parentTeam: true,
+          subteams: true,
+          userTeams: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                  firstName: true,
+                  lastName: true,
+                  displayName: true,
+                  role: true
+                }
+              }
+            }
+          }
+        }
+      });
+
+      const totalPages = Math.ceil(total / limit);
+
+      res.status(200).json({
+        data: teams,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages
+        }
+      });
+
     } else if (req.method === 'POST') {
       // Create team
-      const body = createTeamSchema.parse(req.body);
+      const data = createTeamSchema.parse(req.body);
       
-      // map fields to expected types
-      const team = await teamManager.createTeam({
-        name: body.name,
-        description: body.description,
-        type: body.teamType as any,
-        subtype: body.competitionSubtype as any,
-        parentTeamId: body.parentTeamId,
-        groupId: body.groupId
+      // Check if team name already exists
+      const existingTeam = await prisma.team.findFirst({
+        where: { name: data.name }
       });
 
-      // Enqueue simulated provisioning task with subtasks linked to this team
-      const subtaskNames = [
-        'Validate inputs and member eligibility',
-        'Create internal records',
-        'Setup Wiki (simulated)',
-        'Setup GitHub (simulated)',
-        'Setup Nextcloud (simulated)',
-        'Create Discord channel (simulated)',
-        'Sync Authentik groups (simulated)'
-      ];
-      await taskManager.enqueueProvisionTask({
-        provisionType: 'TEAM',
-        name: `Provision resources for team ${team.name}`,
-        description: 'Simulated external resource setup',
-        entityType: 'TEAM',
-        entityId: team.id,
-        subtaskNames,
-        payload: { teamId: team.id }
+      if (existingTeam) {
+        return res.status(409).json({ 
+          error: 'Team with this name already exists' 
+        });
+      }
+
+      // Create team in database
+      const team = await prisma.team.create({
+        data: {
+          name: data.name,
+          description: data.description,
+          type: data.type,
+          subtype: data.subtype,
+          parentTeamId: data.parentTeamId,
+          groupId: data.groupId
+        },
+        include: {
+          group: true,
+          parentTeam: true,
+          subteams: true
+        }
       });
 
-      res.status(201).json({ success: true, data: team });
+      // Add team members if specified
+      if (data.memberIds && data.memberIds.length > 0) {
+        const userTeams = data.memberIds.map(userId => ({
+          userId,
+          teamId: team.id,
+          role: 'MEMBER' as const
+        }));
+
+        await prisma.userTeam.createMany({
+          data: userTeams
+        });
+      }
+
+      // Prepare task data
+      const taskData = {
+        teamId: team.id,
+        action: 'create' as const,
+        data: {
+          name: data.name,
+          description: data.description,
+          type: data.type,
+          subtype: data.subtype,
+          parentTeamId: data.parentTeamId,
+          groupId: data.groupId,
+          memberIds: data.memberIds,
+          provisioningOptions: data.provisioningOptions
+        },
+        userId: (req as any).user?.id || 'system',
+        options: {
+          authentik: true, // Always enabled
+          nextcloudGroup: true, // Always enabled
+          wikijs: data.provisioningOptions?.wikijs || false,
+          nextcloudFolder: data.provisioningOptions?.nextcloudFolder || false,
+          nextcloudCalendar: data.provisioningOptions?.nextcloudCalendar || false,
+          nextcloudDeck: data.provisioningOptions?.nextcloudDeck || false,
+          github: data.provisioningOptions?.github || false,
+          discord: data.provisioningOptions?.discord || false
+        }
+      };
+
+      try {
+        // Create background task now so it appears immediately in UI
+        const backgroundTaskManager = new BackgroundTaskManager(prisma);
+        const backgroundTask = await backgroundTaskManager.createTask({
+          name: `Team create`,
+          description: `Provisioning for team ${team.id}`,
+          entityType: 'TEAM',
+          entityId: team.id,
+          subtaskNames: ['Authentik', 'Wiki.js', 'Nextcloud', 'GitHub', 'Discord']
+        });
+
+        await addJobToQueue('TEAM_PROVISIONING', { ...taskData, backgroundTaskId: backgroundTask.id });
+        logger.info(`Queued team provisioning task for team: ${team.id}`);
+      } catch (error) {
+        logger.error('Failed to queue team provisioning task:', error);
+        // Don't fail the request if provisioning fails
+      }
+
+      res.status(201).json(team);
+
     } else {
       res.status(405).json({ error: 'Method not allowed' });
     }
@@ -217,6 +334,11 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (error instanceof z.ZodError) {
       logger.warn('Validation error in teams API', { errors: error.errors });
       return res.status(400).json({ error: 'Validation error', details: error.errors });
+    }
+    
+    // Handle custom API errors (like CONFLICT, NOT_FOUND, etc.)
+    if (error instanceof Error && (error as ApiError).statusCode) {
+      return handleApiError(error, req, res);
     }
     
     logger.error('Error in teams API', { error, method: req.method });
@@ -229,7 +351,7 @@ export default withCORS(
   withAuth(
     withPermissions(
       handler,
-      ['teams:read', 'teams:create']
+      ['teams:read', 'teams:write']
     )
   )
 );

@@ -28,9 +28,7 @@ export interface UserUpdate {
   firstName?: string
   lastName?: string
   displayName?: string
-  isActive?: boolean
-  isPaid?: boolean
-  paidUntil?: string
+  isPaid?: boolean // Maps to paidStatus in backend
   authentikGroups?: string[]
 }
 
@@ -39,37 +37,98 @@ export interface Team {
   id: string
   name: string
   description?: string
-  type: TeamType
+  type: 'COMPETITION' | 'DEVELOPMENT'
+  subtype?: 'BLUE' | 'RED' | 'CTF'
   parentTeamId?: string
   parentTeam?: Team
-  subTeams: Team[]
-  members: User[]
+  subteams: Team[]
+  groupId?: string
+  group?: Group
+  userTeams: UserTeam[]
   events: Event[]
   createdAt: string
   updatedAt: string
 }
 
 export enum TeamType {
-  EXECUTIVE = 'EXECUTIVE',
-  COMMITTEE = 'COMMITTEE',
-  WORKING_GROUP = 'WORKING_GROUP',
-  PROJECT = 'PROJECT'
+  COMPETITION = 'COMPETITION',
+  DEVELOPMENT = 'DEVELOPMENT'
+}
+
+export enum TeamSubtype {
+  BLUE = 'BLUE',
+  RED = 'RED',
+  CTF = 'CTF'
+}
+
+export interface UserTeam {
+  id: string
+  userId: string
+  teamId: string
+  role: 'LEADER' | 'MEMBER'
+  joinedAt: string
+  user: User
 }
 
 export interface TeamCreate {
   name: string
   description?: string
-  type: TeamType
+  type: 'COMPETITION' | 'DEVELOPMENT'
+  subtype?: 'BLUE' | 'RED' | 'CTF'
   parentTeamId?: string
+  groupId?: string
   memberIds: string[]
+  provisioningOptions?: TeamProvisioningOptions
 }
 
 export interface TeamUpdate {
   name?: string
   description?: string
-  type?: TeamType
+  type?: 'COMPETITION' | 'DEVELOPMENT'
+  subtype?: 'BLUE' | 'RED' | 'CTF'
   parentTeamId?: string
+  groupId?: string
   memberIds?: string[]
+  provisioningOptions?: TeamProvisioningOptions
+}
+
+// Team Provisioning types
+export interface TeamProvisioningOptions {
+  // Always enabled services (not configurable)
+  authentik: boolean // Always true
+  nextcloudGroup: boolean // Always true
+  
+  // Optional services
+  wikijs: boolean
+  nextcloudFolder: boolean
+  nextcloudCalendar: boolean
+  nextcloudDeck: boolean
+  github: boolean
+  discord: boolean
+}
+
+export interface TeamProvisioningStatus {
+  success: boolean
+  teamId: string
+  action: 'create' | 'update' | 'delete'
+  options?: TeamProvisioningOptions
+  results: {
+    authentik?: IntegrationResult
+    wikijs?: IntegrationResult
+    nextcloud?: IntegrationResult
+    github?: IntegrationResult
+    discord?: IntegrationResult
+  }
+  errors: string[]
+  warnings: string[]
+}
+
+export interface IntegrationResult {
+  success: boolean
+  message: string
+  data?: any
+  error?: string
+  duration: number
 }
 
 // Event types
@@ -132,20 +191,6 @@ export interface Group {
   updatedAt: string
 }
 
-// Task types
-export interface BackgroundSubtask {
-  id: string
-  taskId: string
-  name: string
-  status: TaskStatus
-  progress: number
-  stepIndex: number
-  result?: any
-  error?: string
-  startedAt?: string
-  finishedAt?: string
-}
-
 export interface Task {
   id: string
   name: string
@@ -156,11 +201,13 @@ export interface Task {
   error?: string
   entityType?: string
   entityId?: string
+  parentTaskId?: string
+  stepIndex?: number
   startedAt?: string
   finishedAt?: string
   createdAt: string
   updatedAt: string
-  subtasks: BackgroundSubtask[]
+  subtasks: Task[]
 }
 
 export enum TaskStatus {

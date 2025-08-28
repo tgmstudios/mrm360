@@ -47,6 +47,10 @@ export const useUserStore = defineStore('users', () => {
     )
   )
 
+  function getUserById(id: string) {
+    return users.value.find(user => user.id === id)
+  }
+
   // Actions
   async function fetchUsers(newFilters?: Partial<UserFilters>) {
     try {
@@ -228,6 +232,7 @@ export const useUserStore = defineStore('users', () => {
     unpaidUsers,
     usersByTeam,
     usersByGroup,
+    getUserById,
     
     // Actions
     fetchUsers,

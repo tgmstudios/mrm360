@@ -14,13 +14,11 @@ import UserEdit from '@/pages/users/UserEdit.vue'
 import TeamsList from '@/pages/teams/TeamsList.vue'
 import TeamDetails from '@/pages/teams/TeamDetails.vue'
 import TeamEdit from '@/pages/teams/TeamEdit.vue'
+import TeamCreate from '@/pages/teams/create.vue'
 import EventsList from '@/pages/events/EventsList.vue'
 import EventDetails from '@/pages/events/EventDetails.vue'
 import EventEdit from '@/pages/events/EventEdit.vue'
 import EventCheckIn from '@/pages/events/EventCheckIn.vue'
-import GroupsList from '@/pages/groups/GroupsList.vue'
-import GroupDetails from '@/pages/groups/GroupDetails.vue'
-import GroupEdit from '@/pages/groups/GroupEdit.vue'
 import TasksList from '@/pages/tasks/TasksList.vue'
 import Login from '@/pages/auth/Login.vue'
 import Callback from '@/pages/auth/Callback.vue'
@@ -104,7 +102,7 @@ const routes: RouteRecordRaw[] = [
           {
             path: 'new',
             name: 'TeamNew',
-            component: TeamEdit,
+            component: TeamCreate,
             meta: { 
               title: 'Create Team',
               requiresExecBoard: true
@@ -168,43 +166,6 @@ const routes: RouteRecordRaw[] = [
             component: EventCheckIn,
             meta: { 
               title: 'Event Check-In',
-              requiresExecBoard: true
-            }
-          }
-        ]
-      },
-      {
-        path: 'groups',
-        name: 'Groups',
-        meta: { title: 'Groups' },
-        children: [
-          {
-            path: '',
-            name: 'GroupsList',
-            component: GroupsList,
-            meta: { title: 'Groups' }
-          },
-          {
-            path: 'new',
-            name: 'GroupNew',
-            component: GroupEdit,
-            meta: { 
-              title: 'Create Group',
-              requiresExecBoard: true
-            }
-          },
-          {
-            path: ':id',
-            name: 'GroupDetails',
-            component: GroupDetails,
-            meta: { title: 'Group Details' }
-          },
-          {
-            path: ':id/edit',
-            name: 'GroupEdit',
-            component: GroupEdit,
-            meta: { 
-              title: 'Edit Group',
               requiresExecBoard: true
             }
           }

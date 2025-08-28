@@ -27,33 +27,6 @@
       <!-- Form -->
       <div class="bg-white rounded-lg shadow">
         <form @submit.prevent="handleSubmit" class="space-y-6 p-6">
-          <!-- Provisioning Progress -->
-          <div v-if="provisionTask" class="mb-4 p-4 border border-blue-200 rounded-md bg-blue-50">
-            <div class="flex items-center justify-between mb-2">
-              <div class="font-medium text-blue-800">Setting up team resources</div>
-              <div class="text-sm text-blue-700">{{ provisionTask.progress }}%</div>
-            </div>
-            <div class="w-full bg-blue-100 rounded h-2 overflow-hidden">
-              <div class="bg-blue-600 h-2" :style="{ width: provisionTask.progress + '%' }"></div>
-            </div>
-            <ul class="mt-3 space-y-1">
-              <li v-for="sub in sortedSubtasks" :key="sub.id" class="flex items-center text-sm">
-                <span class="w-4 h-4 mr-2" :class="{
-                  'text-green-600': sub.status === 'COMPLETED',
-                  'text-blue-600': sub.status === 'RUNNING',
-                  'text-gray-400': sub.status === 'PENDING',
-                  'text-red-600': sub.status === 'FAILED'
-                }">
-                  <svg v-if="sub.status === 'COMPLETED'" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                  <svg v-else-if="sub.status === 'RUNNING'" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>
-                  <svg v-else-if="sub.status === 'FAILED'" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                  <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
-                </span>
-                <span class="flex-1 text-blue-900">{{ sub.name }}</span>
-                <span class="text-xs text-blue-700">{{ sub.progress }}%</span>
-              </li>
-            </ul>
-          </div>
           <!-- Basic Information -->
           <div>
             <h3 class="text-lg font-medium text-gray-900 mb-4">Basic Information</h3>
@@ -86,27 +59,28 @@
                   :class="{ 'border-red-500': errors.type }"
                 >
                   <option value="">Select team type</option>
-                  <option value="committee">Committee</option>
-                  <option value="project">Project Team</option>
-                  <option value="working-group">Working Group</option>
-                  <option value="special">Special Team</option>
+                  <option value="COMPETITION">Competition</option>
+                  <option value="DEVELOPMENT">Development</option>
                 </select>
                 <p v-if="errors.type" class="mt-1 text-sm text-red-600">{{ errors.type }}</p>
               </div>
 
               <div>
-                <label for="description" class="block text-sm font-medium text-gray-700 mb-2">
-                  Description
+                <label for="subtype" class="block text-sm font-medium text-gray-700 mb-2">
+                  Team Subtype
                 </label>
-                <textarea
-                  id="description"
-                  v-model="form.description"
-                  rows="3"
+                <select
+                  id="subtype"
+                  v-model="form.subtype"
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  :class="{ 'border-red-500': errors.description }"
-                  placeholder="Describe the team's purpose and responsibilities"
-                ></textarea>
-                <p v-if="errors.description" class="mt-1 text-sm text-red-600">{{ errors.description }}</p>
+                  :class="{ 'border-red-500': errors.subtype }"
+                >
+                  <option value="">No subtype</option>
+                  <option value="BLUE">Blue Team</option>
+                  <option value="RED">Red Team</option>
+                  <option value="CTF">CTF</option>
+                </select>
+                <p v-if="errors.subtype" class="mt-1 text-sm text-red-600">{{ errors.subtype }}</p>
               </div>
 
               <div>
@@ -119,177 +93,97 @@
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">No parent team</option>
-                  <option
-                    v-for="team in availableParentTeams"
-                    :key="team.id"
-                    :value="team.id"
-                  >
+                  <option v-for="team in availableParentTeams" :key="team.id" :value="team.id">
                     {{ team.name }}
                   </option>
                 </select>
               </div>
             </div>
-          </div>
 
-          <!-- Team Settings -->
-          <div>
-            <h3 class="text-lg font-medium text-gray-900 mb-4">Team Settings</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label for="maxMembers" class="block text-sm font-medium text-gray-700 mb-2">
-                  Maximum Members
-                </label>
-                <input
-                  id="maxMembers"
-                  v-model.number="form.maxMembers"
-                  type="number"
-                  min="1"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  :class="{ 'border-red-500': errors.maxMembers }"
-                  placeholder="Leave empty for unlimited"
-                />
-                <p v-if="errors.maxMembers" class="mt-1 text-sm text-red-600">{{ errors.maxMembers }}</p>
-              </div>
-
-              <div>
-                <label for="status" class="block text-sm font-medium text-gray-700 mb-2">
-                  Status *
-                </label>
-                <select
-                  id="status"
-                  v-model="form.status"
-                  required
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  :class="{ 'border-red-500': errors.status }"
-                >
-                  <option value="">Select status</option>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                  <option value="archived">Archived</option>
-                </select>
-                <p v-if="errors.status" class="mt-1 text-sm text-red-600">{{ errors.status }}</p>
-              </div>
-
-              <div class="md:col-span-2">
-                <div class="flex items-center">
-                  <input
-                    id="isPublic"
-                    v-model="form.isPublic"
-                    type="checkbox"
-                    class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <label for="isPublic" class="ml-2 block text-sm text-gray-900">
-                    Public team (visible to all members)
-                  </label>
-                </div>
-              </div>
+            <div class="mt-6">
+              <label for="description" class="block text-sm font-medium text-gray-700 mb-2">
+                Description
+              </label>
+              <textarea
+                id="description"
+                v-model="form.description"
+                rows="3"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Enter team description"
+              ></textarea>
             </div>
           </div>
 
           <!-- Team Members -->
           <div>
             <h3 class="text-lg font-medium text-gray-900 mb-4">Team Members</h3>
-            <div class="space-y-4">
-              <!-- Add Member -->
-              <div class="flex gap-3">
-                <select
-                  v-model="newMemberId"
-                  class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">Select a member to add</option>
-                  <option
-                    v-for="user in availableUsers"
-                    :key="user.id"
-                    :value="user.id"
-                  >
-                    {{ user.name }} ({{ user.email }})
-                  </option>
-                </select>
-                <button
+            
+            <!-- Add Member -->
+            <div class="flex gap-4 mb-4">
+              <select
+                v-model="newMemberId"
+                class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Select a user to add</option>
+                <option v-for="user in availableUsers" :key="user.id" :value="user.id">
+                  {{ user.displayName || `${user.firstName} ${user.lastName}` }}
+                </option>
+              </select>
+              <BaseButton
+                type="button"
+                @click="addMember"
+                :disabled="!newMemberId"
+                variant="outline"
+              >
+                Add Member
+              </BaseButton>
+            </div>
+
+            <!-- Member List -->
+            <div v-if="form.memberIds.length > 0" class="space-y-2">
+              <div
+                v-for="memberId in form.memberIds"
+                :key="memberId"
+                class="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+              >
+                <span class="text-sm text-gray-900">
+                  {{ getUserName(memberId) }}
+                </span>
+                <BaseButton
                   type="button"
-                  @click="addMember"
-                  :disabled="!newMemberId"
-                  class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
+                  @click="removeMember(memberId)"
+                  variant="ghost"
+                  size="sm"
+                  class="text-red-600 hover:text-red-800"
                 >
-                  Add Member
-                </button>
-              </div>
-
-              <!-- Members List -->
-              <div v-if="form.members.length > 0" class="border border-gray-200 rounded-lg">
-                <div class="px-4 py-3 bg-gray-50 border-b border-gray-200">
-                  <h4 class="text-sm font-medium text-gray-900">Current Members ({{ form.members.length }})</h4>
-                </div>
-                <ul class="divide-y divide-gray-200">
-                  <li
-                    v-for="member in form.members"
-                    :key="member.id"
-                    class="px-4 py-3 flex items-center justify-between"
-                  >
-                    <div class="flex items-center">
-                      <div class="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
-                        <span class="text-sm font-medium text-gray-700">
-                          {{ member.name.charAt(0).toUpperCase() }}
-                        </span>
-                      </div>
-                      <div class="ml-3">
-                        <p class="text-sm font-medium text-gray-900">{{ member.name }}</p>
-                        <p class="text-sm text-gray-500">{{ member.email }}</p>
-                      </div>
-                    </div>
-                    <div class="flex items-center gap-2">
-                      <select
-                        v-model="member.role"
-                        class="px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                      >
-                        <option value="member">Member</option>
-                        <option value="leader">Leader</option>
-                        <option value="coordinator">Coordinator</option>
-                      </select>
-                      <button
-                        type="button"
-                        @click="removeMember(member.id)"
-                        class="text-red-600 hover:text-red-800"
-                      >
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                        </svg>
-                      </button>
-                    </div>
-                  </li>
-                </ul>
-              </div>
-
-              <!-- No Members State -->
-              <div v-else class="text-center py-8 text-gray-500">
-                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                </svg>
-                <p class="mt-2 text-sm">No members added yet</p>
-                <p class="text-xs">Add members using the form above</p>
+                  Remove
+                </BaseButton>
               </div>
             </div>
+
+            <div v-else class="text-center py-4 text-gray-500">
+              No members added yet
+            </div>
+
+            <p v-if="errors.members" class="mt-1 text-sm text-red-600">{{ errors.members }}</p>
           </div>
 
           <!-- Form Actions -->
-          <div class="flex items-center justify-end space-x-3 pt-6 border-t border-gray-200">
-            <router-link
-              to="/teams"
-              class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          <div class="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+            <BaseButton
+              type="button"
+              variant="outline"
+              @click="$router.push('/teams')"
             >
               Cancel
-            </router-link>
-            <button
+            </BaseButton>
+            <BaseButton
               type="submit"
-              :disabled="loading || !isFormValid"
-              class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
+              :loading="submitting"
+              :disabled="!isFormValid"
             >
-              <svg v-if="loading" class="animate-spin -ml-1 mr-2 h-4 w-4 inline" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
               {{ isEditing ? 'Update Team' : 'Create Team' }}
-            </button>
+            </BaseButton>
           </div>
         </form>
       </div>
@@ -298,117 +192,92 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTeamStore } from '@/stores/teamStore'
 import { useUserStore } from '@/stores/userStore'
-import { useTaskStore } from '@/stores/taskStore'
 import { usePermissions } from '@/composables/usePermissions'
-import { useToast } from 'vue-toastification'
-import type { Team, User, TeamMember, Task } from '@/types/api'
+import BaseButton from '@/components/common/BaseButton.vue'
+import type { Team, TeamCreate, TeamUpdate, User } from '@/types/api'
 
 const route = useRoute()
 const router = useRouter()
 const teamStore = useTeamStore()
-const taskStore = useTaskStore()
 const userStore = useUserStore()
 const { can } = usePermissions()
-const toast = useToast()
 
 // Check permissions
-if (!can('manage', 'teams')) {
-  router.push('/teams')
-}
+const canEdit = computed(() => can('update', 'Team'))
+const canCreate = computed(() => can('create', 'Team'))
 
-// Reactive data
+// State
 const loading = ref(false)
+const submitting = ref(false)
 const newMemberId = ref('')
 const errors = ref<Record<string, string>>({})
-const provisionTask = ref<Task | null>(null)
-let provisionTimer: number | null = null
 
 // Form data
-const form = ref({
+const form = reactive({
   name: '',
   type: '',
+  subtype: '',
   description: '',
   parentTeamId: '',
-  maxMembers: null as number | null,
-  status: '',
-  isPublic: false,
-  members: [] as TeamMember[]
+  groupId: '',
+  memberIds: [] as string[]
 })
 
 // Computed properties
 const isEditing = computed(() => !!route.params.id)
-const teamId = computed(() => route.params.id as string)
-
-const availableParentTeams = computed(() => {
-  return teamStore.teams.filter(team => 
-    team.id !== teamId.value && team.status === 'active'
-  )
-})
 
 const availableUsers = computed(() => {
-  const currentMemberIds = form.value.members.map(m => m.id)
-  return userStore.users.filter(user => 
-    !currentMemberIds.includes(user.id) && user.status === 'active'
-  )
+  return userStore.users.filter(user => user.isActive)
+})
+
+const availableParentTeams = computed(() => {
+  return teamStore.teams.filter(team => team.id !== route.params.id)
 })
 
 const isFormValid = computed(() => {
-  return form.value.name && 
-         form.value.type && 
-         form.value.status &&
-         form.value.members.length > 0
+  return form.name && 
+         form.type && 
+         form.memberIds.length > 0
 })
 
 // Methods
+const getUserName = (userId: string) => {
+  const user = userStore.users.find(u => u.id === userId)
+  return user ? (user.displayName || `${user.firstName} ${user.lastName}`) : 'Unknown User'
+}
+
 const addMember = () => {
   if (!newMemberId.value) return
-
-  const user = userStore.users.find(u => u.id === newMemberId.value)
-  if (!user) return
-
-  const member: TeamMember = {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    role: 'member',
-    joinedAt: new Date().toISOString()
+  
+  if (!form.memberIds.includes(newMemberId.value)) {
+    form.memberIds.push(newMemberId.value)
+    newMemberId.value = ''
   }
-
-  form.value.members.push(member)
-  newMemberId.value = ''
 }
 
 const removeMember = (memberId: string) => {
-  const index = form.value.members.findIndex(m => m.id === memberId)
+  const index = form.memberIds.indexOf(memberId)
   if (index > -1) {
-    form.value.members.splice(index, 1)
+    form.memberIds.splice(index, 1)
   }
 }
 
 const validateForm = () => {
   errors.value = {}
 
-  if (!form.value.name.trim()) {
+  if (!form.name.trim()) {
     errors.value.name = 'Team name is required'
   }
 
-  if (!form.value.type) {
+  if (!form.type) {
     errors.value.type = 'Team type is required'
   }
 
-  if (!form.value.status) {
-    errors.value.status = 'Team status is required'
-  }
-
-  if (form.value.maxMembers && form.value.maxMembers < form.value.members.length) {
-    errors.value.maxMembers = 'Maximum members cannot be less than current member count'
-  }
-
-  if (form.value.members.length === 0) {
+  if (form.memberIds.length === 0) {
     errors.value.members = 'At least one member is required'
   }
 
@@ -417,99 +286,76 @@ const validateForm = () => {
 
 const handleSubmit = async () => {
   if (!validateForm()) return
-
-  loading.value = true
+  
+  submitting.value = true
   try {
     if (isEditing.value) {
-      await teamStore.updateTeam(teamId.value, form.value)
-      toast.success('Team updated successfully')
+      const updateData: TeamUpdate = {
+        name: form.name,
+        type: form.type as 'COMPETITION' | 'DEVELOPMENT',
+        subtype: form.subtype as 'BLUE' | 'RED' | 'CTF' | undefined,
+        description: form.description,
+        parentTeamId: form.parentTeamId || undefined,
+        groupId: form.groupId || undefined,
+        memberIds: form.memberIds
+      }
+      
+      await teamStore.updateTeam(route.params.id as string, updateData)
+      router.push(`/teams/${route.params.id}`)
     } else {
-      const created = await teamStore.createTeam(form.value)
-      startProvisionPolling('TEAM', created.id)
-      toast.success('Team created successfully')
+      const createData: TeamCreate = {
+        name: form.name,
+        type: form.type as 'COMPETITION' | 'DEVELOPMENT',
+        subtype: form.subtype as 'BLUE' | 'RED' | 'CTF' | undefined,
+        description: form.description,
+        parentTeamId: form.parentTeamId || undefined,
+        groupId: form.groupId || undefined,
+        memberIds: form.memberIds
+      }
+      
+      const newTeam = await teamStore.createTeam(createData)
+      router.push(`/teams/${newTeam.id}`)
     }
-    router.push('/tasks')
   } catch (error) {
-    toast.error(isEditing.value ? 'Failed to update team' : 'Failed to create team')
-    console.error('Error saving team:', error)
+    console.error('Failed to save team:', error)
   } finally {
-    loading.value = false
+    submitting.value = false
   }
 }
 
 const loadTeam = async () => {
   if (!isEditing.value) return
-
+  
   try {
-    const team = await teamStore.fetchTeam(teamId.value)
-    if (team) {
-      form.value = {
-        name: team.name,
-        type: team.type,
-        description: team.description || '',
-        parentTeamId: team.parentTeamId || '',
-        maxMembers: team.maxMembers || null,
-        status: team.status,
-        isPublic: team.isPublic || false,
-        members: team.members || []
-      }
-    }
+    loading.value = true
+    const team = await teamStore.fetchTeam(route.params.id as string)
+    
+    Object.assign(form, {
+      name: team.name,
+      type: team.type,
+      subtype: team.subtype || '',
+      description: team.description || '',
+      parentTeamId: team.parentTeamId || '',
+      groupId: team.groupId || '',
+      memberIds: team.userTeams?.map((ut: any) => ut.userId) || []
+    })
   } catch (error) {
-    toast.error('Failed to load team')
-    console.error('Error loading team:', error)
+    console.error('Failed to load team:', error)
     router.push('/teams')
+  } finally {
+    loading.value = false
   }
 }
 
 // Lifecycle
 onMounted(async () => {
   await Promise.all([
-    teamStore.fetchTeams(),
-    userStore.fetchUsers()
+    userStore.fetchUsers(),
+    teamStore.fetchTeams()
   ])
   
   if (isEditing.value) {
     await loadTeam()
   }
 })
-
-// Watchers
-watch(() => route.params.id, () => {
-  if (route.params.id) {
-    loadTeam()
-  }
-})
-
-const startProvisionPolling = (entityType: 'EVENT' | 'TEAM', entityId: string) => {
-  if (provisionTimer) {
-    clearInterval(provisionTimer)
-    provisionTimer = null
-  }
-  provisionTask.value = {
-    id: '',
-    name: 'Provision',
-    status: 'RUNNING',
-    progress: 0,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    subtasks: []
-  } as any
-  provisionTimer = window.setInterval(async () => {
-    try {
-      const resp = await taskStore.fetchTasks({ entityType, entityId, page: 1, limit: 1 })
-      const task = resp.data[0]
-      if (task) {
-        provisionTask.value = task as any
-        if (task.status === 'COMPLETED' || task.status === 'FAILED') {
-          if (provisionTimer) clearInterval(provisionTimer)
-          provisionTimer = null
-        }
-      }
-    } catch (e) {
-      // ignore polling errors
-    }
-  }, 1000)
-}
-
-const sortedSubtasks = computed(() => (provisionTask.value?.subtasks || []).slice().sort((a, b) => a.stepIndex - b.stepIndex))
 </script>

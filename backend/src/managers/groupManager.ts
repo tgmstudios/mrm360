@@ -81,6 +81,65 @@ export class GroupManager {
     }
   }
 
+  async getGroups(params: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    isExternal?: boolean;
+  }): Promise<{
+    data: GroupProfile[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  }> {
+    try {
+      const { page = 1, limit = 20, search, isExternal } = params;
+      const skip = (page - 1) * limit;
+
+      // Simplified query - no filtering for now
+      logger.info('getGroups called with params:', { page, limit, search, isExternal });
+
+      // Get total count without any filters
+      const total = await prisma.group.count();
+      logger.info('Total groups in database:', total);
+
+      // Get all groups without any filters
+      const allGroups = await prisma.group.findMany({
+        orderBy: { name: 'asc' },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          externalId: true,
+          createdAt: true,
+          updatedAt: true
+        }
+      });
+
+      logger.info('All groups retrieved:', allGroups.length);
+
+      // Apply pagination manually
+      const groups = allGroups.slice(skip, skip + limit);
+      const totalPages = Math.ceil(total / limit);
+
+      return {
+        data: groups as GroupProfile[],
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages
+        }
+      };
+    } catch (error) {
+      logger.error('Error getting groups with pagination:', error);
+      throw error;
+    }
+  }
+
   async updateGroup(id: string, data: UpdateGroupRequest): Promise<GroupProfile> {
     try {
       // Check if name is being changed and if it conflicts
@@ -167,13 +226,9 @@ export class GroupManager {
                   lastName: true,
                   displayName: true,
                   role: true,
-                  paidStatus: true,
-                  joinedAt: true
+                  paidStatus: true
                 }
               }
-            },
-            orderBy: {
-              joinedAt: 'asc'
             }
           }
         }
@@ -184,8 +239,7 @@ export class GroupManager {
       }
 
       return group.userGroups.map(ug => ({
-        ...ug.user,
-        joinedAt: ug.joinedAt
+        ...ug.user
       }));
     } catch (error) {
       logger.error(`Error getting group members ${id}:`, error);

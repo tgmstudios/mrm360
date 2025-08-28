@@ -19,42 +19,27 @@ enum TaskStatus {
 }
 
 model BackgroundTask {
-  id          String            @id @default(cuid())
-  name        String
-  description String?
-  status      TaskStatus        @default(PENDING)
-  progress    Int               @default(0)
-  result      Json?
-  error       String?
-  entityType  String?
-  entityId    String?
-  startedAt   DateTime?
-  finishedAt  DateTime?
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  id            String       @id @default(cuid())
+  name          String
+  description   String?
+  status        TaskStatus   @default(PENDING)
+  progress      Int          @default(0)
+  result        Json?
+  error         String?
+  entityType    String?
+  entityId      String?
+  stepIndex     Int          @default(0)
+  parentTaskId  String?
+  startedAt     DateTime?
+  finishedAt    DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 
-  // Relations
-  subtasks    BackgroundSubtask[]
+  // Self-referencing relation: parent task and subtasks
+  parentTask  BackgroundTask? @relation("TaskToSubtasks", fields: [parentTaskId], references: [id], onDelete: Cascade)
+  subtasks    BackgroundTask[] @relation("TaskToSubtasks")
 
   @@map("background_tasks")
-}
-
-model BackgroundSubtask {
-  id         String     @id @default(cuid())
-  taskId     String
-  name       String
-  status     TaskStatus @default(PENDING)
-  progress   Int        @default(0)
-  stepIndex  Int        @default(0)
-  result     Json?
-  error      String?
-  startedAt  DateTime?
-  finishedAt DateTime?
-
-  // Relations
-  task       BackgroundTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
-
-  @@map("background_subtasks")
 }
 
 model User {

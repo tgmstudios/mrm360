@@ -2,16 +2,19 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { z } from 'zod';
 import { prisma } from '../../../models/prismaClient';
 import { UserManager } from '../../../managers/userManager';
+import { withCORS } from '../../../middleware/corsMiddleware';
 import { withAuth } from '../../../middleware/authMiddleware';
 import { withPermissions } from '../../../middleware/permissionMiddleware';
 import { logger } from '../../../utils/logger';
+import { handleApiError, ApiError } from '../../../middleware/errorHandler';
 
 // Validation schemas
 const updateUserSchema = z.object({
-  name: z.string().min(1).max(100).optional(),
-  role: z.enum(['ADMIN', 'EXEC_BOARD', 'MEMBER']).optional(),
-  paidStatus: z.boolean().optional(),
-  groupIds: z.array(z.string()).optional(),
+  firstName: z.string().min(1).max(100).optional(),
+  lastName: z.string().min(1).max(100).optional(),
+  displayName: z.string().min(1).max(100).optional(),
+  isPaid: z.boolean().optional(), // Maps to paidStatus in database
+  authentikGroups: z.array(z.string()).optional(),
 });
 
 /**
@@ -160,15 +163,22 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       return res.status(400).json({ error: 'Validation error', details: error.errors });
     }
     
+    // Handle custom API errors (like CONFLICT, NOT_FOUND, etc.)
+    if (error instanceof Error && (error as ApiError).statusCode) {
+      return handleApiError(error, req, res);
+    }
+    
     logger.error('Error in user API', { error, method: req.method, userId: id });
     res.status(500).json({ error: 'Internal server error' });
   }
 }
 
-// Apply middleware: authentication then permissions
-export default withAuth(
-  withPermissions(
-    handler,
-    ['users:read', 'users:update', 'users:delete']
+// Apply middleware: CORS, authentication then permissions
+export default withCORS(
+  withAuth(
+    withPermissions(
+      handler,
+      ['users:read', 'users:update', 'users:delete']
+    )
   )
 );

@@ -4,73 +4,121 @@ import {
   emailQueue, 
   qrCodeQueue, 
   syncGroupsQueue,
+  teamProvisioningQueue,
   QUEUE_NAMES 
 } from './queue';
 import { processProvisionJob, processProvisionJobFailed } from './workers/provisionWorker';
 import { processEmailJob, processEmailJobFailed } from './workers/emailWorker';
 import { processQRCodeJob, processQRCodeJobFailed } from './workers/qrCodeWorker';
 import { processSyncGroupsJob, processSyncGroupsJobFailed } from './workers/syncGroupsWorker';
+import { processTeamProvisioningJob, processTeamProvisioningJobFailed } from './workers/teamProvisioningProcessor';
+
+// Import Redis connection from queue file
+import Redis from 'ioredis';
+const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
+  maxRetriesPerRequest: null
+});
 
 // Create workers
 const emailWorker = new Worker(QUEUE_NAMES.EMAIL, processEmailJob, {
+  connection: redis,
   concurrency: 5, // Process up to 5 email jobs concurrently
-  removeOnComplete: 100, // Keep last 100 completed jobs
-  removeOnFail: 50 // Keep last 50 failed jobs
+  removeOnComplete: { count: 100 }, // Keep last 100 completed jobs
+  removeOnFail: { count: 50 } // Keep last 50 failed jobs
 });
 
 const qrCodeWorker = new Worker(QUEUE_NAMES.QR_CODE, processQRCodeJob, {
+  connection: redis,
   concurrency: 3, // Process up to 3 QR code jobs concurrently
-  removeOnComplete: 100,
-  removeOnFail: 50
+  removeOnComplete: { count: 100 },
+  removeOnFail: { count: 50 }
 });
 
 const syncGroupsWorker = new Worker(QUEUE_NAMES.SYNC_GROUPS, processSyncGroupsJob, {
+  connection: redis,
   concurrency: 1, // Only one sync groups job at a time
-  removeOnComplete: 50,
-  removeOnFail: 25
+  removeOnComplete: { count: 50 },
+  removeOnFail: { count: 25 }
 });
 
 const provisionWorker = new Worker(QUEUE_NAMES.PROVISION, processProvisionJob, {
+  connection: redis,
   concurrency: 2,
-  removeOnComplete: 100,
-  removeOnFail: 50
+  removeOnComplete: { count: 100 },
+  removeOnFail: { count: 50 }
+});
+
+const teamProvisioningWorker = new Worker(QUEUE_NAMES.TEAM_PROVISIONING, processTeamProvisioningJob, {
+  connection: redis,
+  concurrency: 1, // Process one job at a time to avoid conflicts
+  removeOnComplete: { count: 100 },
+  removeOnFail: { count: 50 }
 });
 
 // Worker event handlers
 emailWorker.on('completed', (job) => {
-  logger.info(`Email worker completed job ${job.id}`);
+  if (job) {
+    logger.info(`Email worker completed job ${job.id}`);
+  }
 });
 
 emailWorker.on('failed', (job, err) => {
-  logger.error(`Email worker failed job ${job.id}:`, err);
-  processEmailJobFailed(job, err);
+  if (job) {
+    logger.error(`Email worker failed job ${job.id}:`, err);
+    processEmailJobFailed(job, err);
+  }
 });
 
 qrCodeWorker.on('completed', (job) => {
-  logger.info(`QR Code worker completed job ${job.id}`);
+  if (job) {
+    logger.info(`QR Code worker completed job ${job.id}`);
+  }
 });
 
 qrCodeWorker.on('failed', (job, err) => {
-  logger.error(`QR Code worker failed job ${job.id}:`, err);
-  processQRCodeJobFailed(job, err);
+  if (job) {
+    logger.error(`QR Code worker failed job ${job.id}:`, err);
+    processQRCodeJobFailed(job, err);
+  }
 });
 
 syncGroupsWorker.on('completed', (job) => {
-  logger.info(`Sync Groups worker completed job ${job.id}`);
+  if (job) {
+    logger.info(`Sync Groups worker completed job ${job.id}`);
+  }
 });
 
 syncGroupsWorker.on('failed', (job, err) => {
-  logger.error(`Sync Groups worker failed job ${job.id}:`, err);
-  processSyncGroupsJobFailed(job, err);
+  if (job) {
+    logger.error(`Sync Groups worker failed job ${job.id}:`, err);
+    processSyncGroupsJobFailed(job, err);
+  }
 });
 
 provisionWorker.on('completed', (job) => {
-  logger.info(`Provision worker completed job ${job.id}`);
+  if (job) {
+    logger.info(`Provision worker completed job ${job.id}`);
+  }
 });
 
 provisionWorker.on('failed', (job, err) => {
-  logger.error(`Provision worker failed job ${job.id}:`, err);
-  processProvisionJobFailed(job, err);
+  if (job) {
+    logger.error(`Provision worker failed job ${job.id}:`, err);
+    processProvisionJobFailed(job, err);
+  }
+});
+
+teamProvisioningWorker.on('completed', (job) => {
+  if (job) {
+    logger.info(`Team Provisioning worker completed job ${job.id}`);
+  }
+});
+
+teamProvisioningWorker.on('failed', (job, err) => {
+  if (job) {
+    logger.error(`Team Provisioning worker failed job ${job.id}:`, err);
+    processTeamProvisioningJobFailed(job, err);
+  }
 });
 
 // Graceful shutdown
@@ -81,6 +129,7 @@ async function gracefulShutdown() {
   await qrCodeWorker.close();
   await syncGroupsWorker.close();
   await provisionWorker.close();
+  await teamProvisioningWorker.close();
   
   logger.info('All workers closed');
   process.exit(0);
@@ -106,3 +155,4 @@ logger.info(`Email worker: ${QUEUE_NAMES.EMAIL}`);
 logger.info(`QR Code worker: ${QUEUE_NAMES.QR_CODE}`);
 logger.info(`Sync Groups worker: ${QUEUE_NAMES.SYNC_GROUPS}`);
 logger.info(`Provision worker: ${QUEUE_NAMES.PROVISION}`);
+logger.info(`Team Provisioning worker: ${QUEUE_NAMES.TEAM_PROVISIONING}`);

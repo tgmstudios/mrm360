@@ -17,7 +17,8 @@ import type {
   DashboardStats,
   UserFilters,
   EventFilters,
-  TeamFilters
+  TeamFilters,
+  TeamProvisioningStatus
 } from '@/types/api'
 
 class ApiService {
@@ -117,21 +118,38 @@ class ApiService {
 
   async getTeam(id: string): Promise<Team> {
     const response = await this.api.get(`/teams/${id}`)
-    return response.data.data
+    return response.data
   }
 
   async createTeam(teamData: TeamCreate): Promise<Team> {
     const response = await this.api.post('/teams', teamData)
-    return response.data.data
+    return response.data
   }
 
   async updateTeam(id: string, teamData: TeamUpdate): Promise<Team> {
     const response = await this.api.put(`/teams/${id}`, teamData)
-    return response.data.data
+    return response.data
   }
 
   async deleteTeam(id: string): Promise<void> {
-    await this.api.delete(`/teams/${id}`)
+    try {
+      await this.api.delete(`/teams/${id}`)
+    } catch (error: any) {
+      const serverMessage = error?.response?.data?.error
+      const message = serverMessage || error?.message || 'Failed to delete team'
+      throw new Error(message)
+    }
+  }
+
+  // Team Provisioning Status
+  async getTeamProvisioningStatus(teamId: string): Promise<TeamProvisioningStatus | null> {
+    try {
+      const response = await this.api.get(`/teams/${teamId}/provisioning-status`)
+      return response.data
+    } catch (error) {
+      // If endpoint doesn't exist yet, return null
+      return null
+    }
   }
 
   // Event endpoints

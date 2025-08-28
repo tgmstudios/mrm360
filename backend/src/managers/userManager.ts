@@ -86,16 +86,43 @@ export class UserManager {
 
   async updateUser(id: string, data: UpdateUserRequest): Promise<UserProfile> {
     try {
+      // Build update data object with only provided fields
+      const updateData: any = {};
+      
+      if (data.firstName !== undefined) updateData.firstName = data.firstName;
+      if (data.lastName !== undefined) updateData.lastName = data.lastName;
+      if (data.displayName !== undefined) updateData.displayName = data.displayName;
+      
+      // Map isPaid to paidStatus (existing database field)
+      if (data.isPaid !== undefined) updateData.paidStatus = data.isPaid;
+      
+      // Note: isActive and paidUntil fields don't exist in the database schema
+      // These would need to be added to the schema if they're required
+
       const user = await prisma.user.update({
         where: { id },
-        data: {
-          firstName: data.firstName,
-          lastName: data.lastName,
-          displayName: data.displayName,
-          paidStatus: data.paidStatus,
-          role: data.role
-        }
+        data: updateData
       });
+
+      // Handle authentik groups if provided
+      if (data.authentikGroups !== undefined) {
+        // Remove existing user groups
+        await prisma.userGroup.deleteMany({
+          where: { userId: id }
+        });
+
+        // Add new user groups
+        if (data.authentikGroups.length > 0) {
+          const userGroups = data.authentikGroups.map(groupId => ({
+            userId: id,
+            groupId
+          }));
+
+          await prisma.userGroup.createMany({
+            data: userGroups
+          });
+        }
+      }
 
       logger.info(`Updated user: ${user.email}`);
       return user;
@@ -120,7 +147,7 @@ export class UserManager {
 
   async getUsers(params: UserQueryParams): Promise<PaginatedResponse<UserProfile>> {
     try {
-      const { page = 1, limit = 20, search, role, paidStatus, groupId } = params;
+      const { page = 1, limit = 20, search, role, paidStatus, groupId, teamId, sortBy, sortOrder } = params;
       const skip = (page - 1) * limit;
 
       // Build where clause
@@ -150,22 +177,60 @@ export class UserManager {
         };
       }
 
+      if (teamId) {
+        where.userTeams = {
+          some: {
+            teamId
+          }
+        };
+      }
+
       // Get total count
       const total = await prisma.user.count({ where });
+
+      // Build orderBy clause
+      let orderBy: any[] = [];
+      
+      if (sortBy && sortOrder) {
+        if (sortBy === 'displayName') {
+          orderBy = [
+            { lastName: sortOrder },
+            { firstName: sortOrder }
+          ];
+        } else if (sortBy === 'email') {
+          orderBy = [{ email: sortOrder }];
+        } else if (sortBy === 'createdAt') {
+          orderBy = [{ createdAt: sortOrder }];
+        } else {
+          // Default ordering
+          orderBy = [
+            { lastName: 'asc' },
+            { firstName: 'asc' }
+          ];
+        }
+      } else {
+        // Default ordering
+        orderBy = [
+          { lastName: 'asc' },
+          { firstName: 'asc' }
+        ];
+      }
 
       // Get users
       const users = await prisma.user.findMany({
         where,
         skip,
         take: limit,
-        orderBy: [
-          { lastName: 'asc' },
-          { firstName: 'asc' }
-        ],
+        orderBy,
         include: {
           userGroups: {
             include: {
               group: true
+            }
+          },
+          userTeams: {
+            include: {
+              team: true
             }
           }
         }

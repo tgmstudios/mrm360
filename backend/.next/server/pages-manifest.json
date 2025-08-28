@@ -1,12 +1,5 @@
 {
   "/_app": "pages/_app.js",
   "/_error": "pages/_error.js",
-  "/_document": "pages/_document.js",
-  "/docs": "pages/docs.js",
-  "/api/auth/session": "pages/api/auth/session.js",
-  "/api/users": "pages/api/users.js",
-  "/api/groups": "pages/api/groups.js",
-  "/api/teams": "pages/api/teams.js",
-  "/api/tasks": "pages/api/tasks.js",
-  "/api/events": "pages/api/events.js"
+  "/_document": "pages/_document.js"
 }

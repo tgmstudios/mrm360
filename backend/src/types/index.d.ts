@@ -35,8 +35,8 @@ export interface UpdateUserRequest {
 export interface GroupProfile {
   id: string;
   name: string;
-  description?: string;
-  externalId?: string;
+  description?: string | null;
+  externalId?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -194,6 +194,9 @@ export interface UserQueryParams {
   role?: Role;
   paidStatus?: boolean;
   groupId?: string;
+  teamId?: string;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
 }
 
 export interface TeamQueryParams {
@@ -237,6 +240,183 @@ export interface QRCodeTask {
 
 export interface SyncGroupsTask {
   force?: boolean;
+}
+
+// Team Provisioning types
+export interface TeamProvisioningTask {
+  teamId: string;
+  action: 'create' | 'update' | 'delete';
+  data: CreateTeamRequest | UpdateTeamRequest;
+  userId: string; // User performing the action
+  options?: TeamProvisioningOptions; // Optional provisioning configuration
+  backgroundTaskId?: string; // Optional: DB task to update during processing
+}
+
+export interface TeamProvisioningOptions {
+  // Always enabled services
+  authentik: boolean; // Always true
+  nextcloudGroup: boolean; // Always true
+  
+  // Optional services
+  wikijs: boolean;
+  nextcloudFolder: boolean;
+  nextcloudCalendar: boolean;
+  nextcloudDeck: boolean;
+  github: boolean;
+  discord: boolean;
+}
+
+export interface TeamProvisioningResult {
+  success: boolean;
+  teamId: string;
+  action: string;
+  options?: TeamProvisioningOptions;
+  results: {
+    authentik?: IntegrationResult;
+    wikijs?: IntegrationResult;
+    nextcloud?: IntegrationResult;
+    github?: IntegrationResult;
+    discord?: IntegrationResult;
+  };
+  errors: string[];
+  warnings: string[];
+}
+
+export interface IntegrationResult {
+  success: boolean;
+  message: string;
+  data?: any;
+  error?: string;
+  duration: number;
+}
+
+// External Integration types
+export interface AuthentikGroup {
+  id: string;
+  name: string;
+  description?: string;
+  parentGroupId?: string;
+  users: string[];
+}
+
+export interface AuthentikUser {
+  id: string;
+  username: string;
+  email: string;
+  groups: string[];
+  attributes?: Record<string, any>;
+}
+
+export interface WikiPage {
+  path: string;
+  title: string;
+  content: string;
+  permissions: WikiPermission[];
+}
+
+export interface WikiPermission {
+  groupId: string;
+  permissions: string[];
+}
+
+export interface NextcloudGroup {
+  id: string;
+  name: string;
+  members: string[];
+}
+
+export interface NextcloudFolder {
+  path: string;
+  permissions: string[];
+  groupId: string;
+  folderId?: string;
+}
+
+export interface NextcloudCalendar {
+  name: string;
+  groupId: string;
+}
+
+export interface NextcloudDeckBoard {
+  name: string;
+  groupId: string;
+  boardId?: string;
+}
+
+export interface GitHubTeam {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  members: string[];
+}
+
+export interface GitHubRepository {
+  name: string;
+  description?: string;
+  private: boolean;
+  teamId: string;
+}
+
+export interface DiscordChannel {
+  id: string;
+  name: string;
+  categoryId: string;
+  permissions: DiscordPermission[];
+}
+
+export interface DiscordRole {
+  id: string;
+  name: string;
+  permissions: string[];
+  members: string[];
+}
+
+export interface DiscordPermission {
+  roleId: string;
+  permissions: string[];
+}
+
+// Team Management types
+export interface TeamMember {
+  userId: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: TeamRole;
+  discordId?: string;
+  githubUsername?: string;
+  nextcloudUsername?: string;
+}
+
+export interface TeamProvisioningConfig {
+  authentik: {
+    baseUrl: string;
+    token: string;
+    parentGroupTemplate: string;
+  };
+  wikijs: {
+    baseUrl: string;
+    token: string;
+    basePath: string;
+  };
+  nextcloud: {
+    baseUrl: string;
+    username: string;
+    password: string;
+    basePath: string;
+  };
+  github: {
+    baseUrl: string;
+    token: string;
+    organization: string;
+    parentTeamId: string;
+  };
+  discord: {
+    botToken: string;
+    guildId: string;
+    categoryId: string;
+  };
 }
 
 // Permission types

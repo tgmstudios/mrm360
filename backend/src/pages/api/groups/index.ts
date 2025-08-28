@@ -6,14 +6,9 @@ import { withCORS } from '../../../middleware/corsMiddleware';
 import { withAuth } from '../../../middleware/authMiddleware';
 import { withPermissions } from '../../../middleware/permissionMiddleware';
 import { logger } from '../../../utils/logger';
+import { handleApiError, ApiError } from '../../../middleware/errorHandler';
 
-// Validation schemas
-const listGroupsSchema = z.object({
-  page: z.string().optional().transform(val => parseInt(val || '1')),
-  limit: z.string().optional().transform(val => parseInt(val || '20')),
-  search: z.string().optional(),
-  isExternal: z.string().optional().transform(val => val === 'true'),
-});
+
 
 /**
  * @swagger
@@ -82,16 +77,21 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     if (req.method === 'GET') {
       // List groups
-      const queryParams = listGroupsSchema.parse(req.query);
+      const result = await groupManager.getAllGroups();
       
-      const result = await groupManager.getGroups({
-        page: queryParams.page,
-        limit: queryParams.limit,
-        search: queryParams.search,
-        isExternal: queryParams.isExternal,
-      });
+      // Transform to match expected response format
+      const response = {
+        data: result,
+        pagination: {
+          page: 1,
+          limit: result.length,
+          total: result.length,
+          totalPages: 1
+        }
+      };
 
-      res.status(200).json(result);
+      // Return the response in the format expected by the frontend
+      res.status(200).json(response);
     } else {
       res.status(405).json({ error: 'Method not allowed' });
     }
@@ -99,6 +99,11 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (error instanceof z.ZodError) {
       logger.warn('Validation error in groups API', { errors: error.errors });
       return res.status(400).json({ error: 'Validation error', details: error.errors });
+    }
+    
+    // Handle custom API errors (like CONFLICT, NOT_FOUND, etc.)
+    if (error instanceof Error && (error as ApiError).statusCode) {
+      return handleApiError(error, req, res);
     }
     
     logger.error('Error in groups API', { error, method: req.method });

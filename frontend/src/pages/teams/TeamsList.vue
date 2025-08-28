@@ -1,76 +1,86 @@
 <template>
-  <div class="max-w-7xl mx-auto p-6">
-    <div class="mb-6">
-      <div class="flex justify-between items-center">
-        <div>
-          <h1 class="text-3xl font-bold text-gray-900">Teams</h1>
-          <p class="text-gray-600 mt-2">Manage and view all teams</p>
-        </div>
-        <router-link
+  <div class="space-y-6">
+    <!-- Page Header -->
+    <div class="sm:flex sm:items-center sm:justify-between">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900">Teams</h1>
+        <p class="mt-2 text-sm text-gray-700">
+          Manage and view all teams in MRM360 including their type, status, and members.
+        </p>
+      </div>
+      <div class="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
+        <BaseButton
           v-if="canCreate"
-          @click="showCreateModal = true"
-          class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          @click="createTeam"
+          icon="PlusIcon"
         >
           Create Team
-        </router-link>
+        </BaseButton>
       </div>
     </div>
 
-    <!-- Search and Filters -->
-    <div class="bg-white rounded-lg shadow p-6 mb-6">
+    <!-- Filters -->
+    <div class="bg-white shadow rounded-lg p-6">
+      <h3 class="text-lg font-medium text-gray-900 mb-4">Filters</h3>
       <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div>
-          <label for="search" class="block text-sm font-medium text-gray-700 mb-2">Search</label>
+          <label for="search" class="block text-sm font-medium text-gray-700 mb-1">
+            Search
+          </label>
           <input
             id="search"
             v-model="filters.search"
             type="text"
             placeholder="Search teams..."
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
           />
         </div>
         
         <div>
-          <label for="type" class="block text-sm font-medium text-gray-700 mb-2">Team Type</label>
+          <label for="type" class="block text-sm font-medium text-gray-700 mb-1">
+            Team Type
+          </label>
           <select
             id="type"
             v-model="filters.type"
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
           >
             <option value="">All Types</option>
-            <option value="committee">Committee</option>
-            <option value="project">Project</option>
-            <option value="special">Special</option>
+            <option value="COMPETITION">Competition</option>
+            <option value="DEVELOPMENT">Development</option>
           </select>
         </div>
         
         <div>
-          <label for="status" class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+          <label for="subtype" class="block text-sm font-medium text-gray-700 mb-1">
+            Subtype
+          </label>
           <select
-            id="status"
-            v-model="filters.status"
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            id="subtype"
+            v-model="filters.subtype"
+            class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
           >
-            <option value="">All Statuses</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
+            <option value="">All Subtypes</option>
+            <option value="BLUE">Blue</option>
+            <option value="RED">Red</option>
+            <option value="CTF">CTF</option>
           </select>
         </div>
         
         <div class="flex items-end">
-          <button
+          <BaseButton
+            variant="outline"
             @click="applyFilters"
-            class="w-full px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
           >
             Apply Filters
-          </button>
+          </BaseButton>
         </div>
       </div>
     </div>
 
     <!-- Teams Grid -->
     <div v-if="loading" class="flex justify-center py-8">
-      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
     </div>
 
     <div v-else-if="filteredTeams.length === 0" class="text-center py-12">
@@ -90,66 +100,60 @@
         class="bg-white rounded-lg shadow hover:shadow-lg transition-shadow duration-200"
       >
         <div class="p-6">
-          <div class="flex justify-between items-start mb-4">
-            <div>
-              <h3 class="text-lg font-semibold text-gray-900">{{ team.name }}</h3>
-              <p class="text-sm text-gray-600">{{ team.description }}</p>
-            </div>
-            <span
-              :class="{
-                'px-2 py-1 text-xs font-medium rounded-full': true,
-                'bg-green-100 text-green-800': team.status === 'active',
-                'bg-red-100 text-red-800': team.status === 'inactive'
-              }"
-            >
-              {{ team.status }}
-            </span>
-          </div>
-          
-          <div class="space-y-2 mb-4">
-            <div class="flex items-center text-sm text-gray-600">
-              <svg class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-              </svg>
-              {{ team.type }}
-            </div>
-            
-            <div class="flex items-center text-sm text-gray-600">
-              <svg class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-              </svg>
-              {{ team.members?.length || 0 }} members
-            </div>
-            
-            <div v-if="team.parentTeam" class="flex items-center text-sm text-gray-600">
-              <svg class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-              </svg>
-              Subteam of {{ team.parentTeam.name }}
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-gray-900">{{ team.name }}</h3>
+            <div class="flex items-center space-x-2">
+              <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
+                {{ team.type }}
+              </span>
+              <span v-if="team.subtype" class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">
+                {{ team.subtype }}
+              </span>
             </div>
           </div>
           
-          <div class="flex justify-between items-center">
-            <button
+          <p v-if="team.description" class="text-gray-600 text-sm mb-3">
+            {{ team.description }}
+          </p>
+          
+          <div class="flex items-center text-sm text-gray-500 mb-3">
+            <svg class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+            </svg>
+            {{ team.userTeams?.length || 0 }} members
+          </div>
+          
+          <div v-if="team.parentTeam" class="flex items-center text-sm text-gray-600">
+            <svg class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+            Subteam of {{ team.parentTeam.name }}
+          </div>
+          
+          <div class="flex justify-between items-center mt-4">
+            <BaseButton
+              variant="ghost"
+              size="sm"
               @click="viewTeam(team.id)"
-              class="text-blue-600 hover:text-blue-800 text-sm font-medium"
             >
               View Details
-            </button>
+            </BaseButton>
             
             <div v-if="canEdit" class="flex space-x-2">
-              <button
+              <BaseButton
+                variant="ghost"
+                size="sm"
                 @click="editTeam(team.id)"
-                class="text-gray-600 hover:text-gray-800 text-sm font-medium"
               >
                 Edit
-              </button>
-              <button
+              </BaseButton>
+              <BaseButton
+                variant="ghost"
+                size="sm"
                 @click="deleteTeam(team.id)"
-                class="text-red-600 hover:text-red-800 text-sm font-medium"
               >
                 Delete
-              </button>
+              </BaseButton>
             </div>
           </div>
         </div>
@@ -159,13 +163,14 @@
     <!-- Pagination -->
     <div v-if="totalPages > 1" class="mt-8 flex justify-center">
       <nav class="flex items-center space-x-2">
-        <button
+        <BaseButton
+          variant="outline"
+          size="sm"
           @click="currentPage = Math.max(1, currentPage - 1)"
           :disabled="currentPage === 1"
-          class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Previous
-        </button>
+        </BaseButton>
         
         <div class="flex space-x-1">
           <button
@@ -174,7 +179,7 @@
             @click="currentPage = page"
             :class="{
               'px-3 py-2 text-sm font-medium rounded-md': true,
-              'bg-blue-600 text-white': currentPage === page,
+              'bg-indigo-600 text-white': currentPage === page,
               'text-gray-500 bg-white border border-gray-300 hover:bg-gray-50': currentPage !== page
             }"
           >
@@ -182,17 +187,16 @@
           </button>
         </div>
         
-        <button
+        <BaseButton
+          variant="outline"
+          size="sm"
           @click="currentPage = Math.min(totalPages, currentPage + 1)"
           :disabled="currentPage === totalPages"
-          class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Next
-        </button>
+        </BaseButton>
       </nav>
     </div>
-
-    
   </div>
 </template>
 
@@ -201,6 +205,7 @@ import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTeamStore } from '@/stores/teamStore'
 import { usePermissions } from '@/composables/usePermissions'
+import BaseButton from '@/components/common/BaseButton.vue'
 import type { Team } from '@/types/api'
 
 const router = useRouter()
@@ -209,25 +214,25 @@ const { can } = usePermissions()
 
 const loading = ref(false)
 const currentPage = ref(1)
-const itemsPerPage = 9
+const itemsPerPage = ref(9)
 
 const filters = reactive({
   search: '',
   type: '',
-  status: ''
+  subtype: ''
 })
 
 const canCreate = computed(() => can('create', 'Team'))
 const canEdit = computed(() => can('update', 'Team'))
 
+// Filter teams based on search and filters
 const filteredTeams = computed(() => {
   let teams = teamStore.teams
 
   if (filters.search) {
-    const search = filters.search.toLowerCase()
     teams = teams.filter(team => 
-      team.name.toLowerCase().includes(search) ||
-      team.description?.toLowerCase().includes(search)
+      team.name.toLowerCase().includes(filters.search.toLowerCase()) ||
+      (team.description && team.description.toLowerCase().includes(filters.search.toLowerCase()))
     )
   }
 
@@ -235,29 +240,31 @@ const filteredTeams = computed(() => {
     teams = teams.filter(team => team.type === filters.type)
   }
 
-  if (filters.status) {
-    teams = teams.filter(team => team.status === filters.status)
+  if (filters.subtype) {
+    teams = teams.filter(team => team.subtype === filters.subtype)
   }
 
   return teams
 })
 
-const totalPages = computed(() => Math.ceil(filteredTeams.value.length / itemsPerPage))
+const isFormValid = computed(() => {
+  return true // No form validation needed for list view
+})
+
+const totalPages = computed(() => {
+  return Math.ceil(filteredTeams.value.length / itemsPerPage.value)
+})
+
 const paginatedTeams = computed(() => {
-  const start = (currentPage.value - 1) * itemsPerPage
-  const end = start + itemsPerPage
+  const start = (currentPage.value - 1) * itemsPerPage.value
+  const end = start + itemsPerPage.value
   return filteredTeams.value.slice(start, end)
 })
 
 const visiblePages = computed(() => {
   const pages = []
-  const maxVisible = 5
-  let start = Math.max(1, currentPage.value - Math.floor(maxVisible / 2))
-  let end = Math.min(totalPages.value, start + maxVisible - 1)
-  
-  if (end - start + 1 < maxVisible) {
-    start = Math.max(1, end - maxVisible + 1)
-  }
+  const start = Math.max(1, currentPage.value - 2)
+  const end = Math.min(totalPages.value, currentPage.value + 2)
   
   for (let i = start; i <= end; i++) {
     pages.push(i)
@@ -265,8 +272,6 @@ const visiblePages = computed(() => {
   
   return pages
 })
-
-
 
 onMounted(async () => {
   await loadTeams()
@@ -291,6 +296,10 @@ const applyFilters = () => {
   currentPage.value = 1
 }
 
+const createTeam = () => {
+  router.push('/teams/new')
+}
+
 const viewTeam = (teamId: string) => {
   router.push(`/teams/${teamId}`)
 }
@@ -309,6 +318,4 @@ const deleteTeam = async (teamId: string) => {
     console.error('Failed to delete team:', error)
   }
 }
-
-
 </script>

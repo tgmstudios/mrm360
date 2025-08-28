@@ -39,17 +39,46 @@
         </div>
         
         <div>
+          <label for="search-filter" class="block text-sm font-medium text-gray-700 mb-1">
+            Search
+          </label>
+          <input
+            id="search-filter"
+            v-model="filters.search"
+            type="text"
+            placeholder="Search by name or email..."
+            class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+          />
+        </div>
+        
+        <div>
+          <label for="role-filter" class="block text-sm font-medium text-gray-700 mb-1">
+            Role
+          </label>
+          <select
+            id="role-filter"
+            v-model="filters.role"
+            class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+          >
+            <option value="">All Roles</option>
+            <option value="ADMIN">Admin</option>
+            <option value="EXEC_BOARD">Executive Board</option>
+            <option value="MEMBER">Member</option>
+          </select>
+        </div>
+        
+        <div>
           <label for="paid-filter" class="block text-sm font-medium text-gray-700 mb-1">
             Payment Status
           </label>
           <select
             id="paid-filter"
-            v-model="filters.isPaid"
+            v-model="filters.paidStatus"
             class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
           >
             <option value="">All Payment Statuses</option>
-            <option :value="true">Paid</option>
-            <option :value="false">Unpaid</option>
+            <option value="true">Paid</option>
+            <option value="false">Unpaid</option>
           </select>
         </div>
         
@@ -92,6 +121,16 @@
             </option>
           </select>
         </div>
+        
+        <div class="flex items-end">
+          <BaseButton
+            variant="outline"
+            size="sm"
+            @click="clearFilters"
+          >
+            Clear Filters
+          </BaseButton>
+        </div>
       </div>
     </div>
 
@@ -99,7 +138,9 @@
     <DataTable
       :data="filteredUsers"
       :columns="tableColumns"
+      :search-query="filters.search"
       search-placeholder="Search members..."
+      @search="filters.search = $event"
     >
       <template #actions>
         <BaseButton
@@ -187,144 +228,15 @@
       </template>
     </DataTable>
 
-    <!-- Create/Edit User Modal -->
-    <BaseModal
-      :is-open="showCreateModal || showEditModal"
-      :title="showEditModal ? 'Edit Member' : 'Add Member'"
-      size="lg"
-      @close="closeModal"
-    >
-      <form @submit.prevent="handleSubmit" class="space-y-4">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label for="firstName" class="block text-sm font-medium text-gray-700">
-              First Name *
-            </label>
-            <input
-              id="firstName"
-              v-model="form.firstName"
-              type="text"
-              required
-              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-            />
-          </div>
-          
-          <div>
-            <label for="lastName" class="block text-sm font-medium text-gray-700">
-              Last Name *
-            </label>
-            <input
-              id="lastName"
-              v-model="form.lastName"
-              type="text"
-              required
-              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-            />
-          </div>
-        </div>
-        
-        <div>
-          <label for="email" class="block text-sm font-medium text-gray-700">
-            Email *
-          </label>
-          <input
-            id="email"
-            v-model="form.email"
-            type="email"
-            required
-            class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-          />
-        </div>
-        
-        <div>
-          <label for="displayName" class="block text-sm font-medium text-gray-700">
-            Display Name *
-          </label>
-          <input
-            id="displayName"
-            v-model="form.displayName"
-            type="text"
-            required
-            class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-          />
-        </div>
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label for="isActive" class="flex items-center">
-              <input
-                id="isActive"
-                v-model="form.isActive"
-                type="checkbox"
-                class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-              />
-              <span class="ml-2 text-sm text-gray-700">Active Member</span>
-            </label>
-          </div>
-          
-          <div>
-            <label for="isPaid" class="flex items-center">
-              <input
-                id="isPaid"
-                v-model="form.isPaid"
-                type="checkbox"
-                class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-              />
-              <span class="ml-2 text-sm text-gray-700">Paid Member</span>
-            </label>
-          </div>
-        </div>
-        
-        <div>
-          <label for="paidUntil" class="block text-sm font-medium text-gray-700">
-            Paid Until
-          </label>
-          <input
-            id="paidUntil"
-            v-model="form.paidUntil"
-            type="date"
-            class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-          />
-        </div>
-        
-        <div>
-          <label for="authentikGroups" class="block text-sm font-medium text-gray-700">
-            Authentik Groups
-          </label>
-          <select
-            id="authentikGroups"
-            v-model="form.authentikGroups"
-            multiple
-            class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-          >
-            <option
-              v-for="group in groups"
-              :key="group.id"
-              :value="group.name"
-            >
-              {{ group.name }}
-            </option>
-          </select>
-        </div>
-      </form>
-      
-      <template #footer>
-        <div class="flex justify-end space-x-3">
-          <BaseButton
-            variant="outline"
-            @click="closeModal"
-          >
-            Cancel
-          </BaseButton>
-          <BaseButton
-            :loading="isSubmitting"
-            @click="handleSubmit"
-          >
-            {{ showEditModal ? 'Update' : 'Create' }}
-          </BaseButton>
-        </div>
-      </template>
-    </BaseModal>
+         <!-- Create/Edit User Modal -->
+     <UserEditModal
+       :is-open="showCreateModal || showEditModal"
+       :user="userToEdit"
+       :available-groups="groups"
+       :is-edit-mode="showEditModal"
+       @close="closeModal"
+       @submit="handleModalSubmit"
+     />
 
     <!-- Delete Confirmation Modal -->
     <BaseModal
@@ -368,6 +280,7 @@ import { PlusIcon } from '@heroicons/vue/24/outline'
 import DataTable from '@/components/common/DataTable.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseModal from '@/components/common/BaseModal.vue'
+import UserEditModal from '@/components/users/UserEditModal.vue'
 import type { User, Team, Group, UserCreate, UserUpdate } from '@/types/api'
 
 const userStore = useUserStore()
@@ -379,28 +292,21 @@ const { can } = usePermissions()
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
 const showDeleteModal = ref(false)
-const isSubmitting = ref(false)
 const isDeleting = ref(false)
 const userToDelete = ref<User | null>(null)
+const userToEdit = ref<User | null>(null)
 
 // Filters
 const filters = ref({
-  isActive: '',
-  isPaid: '',
+  page: 1,
+  limit: 20,
+  sortBy: 'displayName',
+  sortOrder: 'asc',
+  search: '',
+  role: '',
+  paidStatus: '',
   teamId: '',
   groupId: ''
-})
-
-// Form
-const form = ref({
-  firstName: '',
-  lastName: '',
-  email: '',
-  displayName: '',
-  isActive: true,
-  isPaid: false,
-  paidUntil: '',
-  authentikGroups: [] as string[]
 })
 
 // Table columns
@@ -419,44 +325,11 @@ const users = computed(() => userStore.users)
 const teams = computed(() => teamStore.teams)
 const groups = computed(() => groupStore.groups)
 
-const filteredUsers = computed(() => {
-  let filtered = [...users.value]
-  
-  if (filters.value.isActive !== '') {
-    filtered = filtered.filter(user => user.isActive === filters.value.isActive)
-  }
-  
-  if (filters.value.isPaid !== '') {
-    filtered = filtered.filter(user => user.isPaid === filters.value.isPaid)
-  }
-  
-  if (filters.value.teamId) {
-    filtered = filtered.filter(user => 
-      user.teams.some(team => team.id === filters.value.teamId)
-    )
-  }
-  
-  if (filters.value.groupId) {
-    filtered = filtered.filter(user => 
-      user.authentikGroups.includes(filters.value.groupId)
-    )
-  }
-  
-  return filtered
-})
+const filteredUsers = computed(() => users.value)
 
 // Methods
 const editUser = (user: User) => {
-  form.value = {
-    firstName: user.firstName,
-    lastName: user.lastName,
-    email: user.email,
-    displayName: user.displayName,
-    isActive: user.isActive,
-    isPaid: user.isPaid,
-    paidUntil: user.paidUntil || '',
-    authentikGroups: [...user.authentikGroups]
-  }
+  userToEdit.value = user
   showEditModal.value = true
 }
 
@@ -468,53 +341,36 @@ const deleteUser = (user: User) => {
 const closeModal = () => {
   showCreateModal.value = false
   showEditModal.value = false
-  resetForm()
+  userToEdit.value = null
 }
 
-const resetForm = () => {
-  form.value = {
-    firstName: '',
-    lastName: '',
-    email: '',
-    displayName: '',
-    isActive: true,
-    isPaid: false,
-    paidUntil: '',
-    authentikGroups: []
-  }
-}
 
-const handleSubmit = async () => {
-  isSubmitting.value = true
-  
+
+const handleModalSubmit = async (data: UserCreate | UserUpdate) => {
   try {
-    if (showEditModal.value && userToDelete.value) {
-      const updateData: UserUpdate = {
-        firstName: form.value.firstName,
-        lastName: form.value.lastName,
-        displayName: form.value.displayName,
-        isActive: form.value.isActive,
-        isPaid: form.value.isPaid,
-        paidUntil: form.value.paidUntil || undefined,
-        authentikGroups: form.value.authentikGroups
-      }
-      await userStore.updateUser(userToDelete.value.id, updateData)
+    if (showEditModal.value && userToEdit.value) {
+      await userStore.updateUser(userToEdit.value.id, data as UserUpdate)
     } else {
-      const createData: UserCreate = {
-        firstName: form.value.firstName,
-        lastName: form.value.lastName,
-        email: form.value.email,
-        displayName: form.value.displayName,
-        authentikGroups: form.value.authentikGroups
-      }
-      await userStore.createUser(createData)
+      await userStore.createUser(data as UserCreate)
     }
     
     closeModal()
   } catch (error) {
     console.error('Error saving user:', error)
-  } finally {
-    isSubmitting.value = false
+  }
+}
+
+const clearFilters = () => {
+  filters.value = {
+    page: 1,
+    limit: 20,
+    sortBy: 'displayName',
+    sortOrder: 'asc',
+    search: '',
+    role: '',
+    paidStatus: '',
+    teamId: '',
+    groupId: ''
   }
 }
 
@@ -549,7 +405,10 @@ onMounted(async () => {
 })
 
 // Watch filters for changes
-watch(filters, () => {
+watch(filters, async () => {
   // Reset to first page when filters change
+  filters.value.page = 1;
+  // Fetch users with new filters
+  await userStore.fetchUsers(filters.value);
 }, { deep: true })
 </script>

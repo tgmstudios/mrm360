@@ -72,7 +72,7 @@
     </nav>
 
     <div class="flex">
-      <!-- Sidebar -->
+      <!-- Page-Specific Sidebar -->
       <div class="w-64 bg-white shadow-sm border-r border-gray-200 min-h-screen">
         <div class="p-4">
           <!-- Sidebar Header with Current Section -->
@@ -85,52 +85,15 @@
             </p>
           </div>
           
+          <!-- Page-Specific Sidebar Content -->
           <nav class="space-y-2">
-            <router-link
-              v-for="item in sidebarItems"
-              :key="item.name"
-              :to="item.to"
-              :class="[
-                isSidebarItemActive(item.to)
-                  ? 'bg-indigo-50 border-indigo-500 text-indigo-700 shadow-sm'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 border-transparent',
-                'group flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md border-l-4 transition-all duration-200'
-              ]"
-            >
-              <div class="flex items-center">
-                <component
-                  :is="item.icon"
-                  :class="[
-                    isSidebarItemActive(item.to)
-                      ? 'text-indigo-500'
-                      : 'text-gray-400 group-hover:text-gray-500',
-                    'mr-3 flex-shrink-0 h-5 w-5 transition-colors duration-200'
-                  ]"
-                />
-                {{ item.name }}
-              </div>
-              <!-- Count indicator -->
-              <span
-                v-if="getItemCount(item.name) > 0"
-                :class="[
-                  isSidebarItemActive(item.to)
-                    ? 'bg-indigo-100 text-indigo-700'
-                    : 'bg-gray-100 text-gray-600 group-hover:bg-gray-200',
-                  'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium transition-all duration-200'
-                ]"
-              >
-                {{ getItemCount(item.name) }}
-              </span>
-            </router-link>
-            
-            <!-- Create Buttons Section -->
-            <div class="pt-4 border-t border-gray-200">
+            <!-- Dashboard Sidebar -->
+            <div v-if="currentPath === '/dashboard'" class="space-y-2">
               <div class="bg-gray-50 rounded-lg p-3">
                 <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
-                  Quick Actions
+                  Quick Create Actions
                 </h3>
                 <div class="space-y-2">
-                  <!-- Create User Button -->
                   <button
                     v-if="can('create', 'User')"
                     @click="createUser"
@@ -140,7 +103,6 @@
                     Create User
                   </button>
                   
-                  <!-- Create Team Button -->
                   <button
                     v-if="can('create', 'Team')"
                     @click="createTeam"
@@ -150,7 +112,6 @@
                     Create Team
                   </button>
                   
-                  <!-- Create Event Button -->
                   <button
                     v-if="can('create', 'Event')"
                     @click="createEvent"
@@ -159,18 +120,111 @@
                     <PlusIcon class="mr-3 h-4 w-4 text-gray-400 group-hover:text-green-500 transition-colors duration-200" />
                     Create Event
                   </button>
-                  
-                  <!-- Create Group Button -->
-                  <button
-                    v-if="can('create', 'Group')"
-                    @click="createGroup"
-                    class="w-full flex items-center px-3 py-2 text-sm font-medium text-gray-600 hover:bg-green-50 hover:text-green-700 rounded-md transition-all duration-200 group border border-transparent hover:border-green-200"
-                  >
-                    <PlusIcon class="mr-3 h-4 w-4 text-gray-400 group-hover:text-green-500 transition-colors duration-200" />
-                    Create Group
-                  </button>
                 </div>
               </div>
+            </div>
+
+            <!-- Users Sidebar -->
+            <div v-else-if="currentPath.startsWith('/users')" class="space-y-2">
+              <router-link
+                to="/users"
+                :class="[
+                  currentPath === '/users'
+                    ? 'bg-indigo-50 border-indigo-500 text-indigo-700 shadow-sm'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 border-transparent',
+                  'group flex items-center px-3 py-2 text-sm font-medium rounded-md border-l-4 transition-all duration-200'
+                ]"
+              >
+                <UsersIcon class="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500 transition-colors duration-200" />
+                All Members
+              </router-link>
+              
+              <router-link
+                to="/users/new"
+                :class="[
+                  currentPath === '/users/new'
+                    ? 'bg-indigo-50 border-indigo-500 text-indigo-700 shadow-sm'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 border-transparent',
+                  'group flex items-center px-3 py-2 text-sm font-medium rounded-md border-l-4 transition-all duration-200'
+                ]"
+              >
+                <PlusIcon class="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500 transition-colors duration-200" />
+                Add Member
+              </router-link>
+            </div>
+
+            <!-- Teams Sidebar -->
+            <div v-else-if="currentPath.startsWith('/teams')" class="space-y-2">
+              <router-link
+                to="/teams"
+                :class="[
+                  currentPath === '/teams'
+                    ? 'bg-indigo-50 border-indigo-500 text-indigo-700 shadow-sm'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 border-transparent',
+                  'group flex items-center px-3 py-2 text-sm font-medium rounded-md border-l-4 transition-all duration-200'
+                ]"
+              >
+                <UserGroupIcon class="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500 transition-colors duration-200" />
+                All Teams
+              </router-link>
+              
+              <router-link
+                to="/teams/new"
+                :class="[
+                  currentPath === '/teams/new'
+                    ? 'bg-indigo-50 border-indigo-500 text-indigo-700 shadow-sm'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 border-transparent',
+                  'group flex items-center px-3 py-2 text-sm font-medium rounded-md border-l-4 transition-all duration-200'
+                ]"
+              >
+                <PlusIcon class="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500 transition-colors duration-200" />
+                Create Team
+              </router-link>
+            </div>
+
+            <!-- Events Sidebar -->
+            <div v-else-if="currentPath.startsWith('/events')" class="space-y-2">
+              <router-link
+                to="/events"
+                :class="[
+                  currentPath === '/events'
+                    ? 'bg-indigo-50 border-indigo-500 text-indigo-700 shadow-sm'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 border-transparent',
+                  'group flex items-center px-3 py-2 text-sm font-medium rounded-md border-l-4 transition-all duration-200'
+                ]"
+              >
+                <CalendarIcon class="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500 transition-colors duration-200" />
+                All Events
+              </router-link>
+              
+              <router-link
+                to="/events/new"
+                :class="[
+                  currentPath === '/events/new'
+                    ? 'bg-indigo-50 border-indigo-500 text-indigo-700 shadow-sm'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 border-transparent',
+                  'group flex items-center px-3 py-2 text-sm font-medium rounded-md border-l-4 transition-all duration-200'
+                ]"
+              >
+                <PlusIcon class="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500 transition-colors duration-200" />
+                Create Event
+              </router-link>
+            </div>
+
+            <!-- Tasks Sidebar -->
+            <div v-else-if="currentPath.startsWith('/tasks')" class="space-y-2">
+              <router-link
+                to="/tasks"
+                :class="[
+                  currentPath === '/tasks'
+                    ? 'bg-indigo-50 border-indigo-500 text-indigo-700 shadow-sm'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 border-transparent',
+                  'group flex items-center px-3 py-2 text-sm font-medium rounded-md border-l-4 transition-all duration-200'
+                ]"
+              >
+                <CogIcon class="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500 transition-colors duration-200" />
+                All Tasks
+              </router-link>
             </div>
           </nav>
         </div>
@@ -207,9 +261,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
+import { useTeamStore } from '@/stores/teamStore'
 import { usePermissions } from '@/composables/usePermissions'
 import {
   HomeIcon,
@@ -217,8 +272,6 @@ import {
   UserGroupIcon,
   CalendarIcon,
   CogIcon,
-  DocumentTextIcon,
-  ChartBarIcon,
   ChevronRightIcon,
   PlusIcon
 } from '@heroicons/vue/24/outline'
@@ -226,9 +279,13 @@ import {
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
+const teamStore = useTeamStore()
 const { can } = usePermissions()
 
 const isUserMenuOpen = ref(false)
+
+// Current path for sidebar logic
+const currentPath = computed(() => route.path)
 
 // Navigation items for top bar
 const navigationItems = computed(() => [
@@ -236,7 +293,6 @@ const navigationItems = computed(() => [
   { name: 'Users', to: '/users' },
   { name: 'Teams', to: '/teams' },
   { name: 'Events', to: '/events' },
-  { name: 'Groups', to: '/groups' },
   { name: 'Tasks', to: '/tasks' }
 ])
 
@@ -289,15 +345,6 @@ const currentSectionTitle = computed(() => {
       return 'Event Details'
     }
     return 'Events'
-  } else if (currentPath.startsWith('/groups')) {
-    if (currentPath === '/groups/new') {
-      return 'Create Group'
-    } else if (currentPath.includes('/edit')) {
-      return 'Edit Group'
-    } else if (currentPath.match(/\/groups\/[^\/]+$/)) {
-      return 'Group Details'
-    }
-    return 'Groups'
   } else if (currentPath.startsWith('/tasks')) {
     return 'Tasks'
   }
@@ -339,15 +386,6 @@ const currentSectionDescription = computed(() => {
       return 'View event details and attendees'
     }
     return 'Manage events and schedules'
-  } else if (currentPath.startsWith('/groups')) {
-    if (currentPath === '/groups/new') {
-      return 'Create a new group'
-    } else if (currentPath.includes('/edit')) {
-      return 'Modify group information'
-    } else if (currentPath.match(/\/groups\/[^\/]+$/)) {
-      return 'View group details and members'
-    }
-    return 'Manage user groups and permissions'
   } else if (currentPath.startsWith('/tasks')) {
     return 'Manage tasks and assignments'
   }
@@ -393,65 +431,12 @@ const breadcrumbs = computed(() => {
     } else if (currentPath.match(/\/events\/[^\/]+$/)) {
       crumbs.push({ name: 'Event Details', path: currentPath })
     }
-  } else if (currentPath.startsWith('/groups')) {
-    crumbs.push({ name: 'Groups', path: '/groups' })
-    if (currentPath === '/groups/new') {
-      crumbs.push({ name: 'Create Group', path: currentPath })
-    } else if (currentPath.includes('/edit')) {
-      crumbs.push({ name: 'Edit Group', path: currentPath })
-    } else if (currentPath.match(/\/groups\/[^\/]+$/)) {
-      crumbs.push({ name: 'Group Details', path: currentPath })
-    }
   } else if (currentPath.startsWith('/tasks')) {
     crumbs.push({ name: 'Tasks', path: '/tasks' })
   }
   
   return crumbs
 })
-
-// Sidebar items with permissions
-const sidebarItems = computed(() => {
-  const items = [
-    { name: 'Dashboard', to: '/dashboard', icon: HomeIcon },
-    { name: 'Users', to: '/users', icon: UsersIcon },
-    { name: 'Teams', to: '/teams', icon: UserGroupIcon },
-    { name: 'Events', to: '/events', icon: CalendarIcon },
-    { name: 'Groups', to: '/groups', icon: ChartBarIcon },
-    { name: 'Tasks', to: '/tasks', icon: CogIcon }
-  ]
-
-  // Filter based on permissions
-  return items.filter(item => {
-    if (item.name === 'Users' && !can('read', 'User')) return false
-    if (item.name === 'Teams' && !can('read', 'Team')) return false
-    if (item.name === 'Events' && !can('read', 'Event')) return false
-    if (item.name === 'Groups' && !can('read', 'Group')) return false
-    if (item.name === 'Tasks' && !can('read', 'Task')) return false
-    return true
-  })
-})
-
-// Helper function to determine if a sidebar item is active
-const isSidebarItemActive = (itemPath: string) => {
-  const currentPath = route.path
-  
-  // Special case for dashboard - only active when exactly on dashboard
-  if (itemPath === '/dashboard') {
-    return currentPath === '/dashboard'
-  }
-  
-  // For other items, check if current path starts with the item path
-  // This handles nested routes like /users/123, /teams/456/edit, etc.
-  return currentPath.startsWith(itemPath)
-}
-
-// Helper function to get item counts for sidebar indicators
-const getItemCount = (itemName: string) => {
-  // This would typically come from your stores
-  // For now, return 0 to avoid errors
-  // You can implement this later to show actual counts
-  return 0
-}
 
 // User initials for avatar
 const userInitials = computed(() => {
@@ -489,14 +474,15 @@ const createUser = () => {
 }
 
 const createTeam = () => {
-  router.push('/teams/new')
+  // Navigate to teams page and trigger the modal
+  router.push('/teams')
+  // Use nextTick to ensure navigation completes before opening modal
+  nextTick(() => {
+    teamStore.openCreateModal()
+  })
 }
 
 const createEvent = () => {
   router.push('/events/new')
-}
-
-const createGroup = () => {
-  router.push('/groups/new')
 }
 </script>

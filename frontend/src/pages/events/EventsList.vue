@@ -1,80 +1,86 @@
 <template>
-  <div class="max-w-7xl mx-auto p-6">
-    <div class="mb-6">
-      <div class="flex justify-between items-center">
-        <div>
-          <h1 class="text-3xl font-bold text-gray-900">Events</h1>
-          <p class="text-gray-600 mt-2">Manage and view all events</p>
-        </div>
-        <button
+  <div class="space-y-6">
+    <!-- Page Header -->
+    <div class="sm:flex sm:items-center sm:justify-between">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900">Events</h1>
+        <p class="mt-2 text-sm text-gray-700">
+          Manage and view all events in MRM360 including meetings, workshops, and social gatherings.
+        </p>
+      </div>
+      <div class="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
+        <BaseButton
           v-if="canCreate"
           @click="showCreateModal = true"
-          class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          icon="PlusIcon"
         >
           Create Event
-        </button>
+        </BaseButton>
       </div>
     </div>
 
     <!-- View Toggle -->
-    <div class="mb-6">
-      <div class="bg-white rounded-lg shadow p-4">
-        <div class="flex items-center justify-between">
-          <div class="flex space-x-1 bg-gray-100 rounded-lg p-1">
-            <button
-              @click="viewMode = 'table'"
-              :class="{
-                'px-3 py-2 text-sm font-medium rounded-md transition-colors': true,
-                'bg-white text-gray-900 shadow-sm': viewMode === 'table',
-                'text-gray-600 hover:text-gray-900': viewMode === 'calendar'
-              }"
-            >
-              Table View
-            </button>
-            <button
-              @click="viewMode = 'calendar'"
-              :class="{
-                'px-3 py-2 text-sm font-medium rounded-md transition-colors': true,
-                'bg-white text-gray-900 shadow-sm': viewMode === 'calendar',
-                'text-gray-600 hover:text-gray-900': viewMode === 'table'
-              }"
-            >
-              Calendar View
-            </button>
-          </div>
-          
-          <div class="flex items-center space-x-4">
-            <button
-              @click="showCheckInModal = true"
-              class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-            >
-              Check In
-            </button>
-          </div>
+    <div class="bg-white shadow rounded-lg p-4">
+      <div class="flex items-center justify-between">
+        <div class="flex space-x-1 bg-gray-100 rounded-lg p-1">
+          <button
+            @click="viewMode = 'table'"
+            :class="{
+              'px-3 py-2 text-sm font-medium rounded-md transition-colors': true,
+              'bg-white text-gray-900 shadow-sm': viewMode === 'table',
+              'text-gray-600 hover:text-gray-900': viewMode === 'calendar'
+            }"
+          >
+            Table View
+          </button>
+          <button
+            @click="viewMode = 'calendar'"
+            :class="{
+              'px-3 py-2 text-sm font-medium rounded-md transition-colors': true,
+              'bg-white text-gray-900 shadow-sm': viewMode === 'calendar',
+              'text-gray-600 hover:text-gray-900': viewMode === 'table'
+            }"
+          >
+            Calendar View
+          </button>
+        </div>
+        
+        <div class="flex items-center space-x-4">
+          <BaseButton
+            @click="showCheckInModal = true"
+            variant="outline"
+          >
+            Check In
+          </BaseButton>
         </div>
       </div>
     </div>
 
-    <!-- Search and Filters -->
-    <div class="bg-white rounded-lg shadow p-6 mb-6">
+    <!-- Filters -->
+    <div class="bg-white shadow rounded-lg p-6">
+      <h3 class="text-lg font-medium text-gray-900 mb-4">Filters</h3>
       <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
         <div>
-          <label for="search" class="block text-sm font-medium text-gray-700 mb-2">Search</label>
+          <label for="search" class="block text-sm font-medium text-gray-700 mb-1">
+            Search
+          </label>
           <input
             id="search"
             v-model="filters.search"
             type="text"
             placeholder="Search events..."
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
           />
         </div>
         
         <div>
-          <label for="category" class="block text-sm font-medium text-gray-700 mb-2">Category</label>
+          <label for="category" class="block text-sm font-medium text-gray-700 mb-1">
+            Category
+          </label>
           <select
             id="category"
             v-model="filters.category"
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
           >
             <option value="">All Categories</option>
             <option value="meeting">Meeting</option>
@@ -85,11 +91,13 @@
         </div>
         
         <div>
-          <label for="team" class="block text-sm font-medium text-gray-700 mb-2">Team</label>
+          <label for="team" class="block text-sm font-medium text-gray-700 mb-1">
+            Team
+          </label>
           <select
             id="team"
             v-model="filters.linkedTeamId"
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
           >
             <option value="">All Teams</option>
             <option v-for="team in availableTeams" :key="team.id" :value="team.id">
@@ -99,11 +107,13 @@
         </div>
         
         <div>
-          <label for="dateRange" class="block text-sm font-medium text-gray-700 mb-2">Date Range</label>
+          <label for="dateRange" class="block text-sm font-medium text-gray-700 mb-1">
+            Date Range
+          </label>
           <select
             id="dateRange"
             v-model="filters.dateRange"
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
           >
             <option value="">All Dates</option>
             <option value="today">Today</option>
@@ -115,12 +125,12 @@
         </div>
         
         <div class="flex items-end">
-          <button
+          <BaseButton
+            variant="outline"
             @click="applyFilters"
-            class="w-full px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
           >
             Apply Filters
-          </button>
+          </BaseButton>
         </div>
       </div>
     </div>
@@ -128,7 +138,7 @@
     <!-- Table View -->
     <div v-if="viewMode === 'table'">
       <div v-if="loading" class="flex justify-center py-8">
-        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
       </div>
 
       <div v-else-if="filteredEvents.length === 0" class="text-center py-12">
@@ -187,13 +197,13 @@
               </td>
               <td class="px-6 py-4 whitespace-nowrap">
                 <span
-                  :class="{
-                    'px-2 py-1 text-xs font-medium rounded-full': true,
-                    'bg-blue-100 text-blue-800': event.category === 'meeting',
-                    'bg-green-100 text-green-800': event.category === 'social',
-                    'bg-purple-100 text-purple-800': event.category === 'workshop',
-                    'bg-orange-100 text-orange-800': event.category === 'other'
-                  }"
+                  :class="[
+                    'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
+                    event.category === 'meeting' ? 'bg-blue-100 text-blue-800' : '',
+                    event.category === 'social' ? 'bg-green-100 text-green-800' : '',
+                    event.category === 'workshop' ? 'bg-purple-100 text-purple-800' : '',
+                    event.category === 'other' ? 'bg-orange-100 text-orange-800' : ''
+                  ]"
                 >
                   {{ event.category }}
                 </span>
@@ -214,26 +224,29 @@
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                 <div class="flex space-x-2">
-                  <button
+                  <BaseButton
+                    variant="ghost"
+                    size="sm"
                     @click="viewEvent(event.id)"
-                    class="text-blue-600 hover:text-blue-900"
                   >
                     View
-                  </button>
-                  <button
+                  </BaseButton>
+                  <BaseButton
                     v-if="canEdit"
+                    variant="ghost"
+                    size="sm"
                     @click="editEvent(event.id)"
-                    class="text-gray-600 hover:text-gray-900"
                   >
                     Edit
-                  </button>
-                  <button
+                  </BaseButton>
+                  <BaseButton
                     v-if="canDelete"
+                    variant="ghost"
+                    size="sm"
                     @click="deleteEvent(event.id)"
-                    class="text-red-600 hover:text-red-900"
                   >
                     Delete
-                  </button>
+                  </BaseButton>
                 </div>
               </td>
             </tr>
@@ -244,13 +257,14 @@
       <!-- Pagination -->
       <div v-if="totalPages > 1" class="mt-8 flex justify-center">
         <nav class="flex items-center space-x-2">
-          <button
+          <BaseButton
+            variant="outline"
+            size="sm"
             @click="currentPage = Math.max(1, currentPage - 1)"
             :disabled="currentPage === 1"
-            class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Previous
-          </button>
+          </BaseButton>
           
           <div class="flex space-x-1">
             <button
@@ -259,7 +273,7 @@
               @click="currentPage = page"
               :class="{
                 'px-3 py-2 text-sm font-medium rounded-md': true,
-                'bg-blue-600 text-white': currentPage === page,
+                'bg-indigo-600 text-white': currentPage === page,
                 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-50': currentPage !== page
               }"
             >
@@ -267,13 +281,14 @@
             </button>
           </div>
           
-          <button
+          <BaseButton
+            variant="outline"
+            size="sm"
             @click="currentPage = Math.min(totalPages, currentPage + 1)"
             :disabled="currentPage === totalPages"
-            class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Next
-          </button>
+          </BaseButton>
         </nav>
       </div>
     </div>
@@ -303,7 +318,7 @@
             v-model="newEvent.title"
             type="text"
             required
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
           />
         </div>
         
@@ -313,7 +328,7 @@
             id="eventDescription"
             v-model="newEvent.description"
             rows="3"
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
           ></textarea>
         </div>
         
@@ -325,7 +340,7 @@
               v-model="newEvent.startTime"
               type="datetime-local"
               required
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
             />
           </div>
           
@@ -336,7 +351,7 @@
               v-model="newEvent.endTime"
               type="datetime-local"
               required
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
             />
           </div>
         </div>
@@ -348,7 +363,7 @@
               id="eventCategory"
               v-model="newEvent.category"
               required
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
             >
               <option value="meeting">Meeting</option>
               <option value="social">Social</option>
@@ -362,7 +377,7 @@
             <select
               id="linkedTeam"
               v-model="newEvent.linkedTeamId"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
             >
               <option value="">No Team</option>
               <option v-for="team in availableTeams" :key="team.id" :value="team.id">
@@ -378,7 +393,7 @@
             id="attendanceType"
             v-model="newEvent.attendanceType"
             required
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
           >
             <option value="required">Required</option>
             <option value="optional">Optional</option>
@@ -387,21 +402,18 @@
         </div>
         
         <div class="flex justify-end space-x-3 pt-4">
-          <button
-            type="button"
+          <BaseButton
+            variant="outline"
             @click="showCreateModal = false"
-            class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
             Cancel
-          </button>
-          <button
-            type="submit"
-            :disabled="creating"
-            class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          </BaseButton>
+          <BaseButton
+            :loading="creating"
+            @click="handleCreateEvent"
           >
-            <span v-if="creating">Creating...</span>
-            <span v-else>Create Event</span>
-          </button>
+            Create Event
+          </BaseButton>
         </div>
       </form>
     </BaseModal>
@@ -418,7 +430,7 @@
           <select
             id="checkInEvent"
             v-model="checkInData.eventId"
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
           >
             <option value="">Choose an event...</option>
             <option v-for="event in upcomingEvents" :key="event.id" :value="event.id">
@@ -434,26 +446,24 @@
             v-model="checkInData.qrCode"
             type="text"
             placeholder="Enter QR code or scan..."
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
           />
         </div>
         
         <div class="flex justify-end space-x-3 pt-4">
-          <button
-            type="button"
+          <BaseButton
+            variant="outline"
             @click="showCheckInModal = false"
-            class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
             Cancel
-          </button>
-          <button
+          </BaseButton>
+          <BaseButton
             @click="handleCheckIn"
             :disabled="!checkInData.eventId || !checkInData.qrCode || checkingIn"
-            class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            :loading="checkingIn"
           >
-            <span v-if="checkingIn">Checking In...</span>
-            <span v-else>Check In</span>
-          </button>
+            Check In
+          </BaseButton>
         </div>
       </div>
     </BaseModal>
@@ -467,6 +477,7 @@ import { useEventStore } from '@/stores/eventStore'
 import { useTeamStore } from '@/stores/teamStore'
 import { usePermissions } from '@/composables/usePermissions'
 import BaseModal from '@/components/common/BaseModal.vue'
+import BaseButton from '@/components/common/BaseButton.vue'
 import type { Event, Team } from '@/types/api'
 
 const router = useRouter()

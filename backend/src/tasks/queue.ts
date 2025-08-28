@@ -2,15 +2,18 @@ import { Queue } from 'bullmq';
 import Redis from 'ioredis';
 import { logger } from '@/utils/logger';
 
-// Redis connection
-const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+// Redis connection with BullMQ-compatible options
+const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
+  maxRetriesPerRequest: null
+});
 
 // Queue names
 export const QUEUE_NAMES = {
   EMAIL: 'email',
   QR_CODE: 'qr-code',
   SYNC_GROUPS: 'sync-groups',
-  PROVISION: 'provision'
+  PROVISION: 'provision',
+  TEAM_PROVISIONING: 'team-provisioning'
 } as const;
 
 // Create queues
@@ -53,40 +56,22 @@ export const provisionQueue = new Queue(QUEUE_NAMES.PROVISION, {
     attempts: 1
   }
 });
+
+export const teamProvisioningQueue = new Queue(QUEUE_NAMES.TEAM_PROVISIONING, {
+  connection: redis,
+  defaultJobOptions: {
+    attempts: 3,
+    backoff: {
+      type: 'exponential',
+      delay: 5000
+    }
+  }
+});
 // Note: Not using QueueScheduler due to BullMQ version constraints
+// Note: BullMQ event handlers may need to be configured differently
+// For now, we'll log queue status through other means
+logger.info('All queues created and configured');
 
-// Queue event handlers
-emailQueue.on('completed', (job) => {
-  logger.info(`Email job ${job.id} completed successfully`);
-});
-
-emailQueue.on('failed', (job, err) => {
-  logger.error(`Email job ${job.id} failed:`, err);
-});
-
-qrCodeQueue.on('completed', (job) => {
-  logger.info(`QR Code job ${job.id} completed successfully`);
-});
-
-qrCodeQueue.on('failed', (job, err) => {
-  logger.error(`QR Code job ${job.id} failed:`, err);
-});
-
-syncGroupsQueue.on('completed', (job) => {
-  logger.info(`Sync Groups job ${job.id} completed successfully`);
-});
-
-syncGroupsQueue.on('failed', (job, err) => {
-  logger.error(`Sync Groups job ${job.id} failed:`, err);
-});
-
-provisionQueue.on('completed', (job) => {
-  logger.info(`Provision job ${job.id} completed successfully`);
-});
-
-provisionQueue.on('failed', (job, err) => {
-  logger.error(`Provision job ${job.id} failed:`, err);
-});
 // Helper function to add jobs to queues
 export async function addJobToQueue(
   queueName: keyof typeof QUEUE_NAMES,
@@ -124,6 +109,10 @@ function getQueueByName(queueName: keyof typeof QUEUE_NAMES) {
       return qrCodeQueue;
     case 'SYNC_GROUPS':
       return syncGroupsQueue;
+    case 'PROVISION':
+      return provisionQueue;
+    case 'TEAM_PROVISIONING':
+      return teamProvisioningQueue;
     default:
       return null;
   }
@@ -134,6 +123,8 @@ export async function closeQueues() {
   await emailQueue.close();
   await qrCodeQueue.close();
   await syncGroupsQueue.close();
+  await provisionQueue.close();
+  await teamProvisioningQueue.close();
   await redis.quit();
   logger.info('All queues closed');
 }
@@ -147,7 +138,9 @@ export async function getQueueHealth() {
       queues: {
         email: await emailQueue.getJobCounts(),
         qrCode: await qrCodeQueue.getJobCounts(),
-        syncGroups: await syncGroupsQueue.getJobCounts()
+        syncGroups: await syncGroupsQueue.getJobCounts(),
+        provision: await provisionQueue.getJobCounts(),
+        teamProvisioning: await teamProvisioningQueue.getJobCounts()
       }
     };
   } catch (error) {

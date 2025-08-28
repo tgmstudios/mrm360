@@ -6,6 +6,7 @@ import { withCORS } from '../../../middleware/corsMiddleware';
 import { withAuth } from '../../../middleware/authMiddleware';
 import { withPermissions } from '../../../middleware/permissionMiddleware';
 import { logger } from '../../../utils/logger';
+import { handleApiError, ApiError } from '../../../middleware/errorHandler';
 
 // Validation schemas
 const createUserSchema = z.object({
@@ -21,9 +22,27 @@ const listUsersSchema = z.object({
   page: z.string().optional().transform(val => parseInt(val || '1')),
   limit: z.string().optional().transform(val => parseInt(val || '20')),
   search: z.string().optional(),
-  role: z.enum(['ADMIN', 'EXEC_BOARD', 'MEMBER']).optional(),
-  paidStatus: z.string().optional().transform(val => val === 'true'),
-  groupId: z.string().optional(),
+  role: z.string().optional().transform(val => {
+    if (val === '') return undefined;
+    if (val === 'ADMIN' || val === 'EXEC_BOARD' || val === 'MEMBER') return val;
+    return undefined;
+  }),
+  paidStatus: z.string().optional().transform(val => {
+    if (val === '') return undefined;
+    if (val === 'true') return true;
+    if (val === 'false') return false;
+    return undefined;
+  }),
+  groupId: z.string().optional().transform(val => {
+    if (val === '') return undefined;
+    return val;
+  }),
+  teamId: z.string().optional().transform(val => {
+    if (val === '') return undefined;
+    return val;
+  }),
+  sortBy: z.string().optional(),
+  sortOrder: z.enum(['asc', 'desc']).optional(),
 });
 
 /**
@@ -183,6 +202,11 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (error instanceof z.ZodError) {
       logger.warn('Validation error in users API', { errors: error.errors });
       return res.status(400).json({ error: 'Validation error', details: error.errors });
+    }
+    
+    // Handle custom API errors (like CONFLICT, NOT_FOUND, etc.)
+    if (error instanceof Error && (error as ApiError).statusCode) {
+      return handleApiError(error, req, res);
     }
     
     logger.error('Error in users API', { error, method: req.method });

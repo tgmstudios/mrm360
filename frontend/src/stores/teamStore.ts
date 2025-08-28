@@ -9,6 +9,7 @@ export const useTeamStore = defineStore('teams', () => {
   const currentTeam = ref<Team | null>(null)
   const isLoading = ref(false)
   const error = ref<string | null>(null)
+  const showCreateModal = ref(false)
   const pagination = ref({
     page: 1,
     limit: 20,
@@ -102,6 +103,14 @@ export const useTeamStore = defineStore('teams', () => {
     }
   }
 
+  function openCreateModal() {
+    showCreateModal.value = true
+  }
+
+  function closeCreateModal() {
+    showCreateModal.value = false
+  }
+
   async function updateTeam(id: string, teamData: TeamUpdate) {
     try {
       isLoading.value = true
@@ -174,6 +183,7 @@ export const useTeamStore = defineStore('teams', () => {
     currentTeam,
     isLoading,
     error,
+    showCreateModal,
     pagination,
     filters,
     
@@ -191,6 +201,8 @@ export const useTeamStore = defineStore('teams', () => {
     updateTeam,
     deleteTeam,
     clearError,
-    resetFilters
+    resetFilters,
+    openCreateModal,
+    closeCreateModal
   }
 })
