@@ -139,27 +139,21 @@ export class WikiJsApiClient {
   // Page operations
   async getPages(orderBy: string = 'TITLE'): Promise<WikiJsPage[]> {
     const query = `
-      query GetPages($orderBy: PageOrderByEnum) {
+      query GetPages($orderBy: PageOrderBy) {
         pages {
           list(orderBy: $orderBy) {
             id
             path
             title
-            content
-            createdAt
-            updatedAt
-            locale
+            description
+            contentType
             isPublished
             isPrivate
             privateNS
+            createdAt
+            updatedAt
+            locale
             tags
-            description
-            isHomePage
-            isTemplate
-            templateId
-            scriptCss
-            scriptJs
-            metadata
           }
         }
       }
@@ -177,21 +171,21 @@ export class WikiJsApiClient {
             id
             path
             title
+            description
             content
-            createdAt
-            updatedAt
-            locale
+            contentType
             isPublished
             isPrivate
             privateNS
+            createdAt
+            updatedAt
+            locale
             tags
-            description
-            isHomePage
-            isTemplate
-            templateId
-            scriptCss
-            scriptJs
-            metadata
+            hash
+            publishStartDate
+            publishEndDate
+            render
+            toc
           }
         }
       }
