@@ -48,18 +48,12 @@ export interface WikiJsPageInput {
   path: string;
   title: string;
   content: string;
-  locale?: string;
-  isPublished?: boolean;
-  isPrivate?: boolean;
-  privateNS?: string;
-  tags?: string[];
-  description?: string;
-  isHomePage?: boolean;
-  isTemplate?: boolean;
-  templateId?: string;
-  scriptCss?: string;
-  scriptJs?: string;
-  metadata?: Record<string, any>;
+  description: string;
+  editor: string;
+  isPublished: boolean;
+  isPrivate: boolean;
+  locale: string;
+  tags: string[];
 }
 
 export interface WikiJsUserInput {
