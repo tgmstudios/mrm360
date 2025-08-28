@@ -2,6 +2,31 @@ import { HttpClient, HttpResponse } from '@/utils/httpClient';
 import { logger } from '@/utils/logger';
 
 // Wiki.js GraphQL types
+export interface WikiJsPageTag {
+  id: string;
+  tag: string;
+  title?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Interface for pages in list queries (tags as strings)
+export interface WikiJsPageListItem {
+  id: string;
+  path: string;
+  title: string;
+  description: string;
+  contentType: string;
+  isPublished: boolean;
+  isPrivate: boolean;
+  privateNS?: string;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
+  locale: string;
+}
+
+// Interface for full page details (tags as objects)
 export interface WikiJsPage {
   id: string;
   path: string;
@@ -12,7 +37,7 @@ export interface WikiJsPage {
   isPublished: boolean;
   isPrivate: boolean;
   privateNS?: string;
-  tags: string[];
+  tags: WikiJsPageTag[];
   createdAt: string;
   updatedAt: string;
   locale: string;
@@ -38,8 +63,16 @@ export interface WikiJsUser {
 export interface WikiJsGroup {
   id: string;
   name: string;
-  description?: string;
+  isSystem: boolean;
+  redirectOnLogin?: string;
   permissions: string[];
+}
+
+export interface WikiJsGroupMinimal {
+  id: string;
+  name: string;
+  isSystem: boolean;
+  userCount: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -54,6 +87,16 @@ export interface WikiJsPageInput {
   isPrivate: boolean;
   locale: string;
   tags: string[];
+}
+
+export interface WikiJsPageUpdateInput {
+  content?: string;
+  description?: string;
+  title?: string;
+  isPublished?: boolean;
+  isPrivate?: boolean;
+  tags?: string[];
+  privateNS?: string;
 }
 
 export interface WikiJsUserInput {
@@ -91,8 +134,12 @@ export interface WikiJsGraphQLResponse<T> {
 export class WikiJsApiClient {
   private httpClient: HttpClient;
   private graphqlEndpoint: string;
+  private baseUrl: string;
+  private token: string;
 
   constructor(config: { baseUrl: string; token: string }) {
+    this.baseUrl = config.baseUrl;
+    this.token = config.token;
     this.httpClient = new HttpClient({
       baseUrl: config.baseUrl,
       token: config.token,
@@ -106,6 +153,11 @@ export class WikiJsApiClient {
 
   private async executeGraphQL<T>(query: string, variables?: Record<string, any>): Promise<T> {
     try {
+      // Log the variables being sent for debugging
+      if (variables) {
+        logger.debug('GraphQL variables:', JSON.stringify(variables, null, 2));
+      }
+      
       const response = await this.httpClient.post<WikiJsGraphQLResponse<T>>(
         this.graphqlEndpoint,
         {
@@ -131,7 +183,7 @@ export class WikiJsApiClient {
   }
 
   // Page operations
-  async getPages(orderBy: string = 'TITLE'): Promise<WikiJsPage[]> {
+  async getPages(orderBy: string = 'TITLE'): Promise<WikiJsPageListItem[]> {
     const query = `
       query GetPages($orderBy: PageOrderBy) {
         pages {
@@ -153,7 +205,7 @@ export class WikiJsApiClient {
       }
     `;
 
-    const result = await this.executeGraphQL<{ pages: { list: WikiJsPage[] } }>(query, { orderBy });
+    const result = await this.executeGraphQL<{ pages: { list: WikiJsPageListItem[] } }>(query, { orderBy });
     return result.pages.list;
   }
 
@@ -174,7 +226,13 @@ export class WikiJsApiClient {
             createdAt
             updatedAt
             locale
-            tags
+            tags {
+              id
+              tag
+              title
+              createdAt
+              updatedAt
+            }
             hash
             publishStartDate
             publishEndDate
@@ -192,7 +250,11 @@ export class WikiJsApiClient {
   async getPageByPath(path: string): Promise<WikiJsPage | null> {
     try {
       const pages = await this.getPages();
-      return pages.find(page => page.path === path) || null;
+      const pageItem = pages.find(page => page.path === path);
+      if (!pageItem) return null;
+      
+      // Get full page details
+      return await this.getPage(pageItem.id);
     } catch (error) {
       logger.error(`Failed to get page by path ${path}:`, error);
       return null;
@@ -233,12 +295,13 @@ export class WikiJsApiClient {
               createdAt
               updatedAt
               locale
-              tags
-              hash
-              publishStartDate
-              publishEndDate
-              render
-              toc
+              tags {
+                id
+                tag
+                title
+                createdAt
+                updatedAt
+              }
             }
           }
         }
@@ -255,15 +318,17 @@ export class WikiJsApiClient {
     }>(query, pageData);
 
     if (!result.pages.create.responseResult.succeeded) {
-      throw new Error(`Failed to create page: ${result.pages.create.responseResult.message || 'Unknown error'}`);
+      const errorMessage = result.pages.create.responseResult.message || 'Unknown error';
+      const errorCode = result.pages.create.responseResult.errorCode;
+      throw new Error(`Failed to create page: ${errorMessage} (Error Code: ${errorCode})`);
     }
 
     return result.pages.create.page;
   }
 
-  async updatePage(id: string, pageData: Partial<WikiJsPageInput>): Promise<WikiJsPage> {
+  async updatePage(id: string, pageData: WikiJsPageUpdateInput): Promise<WikiJsPage> {
     const query = `
-      mutation UpdatePage($id: Int!, $content: String, $description: String, $title: String, $isPublished: Boolean, $isPrivate: Boolean, $tags: [String]) {
+      mutation UpdatePage($id: Int!, $content: String, $description: String, $title: String, $isPublished: Boolean, $isPrivate: Boolean, $tags: [String], $privateNS: String) {
         pages {
           update(
             id: $id
@@ -273,6 +338,7 @@ export class WikiJsApiClient {
             isPublished: $isPublished
             isPrivate: $isPrivate
             tags: $tags
+            privateNS: $privateNS
           ) {
             responseResult {
               succeeded
@@ -293,7 +359,13 @@ export class WikiJsApiClient {
               createdAt
               updatedAt
               locale
-              tags
+              tags {
+                id
+                tag
+                title
+                createdAt
+                updatedAt
+              }
               hash
               publishStartDate
               publishEndDate
@@ -347,6 +419,35 @@ export class WikiJsApiClient {
 
     if (!result.pages.delete.responseResult.succeeded) {
       throw new Error(`Failed to delete page: ${result.pages.delete.responseResult.message || 'Unknown error'}`);
+    }
+  }
+
+  async deleteGroup(id: string): Promise<void> {
+    const query = `
+      mutation DeleteGroup($id: Int!) {
+        groups {
+          delete(id: $id) {
+            responseResult {
+              succeeded
+              errorCode
+              slug
+              message
+            }
+          }
+        }
+      }
+    `;
+
+    const result = await this.executeGraphQL<{
+      groups: {
+        delete: {
+          responseResult: WikiJsResponseResult;
+        };
+      };
+    }>(query, { id: parseInt(id) });
+
+    if (!result.groups.delete.responseResult.succeeded) {
+      throw new Error(`Failed to delete group: ${result.groups.delete.responseResult.message || 'Unknown error'}`);
     }
   }
 
@@ -462,48 +563,62 @@ export class WikiJsApiClient {
   }
 
   // Group operations
-  async getGroups(): Promise<WikiJsGroup[]> {
+  async getGroups(): Promise<WikiJsGroupMinimal[]> {
     const query = `
       query GetGroups {
-        users {
-          groups {
-            list {
-              id
-              name
-              description
-              permissions
-              createdAt
-              updatedAt
-            }
+        groups {
+          list {
+            id
+            name
+            isSystem
+            userCount
+            createdAt
+            updatedAt
           }
         }
       }
     `;
 
-    const result = await this.executeGraphQL<{ users: { groups: { list: WikiJsGroup[] } } }>(query);
-    return result.users.groups.list;
+    const result = await this.executeGraphQL<{ groups: { list: WikiJsGroupMinimal[] } }>(query);
+    return result.groups.list;
+  }
+
+  async getGroup(id: string): Promise<WikiJsGroup> {
+    const query = `
+      query GetGroup($id: Int!) {
+        groups {
+          single(id: $id) {
+            id
+            name
+            isSystem
+            redirectOnLogin
+            permissions
+          }
+        }
+      }
+    `;
+
+    const result = await this.executeGraphQL<{ groups: { single: WikiJsGroup } }>(query, { id: parseInt(id) });
+    return result.groups.single;
   }
 
   async createGroup(groupData: WikiJsGroupInput): Promise<WikiJsGroup> {
     const query = `
-      mutation CreateGroup($groupData: GroupInput!) {
-        users {
-          groups {
-            create(group: $groupData) {
-              responseResult {
-                succeeded
-                errorCode
-                slug
-                message
-              }
-              group {
-                id
-                name
-                description
-                permissions
-                createdAt
-                updatedAt
-              }
+      mutation CreateGroup($name: String!) {
+        groups {
+          create(name: $name) {
+            responseResult {
+              succeeded
+              errorCode
+              slug
+              message
+            }
+            group {
+              id
+              name
+              isSystem
+              redirectOnLogin
+              permissions
             }
           }
         }
@@ -511,39 +626,43 @@ export class WikiJsApiClient {
     `;
 
     const result = await this.executeGraphQL<{
-      users: {
-        groups: {
-          create: {
-            responseResult: WikiJsResponseResult;
-            group: WikiJsGroup;
-          };
+      groups: {
+        create: {
+          responseResult: WikiJsResponseResult;
+          group: WikiJsGroup;
         };
       };
-    }>(query, { groupData });
+    }>(query, { name: groupData.name });
 
-    if (!result.users.groups.create.responseResult.succeeded) {
-      throw new Error(`Failed to create group: ${result.users.groups.create.responseResult.message || 'Unknown error'}`);
+    if (!result.groups.create.responseResult.succeeded) {
+      throw new Error(`Failed to create group: ${result.groups.create.responseResult.message || 'Unknown error'}`);
     }
 
-    return result.users.groups.create.group;
+    return result.groups.create.group;
   }
+
+  // Note: Group update is not implemented due to complex required fields in Wiki.js schema
+  // Groups are created with basic permissions and require manual configuration in admin panel
+
+  // Note: User management is not implemented due to complex required fields in Wiki.js schema
+  // Users must be added to groups manually in the Wiki.js admin panel
 
   // Health check
   async healthCheck(): Promise<boolean> {
     try {
       const query = `
         query HealthCheck {
-          system {
-            info {
-              version
-              platform
-              nodeVersion
+          pages {
+            list(limit: 1) {
+              id
+              path
+              title
             }
           }
         }
       `;
 
-      await this.executeGraphQL<{ system: { info: any } }>(query);
+      await this.executeGraphQL<{ pages: { list: any[] } }>(query);
       return true;
     } catch (error) {
       logger.error('Health check failed:', error);
@@ -554,8 +673,8 @@ export class WikiJsApiClient {
   // Get configuration
   getConfig(): { baseUrl: string; token: string } {
     return {
-      baseUrl: this.httpClient['baseUrl'],
-      token: this.httpClient['token']
+      baseUrl: this.baseUrl,
+      token: this.token
     };
   }
 }

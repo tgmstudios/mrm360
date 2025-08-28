@@ -21,6 +21,8 @@
     "test:nextcloud": "tsx scripts/testNextcloudService.ts",
     "test:nextcloud:auth": "tsx scripts/testNextcloudAuth.ts",
     "test:wikijs": "tsx scripts/testWikiJsService.ts",
+    "test:wikijs:groups": "tsx scripts/testWikiJsGroupsAndPermissions.ts",
+    "example:wikijs:groups": "tsx scripts/exampleWikiJsGroupsAndPermissions.ts",
     "test:discord": "tsx scripts/testDiscordBotService.ts"
   },
   "dependencies": {

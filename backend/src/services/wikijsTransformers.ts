@@ -1,5 +1,5 @@
 import { WikiPage, WikiPermission } from '@/types';
-import { WikiJsPage, WikiJsUser, WikiJsGroup, WikiJsPageInput } from './wikijsApiClient';
+import { WikiJsPage, WikiJsUser, WikiJsGroup, WikiJsPageInput, WikiJsPageListItem } from './wikijsApiClient';
 
 export class WikiJsTransformers {
   /**
@@ -7,10 +7,36 @@ export class WikiJsTransformers {
    */
   static transformPageResponse(response: WikiJsPage): WikiPage {
     return {
+      id: response.id,
       path: response.path,
       title: response.title,
+      description: response.description,
       content: response.content,
+      isPublished: response.isPublished,
+      isPrivate: response.isPrivate,
+      tags: response.tags.map(tag => tag.tag),
+      createdAt: new Date(response.createdAt),
+      updatedAt: new Date(response.updatedAt),
       permissions: this.transformPermissions(response)
+    };
+  }
+
+  /**
+   * Transform Wiki.js API page list item to internal WikiPage type
+   */
+  static transformPageListItemResponse(response: WikiJsPageListItem): WikiPage {
+    return {
+      id: response.id,
+      path: response.path,
+      title: response.title,
+      description: response.description,
+      content: response.content || '',
+      isPublished: response.isPublished,
+      isPrivate: response.isPrivate,
+      tags: response.tags,
+      createdAt: new Date(response.createdAt),
+      updatedAt: new Date(response.updatedAt),
+      permissions: []
     };
   }
 
@@ -25,8 +51,9 @@ export class WikiJsTransformers {
       locale: 'en',
       isPublished: true,
       isPrivate: false,
-      tags: [],
-      description: page.title || ''
+      tags: ['general'], // Provide a default tag instead of empty array
+      description: page.title || '',
+      editor: 'markdown' // Default to markdown editor
     };
   }
 
@@ -170,14 +197,14 @@ export class WikiJsTransformers {
   /**
    * Check if a page path already exists
    */
-  static async checkPathCollision(pages: WikiJsPage[], path: string): Promise<boolean> {
+  static async checkPathCollision(pages: { path: string }[], path: string): Promise<boolean> {
     return pages.some(page => page.path === path);
   }
 
   /**
    * Generate unique page path
    */
-  static generateUniquePath(pages: WikiJsPage[], basePath: string): string {
+  static generateUniquePath(pages: { path: string }[], basePath: string): string {
     let counter = 1;
     let path = basePath;
     
