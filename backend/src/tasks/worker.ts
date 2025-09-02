@@ -31,7 +31,7 @@ async function discoverDiscordRoles() {
     logger.info('🔍 Starting Discord role discovery...');
     
     // Import the discovery function
-    const { discoverAndSaveDiscordRoles } = await import('../scripts/populate-discord-config');
+    const { discoverAndSaveDiscordRoles } = await import('../../scripts/populate-discord-config');
     await discoverAndSaveDiscordRoles();
     
     logger.info('✅ Discord role discovery completed');
