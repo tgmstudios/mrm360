@@ -1192,9 +1192,19 @@ Green buttons: Select roles that interest you.
       // Check if user has MRM account linked
       const hasLinkedAccount = await this.checkUserMRMLink(user.id);
       if (!hasLinkedAccount) {
-        await interaction.reply({ 
-          content: '⚠️ Warning: Your Discord account is not linked to an MRM account. Please link your accounts to access role benefits.', 
-          ephemeral: true 
+        const verifyButton = new ButtonBuilder()
+          .setLabel('Link Account')
+          .setStyle(ButtonStyle.Link)
+          .setURL('https://mrm.psuccso.org/join')
+          .setEmoji('🚀');
+
+        const buttonRow = new ActionRowBuilder<ButtonBuilder>()
+          .addComponents(verifyButton);
+
+        await interaction.reply({
+          content: '⚠️ Warning: Your Discord account is not linked to an MRM account. Please link your accounts to access role benefits.',
+          components: [buttonRow],
+          ephemeral: true
         });
       }
 
