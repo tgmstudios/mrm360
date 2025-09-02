@@ -22,8 +22,14 @@ if [ "$CONTAINER_TYPE" = "backend" ]; then
   echo "Prisma setup completed."
 fi
 
-# Wait for backend service if this is a worker container
+# Wait for backend service and run Prisma setup for worker containers
 if [ "$CONTAINER_TYPE" = "worker" ]; then
+  echo "Running Prisma setup for worker container..."
+  
+  # Generate Prisma client for workers
+  echo "Generating Prisma client..."
+  npm run db:generate
+  
   echo "Waiting for backend service to be available..."
   
   # Default backend host and port
