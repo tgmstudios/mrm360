@@ -25,6 +25,22 @@ const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
   maxRetriesPerRequest: null
 });
 
+// Discord role discovery function
+async function discoverDiscordRoles() {
+  try {
+    logger.info('🔍 Starting Discord role discovery...');
+    
+    // Import the discovery function
+    const { discoverAndSaveDiscordRoles } = await import('../scripts/populate-discord-config');
+    await discoverAndSaveDiscordRoles();
+    
+    logger.info('✅ Discord role discovery completed');
+  } catch (error) {
+    logger.error('❌ Discord role discovery failed:', error);
+    // Don't fail the worker startup if role discovery fails
+  }
+}
+
 // Create workers
 const emailWorker = new Worker(QUEUE_NAMES.EMAIL, processEmailJob, {
   connection: redis,
@@ -222,17 +238,29 @@ process.on('unhandledRejection', (reason, promise) => {
   gracefulShutdown();
 });
 
-// Initialize Discord bot worker
-initializeDiscordBotWorker().catch(error => {
-  logger.error('Failed to initialize Discord bot worker:', error);
-});
+// Initialize Discord bot worker and discover roles
+async function initializeWorkers() {
+  try {
+    // Initialize Discord bot worker
+    await initializeDiscordBotWorker();
+    
+    // Discover Discord roles
+    await discoverDiscordRoles();
+    
+    logger.info('MRM360 Task Workers started');
+    logger.info(`Email worker: ${QUEUE_NAMES.EMAIL}`);
+    logger.info(`QR Code worker: ${QUEUE_NAMES.QR_CODE}`);
+    logger.info(`Sync Groups worker: ${QUEUE_NAMES.SYNC_GROUPS}`);
+    logger.info(`Provision worker: ${QUEUE_NAMES.PROVISION}`);
+    logger.info(`Team Provisioning worker: ${QUEUE_NAMES.TEAM_PROVISIONING}`);
+    logger.info(`Discord worker: ${QUEUE_NAMES.DISCORD}`);
+    logger.info(`ListMonk worker: ${QUEUE_NAMES.LISTMONK}`);
+    logger.info(`Authentik worker: ${QUEUE_NAMES.AUTHENTIK}`);
+  } catch (error) {
+    logger.error('Failed to initialize workers:', error);
+    process.exit(1);
+  }
+}
 
-logger.info('MRM360 Task Workers started');
-logger.info(`Email worker: ${QUEUE_NAMES.EMAIL}`);
-logger.info(`QR Code worker: ${QUEUE_NAMES.QR_CODE}`);
-logger.info(`Sync Groups worker: ${QUEUE_NAMES.SYNC_GROUPS}`);
-logger.info(`Provision worker: ${QUEUE_NAMES.PROVISION}`);
-logger.info(`Team Provisioning worker: ${QUEUE_NAMES.TEAM_PROVISIONING}`);
-logger.info(`Discord worker: ${QUEUE_NAMES.DISCORD}`);
-logger.info(`ListMonk worker: ${QUEUE_NAMES.LISTMONK}`);
-logger.info(`Authentik worker: ${QUEUE_NAMES.AUTHENTIK}`);
+// Start initialization
+initializeWorkers();

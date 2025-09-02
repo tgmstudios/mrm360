@@ -18,6 +18,7 @@
     "worker:dev": "tsx scripts/startTeamProvisioningWorker.ts",
     "worker:prod": "NODE_ENV=production tsx scripts/startTeamProvisioningWorker.ts",
     "create-admin": "tsx scripts/create-admin.ts",
+    "sync-discord-roles": "tsx scripts/populate-discord-config.ts",
     "test:authentik": "tsx scripts/testAuthentikService.ts",
     "test:nextcloud": "tsx scripts/testNextcloudService.ts",
     "test:nextcloud:auth": "tsx scripts/testNextcloudAuth.ts",
