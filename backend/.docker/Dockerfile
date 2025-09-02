@@ -30,4 +30,4 @@ ENV CONTAINER_TYPE=backend
 
 # Use custom entrypoint script
 ENTRYPOINT ["/docker-entrypoint.sh"]
-CMD ["npm", "run", "dev"]
+CMD ["npm", "run", "dev", "--", "-H", "0.0.0.0"]
