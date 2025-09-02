@@ -29,7 +29,7 @@ if [ "$CONTAINER_TYPE" = "worker" ]; then
   # Default backend host and port
   BACKEND_HOST=${BACKEND_HOST:-"backend"}
   BACKEND_PORT=${BACKEND_PORT:-"3000"}
-  WAIT_TIMEOUT=${WAIT_TIMEOUT:-"60"}
+  WAIT_TIMEOUT=${WAIT_TIMEOUT:-"15"}
   
   echo "Waiting for $BACKEND_HOST:$BACKEND_PORT with timeout ${WAIT_TIMEOUT}s..."
   
