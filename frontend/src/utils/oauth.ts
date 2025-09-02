@@ -1,8 +1,8 @@
 // OAuth utility functions
 export function initiateOAuthLogin() {
-  const issuer = import.meta.env.VITE_AUTHENTIK_BASE_URL
-  const clientId = import.meta.env.VITE_AUTHENTIK_CLIENT_ID
-  const redirectUri = import.meta.env.VITE_AUTHENTIK_REDIRECT_URI
+  const issuer = window.ENV.VITE_AUTHENTIK_BASE_URL
+  const clientId = window.ENV.VITE_AUTHENTIK_CLIENT_ID
+  const redirectUri = window.ENV.VITE_AUTHENTIK_REDIRECT_URI
   
   if (!issuer || !clientId || !redirectUri) {
     console.error('OIDC configuration missing')
@@ -41,7 +41,7 @@ export function validateOAuthState(receivedState: string): boolean {
     
     // In development, allow the flow to continue even with state mismatch
     // In production, this should be strict
-    if (import.meta.env.DEV) {
+    if (window.ENV.DEV) {
       console.warn('State parameter mismatch in development mode, continuing anyway...')
       return true
     } else {

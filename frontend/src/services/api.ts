@@ -26,7 +26,7 @@ class ApiService {
 
   constructor() {
     this.api = axios.create({
-      baseURL: import.meta.env.VITE_API_BASE_URL,
+      baseURL: window.ENV.VITE_API_BASE_URL,
       timeout: 10000,
       withCredentials: true, // Include cookies in requests
       headers: {

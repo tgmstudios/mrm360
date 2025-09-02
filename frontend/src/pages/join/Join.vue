@@ -252,8 +252,8 @@ async function handleOIDCCallback(code: string, state: string) {
 function initiateOIDCLogin() {
   isLoading.value = true
   
-  const issuer = import.meta.env.VITE_AUTHENTIK_BASE_URL
-  const clientId = import.meta.env.VITE_AUTHENTIK_CLIENT_ID
+  const issuer = window.ENV.VITE_AUTHENTIK_BASE_URL
+  const clientId = window.ENV.VITE_AUTHENTIK_CLIENT_ID
   const redirectUri = `${window.location.origin}/join` // Redirect back to join page
   
   if (!issuer || !clientId) {

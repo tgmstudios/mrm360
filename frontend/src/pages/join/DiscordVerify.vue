@@ -235,7 +235,7 @@ async function processOAuth2Callback(code: string, state: string) {
     sessionStorage.removeItem('discord_oauth_state')
     
          // Call backend API to process Discord OAuth2
-     const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/join/dd-verify?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`, {
+     const response = await fetch(`${window.ENV.VITE_API_BASE_URL}/join/dd-verify?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`, {
        method: 'GET',
        headers: {
          'Authorization': `Bearer ${authStore.accessToken}`,
@@ -283,7 +283,7 @@ async function processOAuth2Callback(code: string, state: string) {
 
 async function checkDiscordStatus() {
   try {
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/user/discord-status`, {
+    const response = await fetch(`${window.ENV.VITE_API_BASE_URL}/user/discord-status`, {
       headers: {
         'Authorization': `Bearer ${authStore.accessToken}`
       }
@@ -301,8 +301,8 @@ async function checkDiscordStatus() {
 function linkDiscord() {
   isLoading.value = true
   
-  const clientId = import.meta.env.VITE_DISCORD_CLIENT_ID
-  const redirectUri = import.meta.env.VITE_DISCORD_REDIRECT_URI
+  const clientId = window.ENV.VITE_DISCORD_CLIENT_ID
+  const redirectUri = window.ENV.VITE_DISCORD_REDIRECT_URI
   
   if (!clientId || !redirectUri) {
     console.error('Discord OAuth2 configuration missing')

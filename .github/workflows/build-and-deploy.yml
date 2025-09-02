@@ -25,7 +25,7 @@ jobs:
       uses: docker/login-action@v3
       with:
         registry: registry.psuccso.org
-        username: robot$wiretap+github
+        username: robot$mrm360+github
         password: ${{ secrets.DOCKER_PASSWORD }}
 
     - name: Generate API Tag Names
@@ -49,9 +49,58 @@ jobs:
         file: ./backend/.docker/Dockerfile
         push: true
         tags: |
-          registry.psuccso.org/wiretap/${{ env.TAG_LATEST_BACKEND }}
-          registry.psuccso.org/wiretap/${{ env.TAG_COMMIT_BACKEND }}
-        cache-from: type=registry,ref=registry.psuccso.org/wiretap/${{ env.TAG_LATEST_BACKEND }}
+          registry.psuccso.org/mrm360/${{ env.TAG_LATEST_BACKEND }}
+          registry.psuccso.org/mrm360/${{ env.TAG_COMMIT_BACKEND }}
+        cache-from: type=registry,ref=registry.psuccso.org/mrm360/${{ env.TAG_LATEST_BACKEND }}
+        cache-to: type=inline
+
+  build-worker:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Extract branch name
+      shell: bash
+      run: echo "branch=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> $GITHUB_OUTPUT
+      id: extract_branch
+
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Login to CCSO Docker Registry
+      uses: docker/login-action@v3
+      with:
+        registry: registry.psuccso.org
+        username: robot$mrm360+github
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
+    - name: Generate API Tag Names
+      run: |
+        echo "${{ steps.extract_branch.outputs.branch }}"
+        if [ ${{ steps.extract_branch.outputs.branch }} = "main" ]; then
+          echo "TAG_LATEST_WORKER=worker:latest" >> $GITHUB_ENV
+          echo "TAG_COMMIT_WORKER=worker:$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+        elif [ ${{ steps.extract_branch.outputs.branch }} = "staging" ]; then
+          echo "TAG_LATEST_WORKER=worker-stage:latest" >> $GITHUB_ENV
+          echo "TAG_COMMIT_WORKER=worker-stage:$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+        else
+          exit 0
+        fi
+
+    - name: Build and push Worker
+      uses: docker/build-push-action@v6
+      with:
+        context: ./backend
+        platforms: linux/amd64,linux/arm64
+        file: ./backend/.docker/Dockerfile-worker
+        push: true
+        tags: |
+          registry.psuccso.org/mrm360/${{ env.TAG_LATEST_WORKER }}
+          registry.psuccso.org/mrm360/${{ env.TAG_COMMIT_WORKER }}
+        cache-from: type=registry,ref=registry.psuccso.org/mrm360/${{ env.TAG_LATEST_WORKER }}
         cache-to: type=inline
 
   build-frontend:
@@ -74,7 +123,7 @@ jobs:
       uses: docker/login-action@v3
       with:
         registry: registry.psuccso.org
-        username: robot$wiretap+github
+        username: robot$mrm360+github
         password: ${{ secrets.DOCKER_PASSWORD }}
 
     - name: Generate Website Tag Names
@@ -98,13 +147,13 @@ jobs:
         file: ./frontend/.docker/Dockerfile
         push: true
         tags: |
-          registry.psuccso.org/wiretap/${{ env.TAG_LATEST_FRONTEND }}
-          registry.psuccso.org/wiretap/${{ env.TAG_COMMIT_FRONTEND }}
-        cache-from: type=registry,ref=registry.psuccso.org/wiretap/${{ env.TAG_LATEST_FRONTEND }}
+          registry.psuccso.org/mrm360/${{ env.TAG_LATEST_FRONTEND }}
+          registry.psuccso.org/mrm360/${{ env.TAG_COMMIT_FRONTEND }}
+        cache-from: type=registry,ref=registry.psuccso.org/mrm360/${{ env.TAG_LATEST_FRONTEND }}
         cache-to: type=inline
 
   deploy-rancher:
-    needs: [build-backend, build-frontend]
+    needs: [build-backend, build-worker, build-frontend]
     runs-on: ubuntu-latest
     steps:
     - name: Extract branch name
@@ -138,12 +187,14 @@ jobs:
 
         echo "${{ steps.extract_branch.outputs.branch }}"
         if [ ${{ steps.extract_branch.outputs.branch }} = "main" ]; then
-            namespace=wiretap
+            namespace=mrm360
             redeploy "backend"
+            redeploy "worker"
             redeploy "frontend"
         elif [ ${{ steps.extract_branch.outputs.branch }} = "staging" ]; then
-            namespace=wiretap-staging
+            namespace=mrm360-staging
             redeploy "backend"
+            redeploy "worker"
             redeploy "frontend"
         else
             exit 0

@@ -487,8 +487,8 @@ const generateAndDownloadQRCode = async () => {
 const linkDiscord = () => {
   isLinkingDiscord.value = true
   
-  const clientId = import.meta.env.VITE_DISCORD_CLIENT_ID
-  const redirectUri = import.meta.env.VITE_DISCORD_REDIRECT_URI
+  const clientId = window.ENV.VITE_DISCORD_CLIENT_ID
+  const redirectUri = window.ENV.VITE_DISCORD_REDIRECT_URI
   
   if (!clientId || !redirectUri) {
     console.error('Discord OAuth2 configuration missing')
@@ -521,7 +521,7 @@ const unlinkDiscord = async () => {
   isUnlinkingDiscord.value = true
   
   try {
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/user/unlink-discord`, {
+    const response = await fetch(`${window.ENV.VITE_API_BASE_URL}/user/unlink-discord`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${authStore.accessToken}`
@@ -547,7 +547,7 @@ const updateInterests = async () => {
   isUpdatingInterests.value = true
   
   try {
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/user/update-interests`, {
+    const response = await fetch(`${window.ENV.VITE_API_BASE_URL}/user/update-interests`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -578,7 +578,7 @@ const updateNewsletterPreference = async () => {
   isUpdatingNewsletter.value = true
   
   try {
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/user/newsletter-preference`, {
+    const response = await fetch(`${window.ENV.VITE_API_BASE_URL}/user/newsletter-preference`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -604,7 +604,7 @@ const updateNewsletterPreference = async () => {
 const loadUserData = async () => {
   try {
     // Load user data
-    const userResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL}/user/profile`, {
+    const userResponse = await fetch(`${window.ENV.VITE_API_BASE_URL}/user/profile`, {
       headers: {
         'Authorization': `Bearer ${authStore.accessToken}`
       }
@@ -630,7 +630,7 @@ const loadUserData = async () => {
     }
     
     // Load Discord status
-    const discordResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL}/user/discord-status`, {
+    const discordResponse = await fetch(`${window.ENV.VITE_API_BASE_URL}/user/discord-status`, {
       headers: {
         'Authorization': `Bearer ${authStore.accessToken}`
       }
@@ -642,7 +642,7 @@ const loadUserData = async () => {
     }
     
     // Load newsletter preference
-    const newsletterResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL}/user/newsletter-status`, {
+    const newsletterResponse = await fetch(`${window.ENV.VITE_API_BASE_URL}/user/newsletter-status`, {
       headers: {
         'Authorization': `Bearer ${authStore.accessToken}`
       }

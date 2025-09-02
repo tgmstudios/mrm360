@@ -238,7 +238,7 @@ async function submitInterests() {
   isSubmitting.value = true
   
   try {
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/onboarding/interests`, {
+    const response = await fetch(`${window.ENV.VITE_API_BASE_URL}/onboarding/interests`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -56,7 +56,7 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       isLoading.value = true
       
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/auth/login`, {
+      const response = await fetch(`${window.ENV.VITE_API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -93,7 +93,7 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       isLoading.value = true
       
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/auth/login`, {
+      const response = await fetch(`${window.ENV.VITE_API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -143,7 +143,7 @@ export const useAuthStore = defineStore('auth', () => {
   async function logout() {
     try {
       // Call backend logout endpoint
-      await fetch(`${import.meta.env.VITE_API_BASE_URL}/auth/logout`, {
+      await fetch(`${window.ENV.VITE_API_BASE_URL}/auth/logout`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${accessToken.value}`
@@ -189,7 +189,7 @@ export const useAuthStore = defineStore('auth', () => {
       }
 
       // Validate token with backend
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/auth/session`, {
+      const response = await fetch(`${window.ENV.VITE_API_BASE_URL}/auth/session`, {
         headers: {
           'Authorization': `Bearer ${accessToken.value}`
         }

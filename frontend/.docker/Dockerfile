@@ -36,11 +36,6 @@ RUN chmod +x /docker-entrypoint.sh && \
     sed -i 's/\r$//' /docker-entrypoint.sh && \
     cat /docker-entrypoint.sh
 
-# Environment variables with defaults
-ENV VITE_API_URL="http://localhost:6011"
-ENV VITE_APP_TITLE="Wiretap"
-ENV VITE_FRONTEND_URL="http://localhost"
-
 # Expose web port
 EXPOSE 80
 
