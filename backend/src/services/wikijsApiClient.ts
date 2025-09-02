@@ -166,18 +166,31 @@ export class WikiJsApiClient {
         }
       );
 
+      // Log the full response for debugging
+      logger.debug('GraphQL response:', JSON.stringify(response.data, null, 2));
+
       if (response.data?.errors && response.data.errors.length > 0) {
         const errorMessages = response.data.errors.map(e => e.message).join('; ');
+        logger.error('GraphQL errors found:', response.data.errors);
         throw new Error(`GraphQL execution failed: ${errorMessages}`);
       }
 
       if (!response.data?.data) {
+        logger.error('No data in GraphQL response:', response.data);
         throw new Error('No data received from GraphQL query');
       }
 
       return response.data.data;
     } catch (error) {
       logger.error('GraphQL execution failed:', error);
+      // Log additional error details if available
+      if (error instanceof Error) {
+        logger.error('Error details:', {
+          message: error.message,
+          stack: error.stack,
+          name: error.name
+        });
+      }
       throw error;
     }
   }
@@ -282,27 +295,6 @@ export class WikiJsApiClient {
               slug
               message
             }
-            page {
-              id
-              path
-              title
-              description
-              content
-              contentType
-              isPublished
-              isPrivate
-              privateNS
-              createdAt
-              updatedAt
-              locale
-              tags {
-                id
-                tag
-                title
-                createdAt
-                updatedAt
-              }
-            }
           }
         }
       }
@@ -312,7 +304,6 @@ export class WikiJsApiClient {
       pages: {
         create: {
           responseResult: WikiJsResponseResult;
-          page: WikiJsPage;
         };
       };
     }>(query, pageData);
@@ -323,7 +314,13 @@ export class WikiJsApiClient {
       throw new Error(`Failed to create page: ${errorMessage} (Error Code: ${errorCode})`);
     }
 
-    return result.pages.create.page;
+    // Since the create mutation doesn't return the page data reliably, fetch it by path
+    const createdPage = await this.getPageByPath(pageData.path);
+    if (!createdPage) {
+      throw new Error(`Page was created but could not be retrieved: ${pageData.path}`);
+    }
+
+    return createdPage;
   }
 
   async updatePage(id: string, pageData: WikiJsPageUpdateInput): Promise<WikiJsPage> {

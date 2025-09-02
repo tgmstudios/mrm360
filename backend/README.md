@@ -178,6 +178,22 @@ Jobs are processed by workers in `src/tasks/workers/`:
 - `emailWorker.ts` - Handles email sending
 - `qrCodeWorker.ts` - Generates QR codes
 - `syncGroupsWorker.ts` - Syncs group data
+- `listmonkWorker.ts` - Handles newsletter subscriptions (ListMonk)
+- `discordBotWorker.ts` - Manages Discord bot operations
+- `teamProvisioningProcessor.ts` - Handles team provisioning across services
+
+#### Starting Workers
+```bash
+# Start all workers
+npm run worker
+
+# Start specific workers
+npm run worker:team-provisioning
+npm run worker:discord
+```
+
+#### ListMonk Worker
+The ListMonk worker processes newsletter subscription/unsubscription requests asynchronously. See [LISTMONK_WORKER.md](./LISTMONK_WORKER.md) for detailed documentation.
 
 ## 📚 API Documentation
 

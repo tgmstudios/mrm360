@@ -1,12 +1,12 @@
 <template>
-  <div class="min-h-screen bg-gray-50">
+  <div class="min-h-screen bg-gray-900">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <!-- Header -->
       <div class="mb-8">
         <div class="flex items-center justify-between">
           <div>
-            <h1 class="text-3xl font-bold text-gray-900">{{ event?.title }}</h1>
-            <p class="text-gray-600 mt-2">{{ formatDate(event?.startTime) }} - {{ formatTime(event?.startTime) }}</p>
+            <h1 class="text-3xl font-bold text-gray-100">{{ event?.title }}</h1>
+            <p class="text-gray-400 mt-2">{{ formatDate(event?.startTime) }} - {{ formatTime(event?.startTime) }}</p>
           </div>
           <div class="flex space-x-3">
             <BaseButton
@@ -34,8 +34,8 @@
         <!-- Main Content -->
         <div class="lg:col-span-2 space-y-6">
           <!-- Event Info Card -->
-          <div class="bg-white rounded-lg shadow p-6">
-            <h2 class="text-xl font-semibold text-gray-900 mb-4">Event Information</h2>
+          <div class="bg-gray-800 rounded-lg shadow border border-gray-700 p-6">
+            <h2 class="text-xl font-semibold text-gray-100 mb-4">Event Information</h2>
             <div class="space-y-4">
               <div class="flex items-start space-x-3">
                 <div class="w-5 h-5 mt-1">
@@ -44,9 +44,9 @@
                   </svg>
                 </div>
                 <div>
-                  <p class="text-sm font-medium text-gray-500">Date & Time</p>
-                  <p class="text-gray-900">{{ formatDate(event?.startTime) }} at {{ formatTime(event?.startTime) }}</p>
-                  <p v-if="event?.endTime" class="text-sm text-gray-600">Ends: {{ formatDate(event?.endTime) }} at {{ formatTime(event?.endTime) }}</p>
+                  <p class="text-sm font-medium text-gray-400">Date & Time</p>
+                  <p class="text-gray-100">{{ formatDate(event?.startTime) }} at {{ formatTime(event?.startTime) }}</p>
+                  <p v-if="event?.endTime" class="text-sm text-gray-400">Ends: {{ formatDate(event?.endTime) }} at {{ formatTime(event?.endTime) }}</p>
                 </div>
               </div>
 
@@ -58,8 +58,8 @@
                   </svg>
                 </div>
                 <div>
-                  <p class="text-sm font-medium text-gray-500">Category</p>
-                  <p class="text-gray-900">{{ event?.category || 'N/A' }}</p>
+                  <p class="text-sm font-medium text-gray-400">Category</p>
+                  <p class="text-gray-100">{{ event?.category || 'N/A' }}</p>
                 </div>
               </div>
 
@@ -70,8 +70,8 @@
                   </svg>
                 </div>
                 <div>
-                  <p class="text-sm font-medium text-gray-500">Description</p>
-                  <p class="text-gray-900">{{ event?.description || 'No description available' }}</p>
+                  <p class="text-sm font-medium text-gray-400">Description</p>
+                  <p class="text-gray-100">{{ event?.description || 'No description available' }}</p>
                 </div>
               </div>
 
@@ -82,8 +82,8 @@
                   </svg>
                 </div>
                 <div>
-                  <p class="text-sm font-medium text-gray-500">Attendance Type</p>
-                  <p class="text-gray-900">{{ event?.attendanceType || 'SOFT' }}</p>
+                  <p class="text-sm font-medium text-gray-400">Attendance Type</p>
+                  <p class="text-gray-100">{{ event?.attendanceType || 'SOFT' }}</p>
                 </div>
               </div>
 
@@ -94,180 +94,129 @@
                   </svg>
                 </div>
                 <div>
-                  <p class="text-sm font-medium text-gray-500">Status</p>
+                  <p class="text-sm font-medium text-gray-400">Status</p>
                   <span 
                     :class="[
                       'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
-                      event?.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                      getEventStatusColor(event?.startTime, event?.endTime)
                     ]"
                   >
-                    {{ event?.status === 'active' ? 'Active' : 'Inactive' }}
+                    {{ getEventStatus(event?.startTime, event?.endTime) }}
                   </span>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- RSVP Section -->
-          <div class="bg-white rounded-lg shadow p-6">
-            <h2 class="text-xl font-semibold text-gray-900 mb-4">RSVP</h2>
-            <div v-if="!hasRSVPed" class="space-y-4">
-              <p class="text-gray-600">Will you be attending this event?</p>
-              <div class="flex space-x-3">
-                <BaseButton
-                  @click="rsvpToEvent('yes')"
-                  variant="primary"
-                  :loading="rsvpLoading"
-                >
-                  Yes, I'll be there
-                </BaseButton>
-                <BaseButton
-                  @click="rsvpToEvent('no')"
-                  variant="secondary"
-                  :loading="rsvpLoading"
-                >
-                  No, I can't make it
-                </BaseButton>
-                <BaseButton
-                  @click="rsvpToEvent('maybe')"
-                  variant="outline"
-                  :loading="rsvpLoading"
-                >
-                  Maybe
-                </BaseButton>
-              </div>
+          <!-- Attendees Card -->
+          <div class="bg-gray-800 rounded-lg shadow border border-gray-700 p-6">
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="text-xl font-semibold text-gray-100">Attendees</h2>
+              <span class="text-sm text-gray-400">{{ event?.attendees?.length || 0 }} attendees</span>
             </div>
-            <div v-else class="space-y-4">
-              <div class="flex items-center space-x-3">
-                <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <p class="text-gray-900">You have RSVP'd: <span class="font-medium">{{ userRSVP }}</span></p>
-              </div>
-              <BaseButton
-                @click="changeRSVP"
-                variant="outline"
-                size="sm"
+            
+            <div v-if="event?.attendees && event.attendees.length > 0" class="space-y-3">
+              <div
+                v-for="attendee in event.attendees"
+                :key="attendee.id"
+                class="flex items-center justify-between p-3 bg-gray-700 rounded-lg"
               >
-                Change RSVP
-              </BaseButton>
-            </div>
-          </div>
-
-          <!-- Attendance Section -->
-          <div class="bg-white rounded-lg shadow p-6">
-            <h2 class="text-xl font-semibold text-gray-900 mb-4">Attendance</h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              <div class="text-center p-4 bg-blue-50 rounded-lg">
-                <p class="text-2xl font-bold text-blue-600">{{ attendanceStats.yes }}</p>
-                <p class="text-sm text-blue-600">Attending</p>
-              </div>
-              <div class="text-center p-4 bg-red-50 rounded-lg">
-                <p class="text-2xl font-bold text-red-600">{{ attendanceStats.no }}</p>
-                <p class="text-sm text-red-600">Not Attending</p>
-              </div>
-              <div class="text-center p-4 bg-yellow-50 rounded-lg">
-                <p class="text-2xl font-bold text-yellow-600">{{ attendanceStats.maybe }}</p>
-                <p class="text-sm text-yellow-600">Maybe</p>
+                <div class="flex items-center space-x-3">
+                  <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                    <span class="text-sm font-medium text-white">
+                      {{ getUserInitials(attendee.user) }}
+                    </span>
+                  </div>
+                  <div>
+                    <p class="text-sm font-medium text-gray-100">
+                      {{ attendee.user.displayName || `${attendee.user.firstName} ${attendee.user.lastName}` }}
+                    </p>
+                    <p class="text-xs text-gray-400">{{ attendee.user.email }}</p>
+                  </div>
+                </div>
+                
+                <div class="flex items-center space-x-2">
+                  <span class="px-2 py-1 bg-green-900 text-green-200 rounded-full text-xs font-medium">
+                    {{ attendee.status }}
+                  </span>
+                  <span class="text-xs text-gray-400">{{ formatDate(attendee.createdAt) }}</span>
+                </div>
               </div>
             </div>
             
-            <div v-if="event?.rsvps && event.rsvps.length > 0" class="space-y-3">
-              <h3 class="text-lg font-medium text-gray-900">RSVPs</h3>
-              <div class="space-y-2">
-                <div 
-                  v-for="rsvp in event.rsvps" 
-                  :key="rsvp.id"
-                  class="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                >
-                  <div class="flex items-center space-x-3">
-                    <div class="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
-                      <span class="text-sm font-medium text-gray-700">
-                        {{ getInitials(rsvp.user?.firstName + ' ' + rsvp.user?.lastName || 'Unknown') }}
-                      </span>
-                    </div>
-                    <div>
-                      <p class="font-medium text-gray-900">{{ rsvp.user?.firstName + ' ' + rsvp.user?.lastName || 'Unknown User' }}</p>
-                      <p class="text-sm text-gray-500">{{ rsvp.user?.email || 'No email' }}</p>
-                    </div>
-                  </div>
-                  <span 
-                    :class="[
-                      'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
-                      rsvp.status === 'CONFIRMED' ? 'bg-green-100 text-green-800' : 
-                      rsvp.status === 'DECLINED' ? 'bg-red-100 text-red-800' : 
-                      rsvp.status === 'MAYBE' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'
-                    ]"
-                  >
-                    {{ rsvp.status === 'CONFIRMED' ? 'Attending' : 
-                       rsvp.status === 'DECLINED' ? 'Not Attending' : 
-                       rsvp.status === 'MAYBE' ? 'Maybe' : 'Pending' }}
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div v-else class="text-center py-8 text-gray-500">
-              <p>No RSVPs yet</p>
+            <div v-else class="text-center py-6">
+              <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+              </svg>
+              <h3 class="mt-2 text-sm font-medium text-gray-100">No attendees</h3>
+              <p class="mt-1 text-sm text-gray-400">No one has checked in to this event yet.</p>
             </div>
           </div>
         </div>
 
         <!-- Sidebar -->
         <div class="space-y-6">
-          <!-- Event Actions -->
-          <div class="bg-white rounded-lg shadow p-6">
-            <h3 class="text-lg font-medium text-gray-900 mb-4">Event Actions</h3>
-            <div class="space-y-3">
-              <BaseButton
-                v-if="canEditEvent"
-                @click="editEvent"
-                variant="secondary"
-                class="w-full"
-              >
-                Edit Event
-              </BaseButton>
-              <BaseButton
-                v-if="canCheckIn"
-                @click="goToCheckIn"
-                variant="primary"
-                class="w-full"
-              >
-                Check-in Attendees
-              </BaseButton>
-              <BaseButton
-                v-if="canDeleteEvent"
-                @click="deleteEvent"
-                variant="danger"
-                class="w-full"
-              >
-                Delete Event
-              </BaseButton>
-            </div>
-          </div>
-
-          <!-- Event Team -->
-          <div v-if="event?.linkedTeam" class="bg-white rounded-lg shadow p-6">
-            <h3 class="text-lg font-medium text-gray-900 mb-4">Linked Team</h3>
-            <div class="p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
-                 @click="goToTeam(event.linkedTeam.id)">
-              <p class="font-medium text-gray-900">{{ event.linkedTeam.name }}</p>
-              <p class="text-sm text-gray-500">{{ event.linkedTeam.type }}</p>
-            </div>
-          </div>
-
-          <!-- Event Groups -->
-          <div v-if="event?.groups && event.groups.length > 0" class="bg-white rounded-lg shadow p-6">
-            <h3 class="text-lg font-medium text-gray-900 mb-4">Related Groups</h3>
-            <div class="space-y-3">
-              <div 
-                v-for="group in event.groups" 
-                :key="group.id"
-                class="p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
-                @click="goToGroup(group.id)"
-              >
-                <p class="font-medium text-gray-900">{{ group.name }}</p>
-                <p class="text-sm text-gray-500">{{ group.type }}</p>
+          <!-- Event Stats -->
+          <div class="bg-gray-800 rounded-lg shadow border border-gray-700 p-6">
+            <h3 class="text-lg font-medium text-gray-100 mb-4">Event Stats</h3>
+            <dl class="space-y-3">
+              <div class="flex justify-between">
+                <dt class="text-sm font-medium text-gray-400">Total Attendees</dt>
+                <dd class="text-sm text-gray-100">{{ event?.attendees?.length || 0 }}</dd>
               </div>
+              <div class="flex justify-between">
+                <dt class="text-sm font-medium text-gray-400">Confirmed</dt>
+                <dd class="text-sm text-gray-100">{{ confirmedAttendees }}</dd>
+              </div>
+              <div class="flex justify-between">
+                <dt class="text-sm font-medium text-gray-400">Pending</dt>
+                <dd class="text-sm text-gray-100">{{ pendingAttendees }}</dd>
+              </div>
+              <div class="flex justify-between">
+                <dt class="text-sm font-medium text-gray-400">No Show</dt>
+                <dd class="text-sm text-gray-100">{{ noShowAttendees }}</dd>
+              </div>
+            </dl>
+          </div>
+
+          <!-- Linked Team -->
+          <div v-if="event?.linkedTeam" class="bg-gray-800 rounded-lg shadow border border-gray-700 p-6">
+            <h3 class="text-lg font-medium text-gray-100 mb-4">Linked Team</h3>
+            <div class="flex items-center space-x-3">
+              <div class="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center">
+                <span class="text-sm font-medium text-white">
+                  {{ event.linkedTeam.name.charAt(0).toUpperCase() }}
+                </span>
+              </div>
+              <div>
+                <p class="text-sm font-medium text-gray-100">{{ event.linkedTeam.name }}</p>
+                <p class="text-xs text-gray-400">{{ event.linkedTeam.type }}</p>
+              </div>
+            </div>
+            <router-link
+              :to="`/teams/${event.linkedTeam.id}`"
+              class="mt-3 inline-flex items-center text-blue-400 hover:text-blue-300 text-sm font-medium"
+            >
+              View Team
+              <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+              </svg>
+            </router-link>
+          </div>
+
+          <!-- QR Code -->
+          <div class="bg-gray-800 rounded-lg shadow border border-gray-700 p-6">
+            <h3 class="text-lg font-medium text-gray-100 mb-4">Check-in QR Code</h3>
+            <div class="text-center">
+              <div class="bg-white p-4 rounded-lg inline-block">
+                <QRCodeVue3
+                  :value="qrCodeValue"
+                  :size="150"
+                  :level="'M'"
+                  :render-as="'svg'"
+                />
+              </div>
+              <p class="mt-3 text-sm text-gray-400">Scan this code to check in</p>
             </div>
           </div>
         </div>
@@ -319,6 +268,7 @@ import { usePermissions } from '@/composables/usePermissions'
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseModal from '@/components/common/BaseModal.vue'
 import type { Event, EventAttendee } from '@/types/api'
+import QRCodeVue3 from 'qrcode-vue3'
 
 const route = useRoute()
 const router = useRouter()
@@ -443,4 +393,56 @@ const getInitials = (name: string) => {
     .toUpperCase()
     .slice(0, 2)
 }
+
+const getUserInitials = (user: any) => {
+  if (!user) return 'U'
+  return user.firstName.charAt(0).toUpperCase() + user.lastName.charAt(0).toUpperCase()
+}
+
+const getEventStatus = (startTime?: string, endTime?: string) => {
+  if (!startTime) return 'Inactive'
+  const now = new Date()
+  const start = new Date(startTime)
+  const end = endTime ? new Date(endTime) : null
+
+  if (end && now > end) {
+    return 'Inactive'
+  }
+  if (now < start) {
+    return 'Upcoming'
+  }
+  return 'Active'
+}
+
+const getEventStatusColor = (startTime?: string, endTime?: string) => {
+  if (!startTime) return 'bg-gray-700 text-gray-400'
+  const now = new Date()
+  const start = new Date(startTime)
+  const end = endTime ? new Date(endTime) : null
+
+  if (end && now > end) {
+    return 'bg-gray-700 text-gray-400'
+  }
+  if (now < start) {
+    return 'bg-blue-900 text-blue-200'
+  }
+  return 'bg-green-900 text-green-200'
+}
+
+const confirmedAttendees = computed(() => {
+  return event.value?.attendees?.filter(a => a.status === 'CONFIRMED').length || 0
+})
+
+const pendingAttendees = computed(() => {
+  return event.value?.attendees?.filter(a => a.status === 'PENDING').length || 0
+})
+
+const noShowAttendees = computed(() => {
+  return event.value?.attendees?.filter(a => a.status === 'DECLINED').length || 0
+})
+
+const qrCodeValue = computed(() => {
+  if (!event.value) return ''
+  return `${window.location.origin}/checkin/${event.value.id}`
+})
 </script>

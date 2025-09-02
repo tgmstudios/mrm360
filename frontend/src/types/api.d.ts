@@ -9,11 +9,16 @@ export interface User {
   isActive: boolean
   isPaid: boolean
   paidUntil?: string
+  qrCode?: string
+  role?: string
   createdAt: string
   updatedAt: string
   authentikGroups: string[]
   teams: Team[]
+  userTeams?: UserTeam[] // Backend returns this structure
   events: Event[]
+  discordAccount?: DiscordAccount
+  interests?: UserInterest[]
 }
 
 export interface UserCreate {
@@ -21,6 +26,8 @@ export interface UserCreate {
   firstName: string
   lastName: string
   displayName: string
+  role?: 'ADMIN' | 'EXEC_BOARD' | 'MEMBER'
+  paidStatus?: boolean
   authentikGroups: string[]
 }
 
@@ -77,7 +84,7 @@ export interface TeamCreate {
   subtype?: 'BLUE' | 'RED' | 'CTF'
   parentTeamId?: string
   groupId?: string
-  memberIds: string[]
+  members: { userId: string; role: 'MEMBER' | 'LEADER' }[]
   provisioningOptions?: TeamProvisioningOptions
 }
 
@@ -88,7 +95,7 @@ export interface TeamUpdate {
   subtype?: 'BLUE' | 'RED' | 'CTF'
   parentTeamId?: string
   groupId?: string
-  memberIds?: string[]
+  members?: { userId: string; role: 'MEMBER' | 'LEADER' }[]
   provisioningOptions?: TeamProvisioningOptions
 }
 
@@ -228,8 +235,14 @@ export interface AuthUser {
   username?: string
   role?: string
   paidStatus?: boolean
+  isActive?: boolean
+  authentikId?: string
+  authentikPk?: string
+  createdAt?: string
   authentikGroups: string[]
   abilities: Ability[]
+  discordAccount?: DiscordAccount
+  interests?: UserInterest[]
 }
 
 export interface Ability {
@@ -297,4 +310,43 @@ export interface EventFilters extends SearchFilters {
 export interface TeamFilters extends SearchFilters {
   type?: TeamType
   parentTeamId?: string
+}
+
+// Onboarding types
+export interface DiscordAccount {
+  id: string
+  userId: string
+  discordId: string
+  username: string
+  discriminator?: string
+  avatar?: string
+  linkedAt: string
+}
+
+export interface UserInterest {
+  id: string
+  userId: string
+  interest: InterestType
+  createdAt: string
+}
+
+export enum InterestType {
+  OFFENSE = 'OFFENSE',
+  DEFENSE = 'DEFENSE',
+  CTF = 'CTF',
+  GAMING = 'GAMING'
+}
+
+export enum ClassRank {
+  FIRST_YEAR = 'FIRST_YEAR',
+  SECOND_YEAR = 'SECOND_YEAR',
+  THIRD_YEAR = 'THIRD_YEAR',
+  FOURTH_YEAR = 'FOURTH_YEAR',
+  ALUMNI_OTHER = 'ALUMNI_OTHER'
+}
+
+export interface OnboardingData {
+  classRank: ClassRank
+  interests: InterestType[]
+  subscribeNewsletter: boolean
 }

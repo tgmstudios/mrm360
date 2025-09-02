@@ -64,24 +64,30 @@ export const useUserStore = defineStore('users', () => {
       const response: PaginatedResponse<User> = await apiService.getUsers(filters.value)
       
       const raw = (response.data ?? []) as any[]
-      users.value = raw.map((u: any) => ({
-        id: u.id,
-        email: u.email,
-        firstName: u.firstName,
-        lastName: u.lastName,
-        displayName: u.displayName || `${u.firstName} ${u.lastName}`,
-        avatar: u.avatar,
-        isActive: u.isActive ?? true,
-        isPaid: (u.isPaid ?? u.paidStatus) ?? false,
-        paidUntil: u.paidUntil,
-        createdAt: u.createdAt || new Date().toISOString(),
-        updatedAt: u.updatedAt || new Date().toISOString(),
-        authentikGroups: Array.isArray(u.userGroups)
-          ? u.userGroups.map((ug: any) => ug.group?.id || ug.groupId || ug.group?.name).filter(Boolean)
-          : (u.authentikGroups || []),
-        teams: Array.isArray(u.teams) ? u.teams : [],
-        events: Array.isArray(u.events) ? u.events : []
-      })) as unknown as User[]
+      users.value = raw.map((u: any) => {
+                const user = {
+          id: u.id,
+          email: u.email,
+          firstName: u.firstName,
+          lastName: u.lastName,
+          displayName: u.displayName || `${u.firstName} ${u.lastName}`,
+          avatar: u.avatar,
+          isActive: u.isActive ?? true,
+          isPaid: (u.isPaid ?? u.paidStatus) ?? false,
+          paidUntil: u.paidUntil,
+          createdAt: u.createdAt || new Date().toISOString(),
+          updatedAt: u.updatedAt || new Date().toISOString(),
+          authentikGroups: Array.isArray(u.userGroups)
+            ? u.userGroups.map((ug: any) => ug.group?.id || ug.groupId || ug.group?.name).filter(Boolean)
+            : (u.authentikGroups || []),
+          teams: Array.isArray(u.userTeams) 
+            ? u.userTeams.map((ut: any) => ut.team).filter(Boolean)
+            : Array.isArray(u.teams) ? u.teams : [],
+          events: Array.isArray(u.events) ? u.events : []
+        } as unknown as User
+        
+        return user
+      })
       pagination.value = response.pagination
       
       return response
@@ -98,8 +104,39 @@ export const useUserStore = defineStore('users', () => {
       isLoading.value = true
       error.value = null
       
-      const user = await apiService.getUser(id)
+      const rawUser = await apiService.getUser(id)
+      
+      // Transform the user data to match our expected structure
+      const user = {
+        id: rawUser.id,
+        email: rawUser.email,
+        firstName: rawUser.firstName,
+        lastName: rawUser.lastName,
+        displayName: rawUser.displayName || `${rawUser.firstName} ${rawUser.lastName}`,
+        avatar: rawUser.avatar,
+        isActive: rawUser.isActive ?? false,
+        isPaid: (rawUser.isPaid ?? rawUser.paidStatus) ?? false,
+        paidUntil: rawUser.paidUntil,
+        createdAt: rawUser.createdAt || new Date().toISOString(),
+        updatedAt: rawUser.updatedAt || new Date().toISOString(),
+        authentikGroups: Array.isArray(rawUser.userGroups)
+          ? rawUser.userGroups.map((ug: any) => ug.group?.id || ug.groupId || ug.group?.name).filter(Boolean)
+          : (rawUser.authentikGroups || []),
+        teams: Array.isArray(rawUser.userTeams) 
+          ? rawUser.userTeams.map((ut: any) => ut.team).filter(Boolean)
+          : Array.isArray(rawUser.teams) ? rawUser.teams : [],
+        events: Array.isArray(rawUser.events) ? rawUser.events : []
+      } as unknown as User
+      
       currentUser.value = user
+      
+      // Also add/update the user in the users array so getUserById can find it
+      const existingIndex = users.value.findIndex(u => u.id === id)
+      if (existingIndex !== -1) {
+        users.value[existingIndex] = user
+      } else {
+        users.value.push(user)
+      }
       
       return user
     } catch (err) {
@@ -115,7 +152,30 @@ export const useUserStore = defineStore('users', () => {
       isLoading.value = true
       error.value = null
       
-      const newUser = await apiService.createUser(userData)
+      const rawUser = await apiService.createUser(userData)
+      
+      // Transform the user data to match our expected structure
+      const newUser = {
+        id: rawUser.id,
+        email: rawUser.email,
+        firstName: rawUser.firstName,
+        lastName: rawUser.lastName,
+        displayName: rawUser.displayName || `${rawUser.firstName} ${rawUser.lastName}`,
+        avatar: rawUser.avatar,
+        isActive: rawUser.isActive ?? false, // New users are inactive by default
+        isPaid: (rawUser.isPaid ?? rawUser.paidStatus) ?? false,
+        paidUntil: rawUser.paidUntil,
+        createdAt: rawUser.createdAt || new Date().toISOString(),
+        updatedAt: rawUser.updatedAt || new Date().toISOString(),
+        authentikGroups: Array.isArray(rawUser.userGroups)
+          ? rawUser.userGroups.map((ug: any) => ug.group?.id || ug.groupId || ug.group?.name).filter(Boolean)
+          : (rawUser.authentikGroups || []),
+        teams: Array.isArray(rawUser.userTeams) 
+          ? rawUser.userTeams.map((ut: any) => ut.team).filter(Boolean)
+          : Array.isArray(rawUser.teams) ? rawUser.teams : [],
+        events: Array.isArray(rawUser.events) ? rawUser.events : []
+      } as unknown as User
+      
       users.value.unshift(newUser)
       pagination.value.total += 1
       
@@ -133,7 +193,29 @@ export const useUserStore = defineStore('users', () => {
       isLoading.value = true
       error.value = null
       
-      const updatedUser = await apiService.updateUser(id, userData)
+      const rawUser = await apiService.updateUser(id, userData)
+      
+      // Transform the user data to match our expected structure
+      const updatedUser = {
+        id: rawUser.id,
+        email: rawUser.email,
+        firstName: rawUser.firstName,
+        lastName: rawUser.lastName,
+        displayName: rawUser.displayName || `${rawUser.firstName} ${rawUser.lastName}`,
+        avatar: rawUser.avatar,
+        isActive: rawUser.isActive ?? true,
+        isPaid: (rawUser.isPaid ?? rawUser.paidStatus) ?? false,
+        paidUntil: rawUser.paidUntil,
+        createdAt: rawUser.createdAt || new Date().toISOString(),
+        updatedAt: rawUser.updatedAt || new Date().toISOString(),
+        authentikGroups: Array.isArray(rawUser.userGroups)
+          ? rawUser.userGroups.map((ug: any) => ug.group?.id || ug.groupId || ug.group?.name).filter(Boolean)
+          : (rawUser.authentikGroups || []),
+        teams: Array.isArray(rawUser.userTeams) 
+          ? rawUser.userTeams.map((ut: any) => ut.team).filter(Boolean)
+          : Array.isArray(rawUser.teams) ? rawUser.teams : [],
+        events: Array.isArray(rawUser.events) ? rawUser.events : []
+      } as unknown as User
       
       // Update in users array
       const index = users.value.findIndex(user => user.id === id)

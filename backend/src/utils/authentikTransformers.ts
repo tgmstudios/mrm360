@@ -7,7 +7,7 @@ export class AuthentikTransformers {
    */
   static transformGroupResponse(response: AuthentikGroupResponse): AuthentikGroup {
     return {
-      id: response.pk,
+      id: response.pk.toString(),
       name: response.name,
       description: response.description,
       parentGroupId: response.parent,
@@ -20,7 +20,7 @@ export class AuthentikTransformers {
    */
   static transformUserResponse(response: AuthentikUserResponse): AuthentikUser {
     return {
-      id: response.pk,
+      id: response.pk.toString(),
       username: response.username,
       email: response.email,
       groups: response.groups || [],

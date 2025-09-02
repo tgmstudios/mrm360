@@ -200,8 +200,9 @@ export class NextcloudService {
     try {
       logger.info(`Creating Nextcloud calendar: ${name}`);
       
-      // Build calendar name for group
-      const calendarName = NextcloudTransformers.buildGroupCalendarName(groupId, name);
+      // Use the groupId directly as the calendar name since it already has the proper format
+      // The groupId is already in the format "teamSubtype-team-teamName" which is what we want
+      const calendarName = groupId;
       
       // Validate calendar data
       const validationErrors = NextcloudTransformers.validateCalendarData({
@@ -250,6 +251,19 @@ export class NextcloudService {
     } catch (error) {
       logger.error(`Error deleting Nextcloud calendar ${name}:`, error);
       throw new Error(`Failed to delete Nextcloud calendar: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  async grantGroupCalendarAccess(calendarName: string, groupId: string, permissions: 'read' | 'read-write' = 'read-write'): Promise<void> {
+    try {
+      logger.info(`Granting group access to Nextcloud calendar: ${calendarName} for group: ${groupId}`);
+      
+      await this.apiClient.grantGroupCalendarAccess(calendarName, groupId, permissions);
+      
+      logger.info(`Successfully granted group access to Nextcloud calendar: ${calendarName}`);
+    } catch (error) {
+      logger.error(`Error granting group access to Nextcloud calendar ${calendarName}:`, error);
+      throw new Error(`Failed to grant group access to Nextcloud calendar: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 

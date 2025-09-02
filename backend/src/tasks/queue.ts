@@ -13,7 +13,10 @@ export const QUEUE_NAMES = {
   QR_CODE: 'qr-code',
   SYNC_GROUPS: 'sync-groups',
   PROVISION: 'provision',
-  TEAM_PROVISIONING: 'team-provisioning'
+  TEAM_PROVISIONING: 'team-provisioning',
+  DISCORD: 'discord',
+  LISTMONK: 'listmonk',
+  AUTHENTIK: 'authentik'
 } as const;
 
 // Create queues
@@ -67,6 +70,40 @@ export const teamProvisioningQueue = new Queue(QUEUE_NAMES.TEAM_PROVISIONING, {
     }
   }
 });
+
+export const discordQueue = new Queue(QUEUE_NAMES.DISCORD, {
+  connection: redis,
+  defaultJobOptions: {
+    attempts: 3,
+    backoff: {
+      type: 'exponential',
+      delay: 2000
+    }
+  }
+});
+
+export const listmonkQueue = new Queue(QUEUE_NAMES.LISTMONK, {
+  connection: redis,
+  defaultJobOptions: {
+    attempts: 3,
+    backoff: {
+      type: 'exponential',
+      delay: 3000
+    }
+  }
+});
+
+export const authentikQueue = new Queue(QUEUE_NAMES.AUTHENTIK, {
+  connection: redis,
+  defaultJobOptions: {
+    attempts: 3,
+    backoff: {
+      type: 'exponential',
+      delay: 2000
+    }
+  }
+});
+
 // Note: Not using QueueScheduler due to BullMQ version constraints
 // Note: BullMQ event handlers may need to be configured differently
 // For now, we'll log queue status through other means
@@ -113,6 +150,10 @@ function getQueueByName(queueName: keyof typeof QUEUE_NAMES) {
       return provisionQueue;
     case 'TEAM_PROVISIONING':
       return teamProvisioningQueue;
+    case 'DISCORD':
+      return discordQueue;
+    case 'LISTMONK':
+      return listmonkQueue;
     default:
       return null;
   }
@@ -125,6 +166,8 @@ export async function closeQueues() {
   await syncGroupsQueue.close();
   await provisionQueue.close();
   await teamProvisioningQueue.close();
+  await discordQueue.close();
+  await listmonkQueue.close();
   await redis.quit();
   logger.info('All queues closed');
 }
@@ -140,7 +183,9 @@ export async function getQueueHealth() {
         qrCode: await qrCodeQueue.getJobCounts(),
         syncGroups: await syncGroupsQueue.getJobCounts(),
         provision: await provisionQueue.getJobCounts(),
-        teamProvisioning: await teamProvisioningQueue.getJobCounts()
+        teamProvisioning: await teamProvisioningQueue.getJobCounts(),
+        discord: await discordQueue.getJobCounts(),
+        listmonk: await listmonkQueue.getJobCounts()
       }
     };
   } catch (error) {

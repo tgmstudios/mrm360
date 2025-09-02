@@ -1,74 +1,97 @@
-import { NextApiResponse } from 'next';
-import { withAuth, AuthenticatedRequest } from '../../middleware/authMiddleware';
-import { logger } from '../../utils/logger';
+import { NextApiRequest, NextApiResponse } from 'next';
+import { prisma } from '../../../models/prismaClient';
+import { logger } from '../../../utils/logger';
+import { withCORS } from '../../../middleware/corsMiddleware';
+import { verifyJWT } from '../../../utils/jwt';
 
-/**
- * @swagger
- * /api/user/profile:
- *   get:
- *     summary: Get current user profile
- *     tags: [User]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: User profile retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 data:
- *                   type: object
- *                   properties:
- *                     id:
- *                       type: string
- *                     email:
- *                       type: string
- *                     username:
- *                       type: string
- *                     firstName:
- *                       type: string
- *                     lastName:
- *                       type: string
- *                     role:
- *                       type: string
- *       401:
- *         description: Unauthorized - invalid or missing token
- *       500:
- *         description: Internal server error
- */
-async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
+export default withCORS(async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    const { user } = req;
+    // Verify JWT token
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Missing or invalid authorization header' });
+    }
+
+    const token = authHeader.substring(7);
+    logger.info('Attempting to verify JWT token', { tokenLength: token.length });
     
-    logger.info('User profile accessed', { userId: user.id, email: user.email });
+    const decoded = verifyJWT(token);
     
-    res.status(200).json({
+    if (!decoded || !decoded.id) {
+      logger.warn('JWT verification failed or invalid payload', { decoded });
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+
+    logger.info('JWT verified successfully', { userId: decoded.id });
+
+    // Get user profile with class rank and interests
+    logger.info('Attempting to fetch user from database', { userId: decoded.id });
+    
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        displayName: true,
+        role: true,
+        paidStatus: true,
+        qrCode: true,
+        createdAt: true,
+        updatedAt: true,
+        userClassRank: {
+          select: {
+            classRank: true,
+            createdAt: true,
+            updatedAt: true
+          }
+        },
+        userInterests: {
+          select: {
+            interest: true,
+            createdAt: true
+          }
+        },
+        discordAccount: {
+          select: {
+            discordId: true,
+            username: true,
+            discriminator: true,
+            avatar: true,
+            linkedAt: true
+          }
+        }
+      }
+    });
+
+    if (!user) {
+      logger.warn('User not found in database', { userId: decoded.id });
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    logger.info('User profile retrieved successfully', { userId: decoded.id });
+
+    return res.status(200).json({
       success: true,
       user: {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        username: user.username,
-        firstName: user.firstName,
-        lastName: user.lastName,
-      },
-      message: 'Profile retrieved successfully'
+        ...user,
+        classRank: user.userClassRank?.classRank || null,
+        interests: user.userInterests.map(interest => interest.interest),
+        hasDiscordLinked: !!user.discordAccount
+      }
     });
-  } catch (error) {
-    logger.error('Failed to get user profile', { error, userId: req.user.id });
-    res.status(500).json({ 
-      error: 'Internal server error',
-      message: 'Failed to retrieve profile' 
-    });
-  }
-}
 
-export default withAuth(handler);
+  } catch (error) {
+    logger.error('Get user profile error', { 
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : 'Unknown'
+    });
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});

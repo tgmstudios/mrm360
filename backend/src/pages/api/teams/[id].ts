@@ -19,7 +19,10 @@ const updateTeamSchema = z.object({
   subtype: z.enum(['BLUE', 'RED', 'CTF']).optional(),
   parentTeamId: z.string().optional(),
   groupId: z.string().optional(),
-  memberIds: z.array(z.string()).optional(),
+  members: z.array(z.object({
+    userId: z.string(),
+    role: z.enum(['MEMBER', 'LEADER']).default('MEMBER')
+  })).optional(),
   // Optional provisioning configuration
   provisioningOptions: z.object({
     wikijs: z.boolean().default(false),
@@ -237,18 +240,18 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       });
 
       // Handle member changes if specified
-      if (data.memberIds !== undefined) {
+      if (data.members !== undefined) {
         // Remove all current members
         await prisma.userTeam.deleteMany({
           where: { teamId: id }
         });
 
         // Add new members
-        if (data.memberIds.length > 0) {
-          const userTeams = data.memberIds.map(userId => ({
-            userId,
+        if (data.members.length > 0) {
+          const userTeams = data.members.map(member => ({
+            userId: member.userId,
             teamId: id,
-            role: 'MEMBER' as const
+            role: member.role
           }));
 
           await prisma.userTeam.createMany({
@@ -268,7 +271,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
           subtype: data.subtype || undefined,
           parentTeamId: data.parentTeamId || undefined,
           groupId: data.groupId || undefined,
-          memberIds: data.memberIds,
+          members: data.members,
           provisioningOptions: data.provisioningOptions
         },
         userId: (req as any).user?.id || 'system',

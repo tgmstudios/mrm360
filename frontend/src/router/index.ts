@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import { usePermissions } from '@/composables/usePermissions'
+import { initiateOAuthLogin } from '@/utils/oauth'
 import type { RouteRecordRaw } from 'vue-router'
 
 // Layouts
@@ -11,6 +12,7 @@ import Dashboard from '@/pages/dashboard/Dashboard.vue'
 import UsersList from '@/pages/users/UsersList.vue'
 import UserDetails from '@/pages/users/UserDetails.vue'
 import UserEdit from '@/pages/users/UserEdit.vue'
+import UserCreate from '@/pages/users/create.vue'
 import TeamsList from '@/pages/teams/TeamsList.vue'
 import TeamDetails from '@/pages/teams/TeamDetails.vue'
 import TeamEdit from '@/pages/teams/TeamEdit.vue'
@@ -20,25 +22,41 @@ import EventDetails from '@/pages/events/EventDetails.vue'
 import EventEdit from '@/pages/events/EventEdit.vue'
 import EventCheckIn from '@/pages/events/EventCheckIn.vue'
 import TasksList from '@/pages/tasks/TasksList.vue'
-import Login from '@/pages/auth/Login.vue'
 import Callback from '@/pages/auth/Callback.vue'
+import Join from '@/pages/join/Join.vue'
+import DiscordVerify from '@/pages/join/DiscordVerify.vue'
+import Interests from '@/pages/join/Interests.vue'
+import Profile from '@/pages/Profile.vue'
 
 const routes: RouteRecordRaw[] = [
   {
     path: '/',
     redirect: '/dashboard'
   },
-  {
-    path: '/auth/login',
-    name: 'Login',
-    component: Login,
-    meta: { requiresGuest: true }
-  },
+
   {
     path: '/auth/callback',
     name: 'Callback',
     component: Callback,
     meta: { requiresGuest: true }
+  },
+  {
+    path: '/join',
+    name: 'Join',
+    component: Join,
+    meta: {}
+  },
+  {
+    path: '/join/dd-verify',
+    name: 'DiscordVerify',
+    component: DiscordVerify,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/join/interests',
+    name: 'Interests',
+    component: Interests,
+    meta: { requiresAuth: true }
   },
   {
     path: '/',
@@ -50,6 +68,12 @@ const routes: RouteRecordRaw[] = [
         name: 'Dashboard',
         component: Dashboard,
         meta: { title: 'Dashboard' }
+      },
+      {
+        path: 'profile',
+        name: 'Profile',
+        component: Profile,
+        meta: { title: 'Your Profile' }
       },
       {
         path: 'users',
@@ -65,7 +89,7 @@ const routes: RouteRecordRaw[] = [
           {
             path: 'new',
             name: 'UserNew',
-            component: UserEdit,
+            component: UserCreate,
             meta: { 
               title: 'Create User',
               requiresExecBoard: true
@@ -195,8 +219,8 @@ const router = createRouter({
 
 // Navigation guards
 router.beforeEach(async (to, from, next) => {
-  // Skip auth checks for login and callback pages
-  if (to.path === '/auth/login' || to.path === '/auth/callback') {
+  // Skip auth checks for callback page
+  if (to.path === '/auth/callback') {
     next()
     return
   }
@@ -212,8 +236,8 @@ router.beforeEach(async (to, from, next) => {
   // Check if route requires authentication
   if (to.meta.requiresAuth) {
     if (!authStore.isAuthenticated) {
-      // Redirect to login if not authenticated
-      next('/auth/login')
+      // Redirect to OAuth if not authenticated
+      initiateOAuthLogin()
       return
     }
   }

@@ -1,5 +1,6 @@
 import { PrismaClient, User, Role } from '@prisma/client';
 import { logger } from '../utils/logger';
+import { MemberPaidStatusService } from '../services/memberPaidStatusService';
 
 export interface AuthentikUserInfo {
   sub: string;
@@ -31,6 +32,19 @@ export class AuthManager {
     try {
       logger.info('Authenticating user', { email: authikUserInfo.email, sub: authikUserInfo.sub });
       
+      // Get Authentik PK for group management
+      let authentikPk: string | null = null;
+      try {
+        const { AuthentikServiceFactory } = await import('../services/authentikServiceFactory');
+        const authentikService = AuthentikServiceFactory.createServiceFromEnv();
+        const authentikUser = await authentikService.getUserByEmail(authikUserInfo.email);
+        authentikPk = authentikUser.id;
+        logger.info('Retrieved Authentik PK for user', { email: authikUserInfo.email, authentikPk });
+      } catch (error) {
+        logger.warn('Failed to retrieve Authentik PK for user', { email: authikUserInfo.email, error });
+        // Continue without PK - user can still authenticate
+      }
+      
       // Check if user exists in our database
       let user = await this.prisma.user.findUnique({
         where: { email: authikUserInfo.email },
@@ -47,7 +61,7 @@ export class AuthManager {
         // Create new user
         logger.info('Creating new user from Authentik', { email: authikUserInfo.email });
         
-        user = await this.prisma.user.create({
+        const createdUser = await this.prisma.user.create({
           data: {
             email: authikUserInfo.email,
             firstName: authikUserInfo.name.split(' ')[0] || authikUserInfo.name,
@@ -55,6 +69,8 @@ export class AuthManager {
             role: Role.MEMBER, // Default role
             paidStatus: false, // Default to unpaid
             qrCode: this.generateQRCode(authikUserInfo.email),
+            authentikId: authikUserInfo.sub, // OIDC sub for authentication
+            ...(authentikPk && { authentikPk }), // Authentik PK for group management
           },
           include: {
             userGroups: {
@@ -66,7 +82,25 @@ export class AuthManager {
         });
 
         // Sync groups from Authentik
-        await this.syncUserGroups(user.id, authikUserInfo.groups);
+        await this.syncUserGroups(createdUser.id, authikUserInfo.groups);
+        
+        // Refresh user data to include updated groups
+        const refreshedUser = await this.prisma.user.findUnique({
+          where: { id: createdUser.id },
+          include: {
+            userGroups: {
+              include: {
+                group: true,
+              },
+            },
+          },
+        });
+        
+        if (!refreshedUser) {
+          throw new Error('Failed to refresh user data after group sync');
+        }
+        
+        user = refreshedUser;
       } else {
         // Update existing user info
         logger.info('Updating existing user from Authentik', { userId: user.id });
@@ -76,6 +110,8 @@ export class AuthManager {
           data: {
             firstName: authikUserInfo.name.split(' ')[0] || authikUserInfo.name,
             lastName: authikUserInfo.name.split(' ').slice(1).join(' ') || '',
+            authentikId: authikUserInfo.sub, // OIDC sub for authentication
+            authentikPk: authentikPk, // Authentik PK for group management
           },
           include: {
             userGroups: {
@@ -88,6 +124,24 @@ export class AuthManager {
 
         // Sync groups from Authentik
         await this.syncUserGroups(user.id, authikUserInfo.groups);
+        
+        // Refresh user data to include updated groups
+        const refreshedUser = await this.prisma.user.findUnique({
+          where: { id: user.id },
+          include: {
+            userGroups: {
+              include: {
+                group: true,
+              },
+            },
+          },
+        });
+        
+        if (!refreshedUser) {
+          throw new Error('Failed to refresh user data after group sync');
+        }
+        
+        user = refreshedUser;
       }
 
       // Build session user object
@@ -135,13 +189,13 @@ export class AuthManager {
         });
 
         if (!group) {
-                  group = await this.prisma.group.create({
-          data: {
-            name: groupName,
-            description: `Group synced from Authentik: ${groupName}`,
-            externalId: groupName,
-          },
-        });
+          group = await this.prisma.group.create({
+            data: {
+              name: groupName,
+              description: `Group synced from Authentik: ${groupName}`,
+              externalId: groupName,
+            },
+          });
         }
 
         // Link user to group
@@ -171,6 +225,26 @@ export class AuthManager {
     }
   }
 
+  async queueUserGroupSync(userId: string, authentikGroups: string[]): Promise<void> {
+    try {
+      logger.info('Queuing user group sync from Authentik', { userId, groupCount: authentikGroups.length });
+      
+      // Import here to avoid circular dependencies
+      const { backgroundTaskService } = await import('../services/backgroundTaskService');
+      
+      await backgroundTaskService.addTask('authentik_user_sync', {
+        action: 'sync_user_groups',
+        userId,
+        authentikGroups
+      });
+      
+      logger.info('Background task queued for user group sync', { userId, groupCount: authentikGroups.length });
+    } catch (error) {
+      logger.error('Failed to queue background task for user group sync', { error, userId, authentikGroups });
+      throw error;
+    }
+  }
+
   async getUserById(userId: string): Promise<SessionUser | null> {
     try {
       logger.info('Fetching user by ID', { userId });
@@ -193,7 +267,7 @@ export class AuthManager {
       const sessionUser: SessionUser = {
         id: user.id,
         email: user.email,
-        name: user.name,
+        name: `${user.firstName} ${user.lastName}`.trim(),
         role: user.role,
         groups: user.userGroups.map(ug => ug.group.name),
         paidStatus: user.paidStatus,
@@ -227,10 +301,9 @@ export class AuthManager {
     try {
       logger.info('Updating user paid status', { userId, paidStatus });
       
-      await this.prisma.user.update({
-        where: { id: userId },
-        data: { paidStatus },
-      });
+      // Use the MemberPaidStatusService to handle both database update and Authentik group management
+      const memberPaidStatusService = new MemberPaidStatusService(this.prisma);
+      await memberPaidStatusService.updateMemberPaidStatus(userId, paidStatus);
 
       logger.info('User paid status updated successfully', { userId, paidStatus });
     } catch (error) {

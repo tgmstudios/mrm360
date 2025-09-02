@@ -79,82 +79,82 @@ export function usePermissions() {
 
   // Specific permission checks for common scenarios
   function canManageUsers(): boolean {
-    return canManage('User') || isAdmin()
+    return can('manage', 'all') || canManage('User') || isAdmin()
   }
 
   function canManageTeams(): boolean {
-    return canManage('Team') || isExecBoard()
+    return can('manage', 'all') || canManage('Team') || isExecBoard()
   }
 
   function canManageEvents(): boolean {
-    return canManage('Event') || isExecBoard()
+    return can('manage', 'all') || canManage('Event') || isExecBoard()
   }
 
   function canManageGroups(): boolean {
-    return canManage('Group') || isAdmin()
+    return can('manage', 'all') || canManage('Group') || isAdmin()
   }
 
   function canManageTasks(): boolean {
-    return canManage('Task') || isExecBoard()
+    return can('manage', 'all') || canManage('Task') || isExecBoard()
   }
 
   function canViewUserProfile(userId: string): boolean {
     // Users can view their own profile, exec board can view all
-    return canRead('User') || 
+    return can('manage', 'all') || canRead('User') || 
            authStore.user?.id === userId || 
            isExecBoard()
   }
 
   function canEditUser(userId: string): boolean {
     // Users can edit their own profile, exec board can edit all
-    return canUpdate('User') || 
+    return can('manage', 'all') || canUpdate('User') || 
            authStore.user?.id === userId || 
            isExecBoard()
   }
 
   function canDeleteUser(userId: string): boolean {
     // Only exec board can delete users
-    return canDelete('User') || isExecBoard()
+    return can('manage', 'all') || canDelete('User') || isExecBoard()
   }
 
   function canCreateTeam(): boolean {
-    return canCreate('Team') || isExecBoard()
+    return can('manage', 'all') || canCreate('Team') || isExecBoard()
   }
 
   function canEditTeam(teamId: string): boolean {
-    return canUpdate('Team') || isExecBoard()
+    return can('manage', 'all') || canUpdate('Team') || isExecBoard()
   }
 
   function canDeleteTeam(teamId: string): boolean {
-    return canDelete('Team') || isExecBoard()
+    return can('manage', 'all') || canDelete('Team') || isExecBoard()
   }
 
   function canCreateEvent(): boolean {
-    return canCreate('Event') || isExecBoard()
+    return can('manage', 'all') || canCreate('Event') || isExecBoard()
   }
 
   function canEditEvent(eventId: string): boolean {
-    return canUpdate('Event') || isExecBoard()
+    return can('manage', 'all') || canUpdate('Event') || isExecBoard()
   }
 
   function canDeleteEvent(eventId: string): boolean {
-    return canDelete('Event') || isExecBoard()
+    return can('manage', 'all') || canDelete('Event') || isExecBoard()
   }
 
   function canRSVPToEvent(eventId: string): boolean {
-    return canRead('Event') && authStore.isAuthenticated
+    return can('manage', 'all') || (canRead('Event') && authStore.isAuthenticated)
   }
 
   function canViewAttendance(eventId: string): boolean {
-    return canRead('Event') || isExecBoard()
+    return can('manage', 'all') || canRead('Event') || isExecBoard()
   }
 
   function canEnqueueTasks(): boolean {
-    return canCreate('Task') || isExecBoard()
+    return can('manage', 'all') || canCreate('Task') || isExecBoard()
   }
 
   function canViewTasks(): boolean {
-    return canRead('Task') || isExecBoard()
+    return can('manage', 'all') || canRead('Task') || isExecBoard()
   }
 
   return {

@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import { prisma } from '../../../models/prismaClient';
 import { logger } from '../../../utils/logger';
 import { withCORS } from '../../../middleware/corsMiddleware';
+import { AuthManager } from '../../../managers/authManager';
 
 // Helper function to determine effective role based on OIDC groups
 function getEffectiveRole(userRole: string, authentikGroups: string[]): string {
@@ -63,9 +64,18 @@ async function handleOIDCLogin(req: NextApiRequest, res: NextApiResponse, code: 
       return res.status(400).json({ error: 'Failed to get user info' });
     }
 
-    // Find or create user
-    let user = await prisma.user.findUnique({
-      where: { email: userInfo.email },
+    // Use AuthManager to authenticate user (this will set authentikId)
+    const authManager = new AuthManager(prisma);
+    const sessionUser = await authManager.authenticateUser({
+      sub: userInfo.sub,
+      email: userInfo.email,
+      name: userInfo.name,
+      groups: userInfo.groups || []
+    });
+
+    // Get the user from database with all relations
+    const user = await prisma.user.findUnique({
+      where: { id: sessionUser.id },
       include: {
         userGroups: {
           include: { group: true }
@@ -74,27 +84,8 @@ async function handleOIDCLogin(req: NextApiRequest, res: NextApiResponse, code: 
     });
 
     if (!user) {
-      // Create new user
-      user = await prisma.user.create({
-        data: {
-          email: userInfo.email,
-          username: userInfo.preferred_username || userInfo.email.split('@')[0],
-          firstName: userInfo.name.split(' ')[0] || userInfo.name,
-          lastName: userInfo.name.split(' ').slice(1).join(' ') || '',
-          role: 'MEMBER',
-          paidStatus: false,
-        },
-        include: {
-          userGroups: {
-            include: { group: true }
-          }
-        }
-      });
-    }
-
-    // Sync groups from OIDC
-    if (userInfo.groups) {
-      await syncUserGroups(user.id, userInfo.groups);
+      logger.error('User not found after authentication', { userId: sessionUser.id });
+      return res.status(500).json({ error: 'User authentication failed' });
     }
 
     // Generate JWT token

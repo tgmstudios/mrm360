@@ -5,6 +5,9 @@ import {
   qrCodeQueue, 
   syncGroupsQueue,
   teamProvisioningQueue,
+  discordQueue,
+  listmonkQueue,
+  authentikQueue,
   QUEUE_NAMES 
 } from './queue';
 import { processProvisionJob, processProvisionJobFailed } from './workers/provisionWorker';
@@ -12,6 +15,9 @@ import { processEmailJob, processEmailJobFailed } from './workers/emailWorker';
 import { processQRCodeJob, processQRCodeJobFailed } from './workers/qrCodeWorker';
 import { processSyncGroupsJob, processSyncGroupsJobFailed } from './workers/syncGroupsWorker';
 import { processTeamProvisioningJob, processTeamProvisioningJobFailed } from './workers/teamProvisioningProcessor';
+import { processDiscordJob, processDiscordJobFailed, initializeDiscordBotWorker, shutdownDiscordBot } from './workers/discordBotWorker';
+import { processListMonkJob, processListMonkJobFailed } from './workers/listmonkWorker';
+import { processAuthentikJob, processAuthentikJobFailed } from './workers/authentikWorker';
 
 // Import Redis connection from queue file
 import Redis from 'ioredis';
@@ -51,6 +57,27 @@ const provisionWorker = new Worker(QUEUE_NAMES.PROVISION, processProvisionJob, {
 const teamProvisioningWorker = new Worker(QUEUE_NAMES.TEAM_PROVISIONING, processTeamProvisioningJob, {
   connection: redis,
   concurrency: 1, // Process one job at a time to avoid conflicts
+  removeOnComplete: { count: 100 },
+  removeOnFail: { count: 50 }
+});
+
+const discordWorker = new Worker(QUEUE_NAMES.DISCORD, processDiscordJob, {
+  connection: redis,
+  concurrency: 1, // Process one Discord job at a time to avoid conflicts
+  removeOnComplete: { count: 100 },
+  removeOnFail: { count: 50 }
+});
+
+const listmonkWorker = new Worker(QUEUE_NAMES.LISTMONK, processListMonkJob, {
+  connection: redis,
+  concurrency: 2, // Process up to 2 ListMonk jobs concurrently
+  removeOnComplete: { count: 100 },
+  removeOnFail: { count: 50 }
+});
+
+const authentikWorker = new Worker(QUEUE_NAMES.AUTHENTIK, processAuthentikJob, {
+  connection: redis,
+  concurrency: 1, // Process one Authentik job at a time to avoid conflicts
   removeOnComplete: { count: 100 },
   removeOnFail: { count: 50 }
 });
@@ -121,6 +148,45 @@ teamProvisioningWorker.on('failed', (job, err) => {
   }
 });
 
+discordWorker.on('completed', (job) => {
+  if (job) {
+    logger.info(`Discord worker completed job ${job.id}`);
+  }
+});
+
+discordWorker.on('failed', (job, err) => {
+  if (job) {
+    logger.error(`Discord worker failed job ${job.id}:`, err);
+    processDiscordJobFailed(job, err);
+  }
+});
+
+listmonkWorker.on('completed', (job) => {
+  if (job) {
+    logger.info(`ListMonk worker completed job ${job.id}`);
+  }
+});
+
+listmonkWorker.on('failed', (job, err) => {
+  if (job) {
+    logger.error(`ListMonk worker failed job ${job.id}:`, err);
+    processListMonkJobFailed(job, err);
+  }
+});
+
+authentikWorker.on('completed', (job) => {
+  if (job) {
+    logger.info(`Authentik worker completed job ${job.id}`);
+  }
+});
+
+authentikWorker.on('failed', (job, err) => {
+  if (job) {
+    logger.error(`Authentik worker failed job ${job.id}:`, err);
+    processAuthentikJobFailed(job, err);
+  }
+});
+
 // Graceful shutdown
 async function gracefulShutdown() {
   logger.info('Shutting down workers gracefully...');
@@ -130,6 +196,12 @@ async function gracefulShutdown() {
   await syncGroupsWorker.close();
   await provisionWorker.close();
   await teamProvisioningWorker.close();
+  await discordWorker.close();
+  await listmonkWorker.close();
+  await authentikWorker.close();
+  
+  // Shutdown Discord bot
+  await shutdownDiscordBot();
   
   logger.info('All workers closed');
   process.exit(0);
@@ -150,9 +222,17 @@ process.on('unhandledRejection', (reason, promise) => {
   gracefulShutdown();
 });
 
+// Initialize Discord bot worker
+initializeDiscordBotWorker().catch(error => {
+  logger.error('Failed to initialize Discord bot worker:', error);
+});
+
 logger.info('MRM360 Task Workers started');
 logger.info(`Email worker: ${QUEUE_NAMES.EMAIL}`);
 logger.info(`QR Code worker: ${QUEUE_NAMES.QR_CODE}`);
 logger.info(`Sync Groups worker: ${QUEUE_NAMES.SYNC_GROUPS}`);
 logger.info(`Provision worker: ${QUEUE_NAMES.PROVISION}`);
 logger.info(`Team Provisioning worker: ${QUEUE_NAMES.TEAM_PROVISIONING}`);
+logger.info(`Discord worker: ${QUEUE_NAMES.DISCORD}`);
+logger.info(`ListMonk worker: ${QUEUE_NAMES.LISTMONK}`);
+logger.info(`Authentik worker: ${QUEUE_NAMES.AUTHENTIK}`);

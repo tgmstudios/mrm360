@@ -42,7 +42,7 @@ export class AuthentikServiceFactory {
     const config: AuthentikConfig = {
       baseUrl: process.env.AUTHENTIK_BASE_URL || '',
       token: process.env.AUTHENTIK_TOKEN || '',
-      parentGroupTemplate: process.env.AUTHENTIK_PARENT_GROUP_TEMPLATE || '{parent_team_type}-team'
+      parentGroupTemplate: process.env.AUTHENTIK_PARENT_GROUP_TEMPLATE || '{parent_team_type}'
     };
     
     return this.createService(config);
@@ -77,7 +77,7 @@ export class AuthentikServiceFactory {
     const mockConfig: AuthentikConfig = {
       baseUrl: 'http://localhost:9000',
       token: 'mock-token',
-      parentGroupTemplate: '{parent_team_type}-team'
+      parentGroupTemplate: '{parent_team_type}'
     };
     
     // Override validation for mock service
@@ -136,7 +136,7 @@ export class AuthentikServiceFactory {
       configuration: AuthentikConfigValidator.getConfigSummary({
         baseUrl: process.env.AUTHENTIK_BASE_URL || '',
         token: process.env.AUTHENTIK_TOKEN || '',
-        parentGroupTemplate: process.env.AUTHENTIK_PARENT_GROUP_TEMPLATE || '{parent_team_type}-team'
+        parentGroupTemplate: process.env.AUTHENTIK_PARENT_GROUP_TEMPLATE || '{parent_team_type}'
       })
     };
   }

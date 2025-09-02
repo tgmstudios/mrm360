@@ -1,5 +1,5 @@
 <template>
-  <div id="app" class="min-h-screen bg-gray-50">
+  <div id="app" class="min-h-screen bg-gray-900 dark">
     <router-view />
   </div>
 </template>
@@ -12,16 +12,33 @@ import { useAuthStore } from '@/stores/authStore'
 const route = useRoute()
 const authStore = useAuthStore()
 
-// Watch for route changes and initialize auth only when not on login page
+// Watch for route changes and initialize auth
 watch(() => route.path, async (newPath) => {
-  if (!newPath.includes('/auth/login')) {
-    console.log('App - route changed, initializing auth for:', newPath)
-    // Only initialize if not already authenticated
-    if (!authStore.isAuthenticated) {
-      await authStore.init()
+  console.log('App - route changed, initializing auth for:', newPath)
+  // Only initialize if not already authenticated
+  if (!authStore.isAuthenticated) {
+    await authStore.init()
+  }
+  
+  // If we're authenticated but stores are empty, refresh them
+  if (authStore.isAuthenticated && authStore.accessToken) {
+    // Check if we need to refresh stores (e.g., after OAuth login)
+    const { useUserStore } = await import('@/stores/userStore')
+    const { useEventStore } = await import('@/stores/eventStore')
+    const { useTeamStore } = await import('@/stores/teamStore')
+    
+    const userStore = useUserStore()
+    const eventStore = useEventStore()
+    const teamStore = useTeamStore()
+    
+    const storesNeedRefresh = userStore.users.length === 0 && 
+                             eventStore.events.length === 0 && 
+                             teamStore.teams.length === 0
+    
+    if (storesNeedRefresh) {
+      console.log('App - stores appear empty, refreshing after auth...')
+      await authStore.refreshStores()
     }
-  } else {
-    console.log('App - on login page, skipping auth init')
   }
 }, { immediate: true })
 </script>
@@ -39,15 +56,15 @@ watch(() => route.path, async (newPath) => {
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: #1f2937;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #4b5563;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #6b7280;
 }
 </style>

@@ -8,6 +8,7 @@ import {
 } from '@/types';
 import { logger } from '@/utils/logger';
 import { Errors } from '@/middleware/errorHandler';
+import { MemberPaidStatusService } from '@/services/memberPaidStatusService';
 
 export class UserManager {
   async createUser(data: CreateUserRequest): Promise<UserProfile> {
@@ -33,7 +34,12 @@ export class UserManager {
       });
 
       logger.info(`Created user: ${user.email}`);
-      return user;
+      
+      // Return user with isActive field (false for newly created users)
+      return {
+        ...user,
+        isActive: false // New users are inactive until they login
+      };
     } catch (error) {
       logger.error('Error creating user:', error);
       throw error;
@@ -49,6 +55,11 @@ export class UserManager {
             include: {
               group: true
             }
+          },
+          userTeams: {
+            include: {
+              team: true
+            }
           }
         }
       });
@@ -57,7 +68,11 @@ export class UserManager {
         throw Errors.NOT_FOUND('User');
       }
 
-      return user;
+      // Add isActive field based on whether user has authentikId
+      return {
+        ...user,
+        isActive: !!user.authentikId // User is active if they have an authentikId
+      };
     } catch (error) {
       logger.error(`Error getting user ${id}:`, error);
       throw error;
@@ -77,7 +92,15 @@ export class UserManager {
         }
       });
 
-      return user;
+      if (!user) {
+        return null;
+      }
+
+      // Add isActive field based on whether user has authentikId
+      return {
+        ...user,
+        isActive: !!user.authentikId // User is active if they have an authentikId
+      };
     } catch (error) {
       logger.error(`Error getting user by email ${email}:`, error);
       throw error;
@@ -104,28 +127,41 @@ export class UserManager {
         data: updateData
       });
 
-      // Handle authentik groups if provided
-      if (data.authentikGroups !== undefined) {
-        // Remove existing user groups
-        await prisma.userGroup.deleteMany({
-          where: { userId: id }
-        });
-
-        // Add new user groups
-        if (data.authentikGroups.length > 0) {
-          const userGroups = data.authentikGroups.map(groupId => ({
-            userId: id,
-            groupId
-          }));
-
-          await prisma.userGroup.createMany({
-            data: userGroups
+      // Handle paid status changes with Authentik group management (synchronous)
+      if (data.isPaid !== undefined) {
+        try {
+          // Import here to avoid circular dependencies
+          const { MemberPaidStatusService } = await import('../services/memberPaidStatusService');
+          
+          const memberPaidStatusService = new MemberPaidStatusService(prisma);
+          await memberPaidStatusService.updateMemberPaidStatus(id, data.isPaid);
+          
+          logger.info('Authentik group membership updated for paid status change', { 
+            userId: id, 
+            paidStatus: data.isPaid,
+            userEmail: user.email
           });
+        } catch (error) {
+          logger.error('Failed to update Authentik group membership for paid status change', { 
+            error, 
+            userId: id, 
+            paidStatus: data.isPaid 
+          });
+          // Don't throw here - we want the user update to succeed even if background task fails
         }
       }
 
-      logger.info(`Updated user: ${user.email}`);
-      return user;
+      // Handle authentik groups if provided
+      if (data.authentikGroups !== undefined) {
+        // This would need to be implemented if authentik groups are managed separately
+        logger.info('Authentik groups update requested but not implemented', { 
+          userId: id, 
+          groups: data.authentikGroups 
+        });
+      }
+
+      // Return the updated user profile
+      return await this.getUserById(id);
     } catch (error) {
       logger.error(`Error updating user ${id}:`, error);
       throw error;
@@ -238,9 +274,15 @@ export class UserManager {
 
       const totalPages = Math.ceil(total / limit);
 
+      // Add isActive field to each user
+      const usersWithActiveStatus = users.map(user => ({
+        ...user,
+        isActive: !!user.authentikId // User is active if they have an authentikId
+      }));
+
       return {
         success: true,
-        data: users,
+        data: usersWithActiveStatus,
         pagination: {
           page,
           limit,

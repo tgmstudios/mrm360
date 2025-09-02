@@ -529,6 +529,56 @@ END:VCALENDAR</x1:calendar-timezone>
     }
   }
 
+  // Grant group access to calendar
+  async grantGroupCalendarAccess(calendarName: string, groupId: string, permissions: 'read' | 'read-write' = 'read-write'): Promise<void> {
+    try {
+      logger.info('Granting group access to calendar', { calendarName, groupId, permissions });
+      
+      // Use the exact same approach as the working curl commands
+      // The curl commands use POST to the calendar endpoint with XML data
+      // Note: curl commands use trailing slash, so we'll match that
+      const calendarPath = `/remote.php/dav/calendars/${this.username}/${calendarName}/`;
+      
+      // Create the XML payload exactly matching the working curl commands
+      const xmlData = `<?xml version="1.0" encoding="utf-8" ?>
+<x4:share xmlns:x4="http://owncloud.org/ns">
+  <x4:set>
+    <x0:href xmlns:x0="DAV:">principal:principals/groups/${groupId}</x0:href>
+    ${permissions === 'read-write' ? '<x4:read-write/>' : ''}
+  </x4:set>
+</x4:share>`;
+      
+      // Use POST method exactly like the working curl commands
+      // This is the method that actually works with Nextcloud
+      logger.debug('Sending calendar access grant request', { 
+        calendarPath, 
+        xmlData, 
+        groupId, 
+        permissions 
+      });
+      
+      await this.httpClient.post(calendarPath, xmlData, {
+        ...this.getAuthHeaders(),
+        'Content-Type': 'application/xml; charset=UTF-8',
+        'Depth': '0',
+        'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Origin': this.httpClient['config'].baseUrl,
+        'Sec-Fetch-Dest': 'empty',
+        'Sec-Fetch-Mode': 'cors',
+        'Sec-Fetch-Site': 'same-origin',
+        'X-Requested-With': 'XMLHttpRequest, XMLHttpRequest',
+        'X-NC-Caldav-Webcal-Caching': 'On'
+      });
+      
+      logger.info('Successfully granted group access to calendar using POST method', { calendarName, groupId, permissions });
+      
+    } catch (error) {
+      logger.error('Failed to grant group access to calendar', { calendarName, groupId, error });
+      throw new Error(`Failed to grant group access to calendar: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
   async deleteCalendar(name: string): Promise<void> {
     try {
       logger.info('Deleting Nextcloud calendar', { name });

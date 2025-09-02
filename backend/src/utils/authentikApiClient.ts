@@ -8,17 +8,17 @@ export interface AuthentikApiConfig {
 }
 
 export interface AuthentikGroupResponse {
-  pk: string;
+  pk: number;
   name: string;
   description?: string;
   parent?: string;
-  users: string[];
+  users: number[];
   is_superuser: boolean;
   attributes: Record<string, any>;
 }
 
 export interface AuthentikUserResponse {
-  pk: string;
+  pk: number;
   username: string;
   email: string;
   name: string;
@@ -41,7 +41,7 @@ export interface UpdateGroupRequest {
 }
 
 export interface AddUsersToGroupRequest {
-  users: string[];
+  users: number[];
 }
 
 export class AuthentikApiClient {
@@ -136,14 +136,50 @@ export class AuthentikApiClient {
 
   async addUsersToGroup(groupId: string, userIds: string[]): Promise<void> {
     try {
-      logger.info('Adding users to Authentik group', { groupId, userIdCount: userIds.length });
+      logger.info('Adding users to Authentik group', { groupId, userIdCount: userIds.length, userIds });
+      
+      // Validate user IDs
+      if (!userIds || userIds.length === 0) {
+        logger.warn('No user IDs provided for group', { groupId });
+        return;
+      }
+      
+      // Filter out invalid user IDs and convert to integers
+      const validUserIds = userIds
+        .filter(id => id && typeof id === 'string' && id.trim().length > 0)
+        .map(id => {
+          // Try to convert to integer, if it fails, try to extract numeric part
+          const numericId = parseInt(id, 10);
+          if (!isNaN(numericId)) {
+            return numericId;
+          }
+          
+          // If it's a hash-like string, try to find a numeric ID in our database
+          // For now, we'll skip these and log a warning
+          logger.warn('Non-numeric user ID found, skipping', { userId: id, groupId });
+          return null;
+        })
+        .filter(id => id !== null) as number[];
+        
+      if (validUserIds.length === 0) {
+        logger.warn('No valid numeric user IDs found', { groupId, originalUserIds: userIds });
+        return;
+      }
+      
+      if (validUserIds.length !== userIds.length) {
+        logger.warn('Some user IDs were invalid or non-numeric', { groupId, validCount: validUserIds.length, totalCount: userIds.length, invalidIds: userIds.filter(id => !validUserIds.includes(parseInt(id, 10))) });
+      }
       
       // First get the current group to see existing users
       const currentGroup = await this.getGroup(groupId);
       const existingUsers = currentGroup.users || [];
       
+      logger.debug('Current group users', { groupId, existingUsers, newUsers: validUserIds });
+      
       // Combine existing users with new users, avoiding duplicates
-      const allUsers = [...new Set([...existingUsers, ...userIds])];
+      const allUsers = [...new Set([...existingUsers, ...validUserIds])];
+      
+      logger.debug('Combined user list', { groupId, allUsers, addedCount: allUsers.length - existingUsers.length });
       
       // Update the group with the new user list
       const updateData = {
@@ -153,25 +189,88 @@ export class AuthentikApiClient {
         users: allUsers
       };
       
+      logger.debug('Sending group update', { groupId, updateData });
+      
       await this.httpClient.put(`/api/v3/core/groups/${groupId}/`, updateData);
       
-      logger.info('Successfully added users to Authentik group', { groupId, userIdCount: userIds.length });
+      logger.info('Successfully added users to Authentik group', { groupId, userIdCount: validUserIds.length, addedUsers: validUserIds });
     } catch (error) {
-      logger.error('Failed to add users to Authentik group', { groupId, error });
-      throw new Error(`Failed to add users to Authentik group: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // Enhanced error logging
+      let errorDetails = 'Unknown error';
+      let statusCode: number | undefined;
+      let responseBody: string | undefined;
+      
+      if (error instanceof Error) {
+        errorDetails = error.message;
+        
+        // Try to extract HTTP status and response body from error message
+        const httpMatch = error.message.match(/HTTP (\d+): (.+)/);
+        if (httpMatch) {
+          statusCode = parseInt(httpMatch[1]);
+          responseBody = httpMatch[2];
+        }
+      }
+      
+      logger.error('Failed to add users to Authentik group', { 
+        groupId, 
+        userIdCount: userIds.length,
+        userIds,
+        error: errorDetails,
+        statusCode,
+        responseBody,
+        fullError: error
+      });
+      
+      throw new Error(`Failed to add users to Authentik group ${groupId}: ${errorDetails}`);
     }
   }
 
   async removeUsersFromGroup(groupId: string, userIds: string[]): Promise<void> {
     try {
-      logger.info('Removing users from Authentik group', { groupId, userIdCount: userIds.length });
+      logger.info('Removing users from Authentik group', { groupId, userIdCount: userIds.length, userIds });
+      
+      // Validate user IDs
+      if (!userIds || userIds.length === 0) {
+        logger.warn('No user IDs provided for group removal', { groupId });
+        return;
+      }
+      
+      // Filter out invalid user IDs and convert to integers
+      const validUserIds = userIds
+        .filter(id => id && typeof id === 'string' && id.trim().length > 0)
+        .map(id => {
+          // Try to convert to integer, if it fails, try to extract numeric part
+          const numericId = parseInt(id, 10);
+          if (!isNaN(numericId)) {
+            return numericId;
+          }
+          
+          // If it's a hash-like string, try to find a numeric ID in our database
+          // For now, we'll skip these and log a warning
+          logger.warn('Non-numeric user ID found, skipping', { userId: id, groupId });
+          return null;
+        })
+        .filter(id => id !== null) as number[];
+        
+      if (validUserIds.length === 0) {
+        logger.warn('No valid numeric user IDs found', { groupId, originalUserIds: userIds });
+        return;
+      }
+      
+      if (validUserIds.length !== userIds.length) {
+        logger.warn('Some user IDs were invalid or non-numeric', { groupId, validCount: validUserIds.length, totalCount: userIds.length, invalidIds: userIds.filter(id => !validUserIds.includes(parseInt(id, 10))) });
+      }
       
       // First get the current group to see existing users
       const currentGroup = await this.getGroup(groupId);
       const existingUsers = currentGroup.users || [];
       
-      // Remove the specified users
-      const remainingUsers = existingUsers.filter(userId => !userIds.includes(userId));
+      logger.debug('Current group users', { groupId, existingUsers, usersToRemove: validUserIds });
+      
+      // Remove the specified users (compare numbers with numbers)
+      const remainingUsers = existingUsers.filter(userId => !validUserIds.includes(userId));
+      
+      logger.debug('Remaining users after removal', { groupId, remainingUsers, removedCount: existingUsers.length - remainingUsers.length });
       
       // Update the group with the remaining users
       const updateData = {
@@ -181,12 +280,39 @@ export class AuthentikApiClient {
         users: remainingUsers
       };
       
+      logger.debug('Sending group update', { groupId, updateData });
+      
       await this.httpClient.put(`/api/v3/core/groups/${groupId}/`, updateData);
       
-      logger.info('Successfully removed users from Authentik group', { groupId, userIdCount: userIds.length });
+      logger.info('Successfully removed users from Authentik group', { groupId, userIdCount: validUserIds.length, removedUsers: validUserIds });
     } catch (error) {
-      logger.error('Failed to remove users from Authentik group', { groupId, error });
-      throw new Error(`Failed to remove users from Authentik group: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // Enhanced error logging
+      let errorDetails = 'Unknown error';
+      let statusCode: number | undefined;
+      let responseBody: string | undefined;
+      
+      if (error instanceof Error) {
+        errorDetails = error.message;
+        
+        // Try to extract HTTP status and response body from error message
+        const httpMatch = error.message.match(/HTTP (\d+): (.+)/);
+        if (httpMatch) {
+          statusCode = parseInt(httpMatch[1]);
+          responseBody = httpMatch[2];
+        }
+      }
+      
+      logger.error('Failed to remove users from Authentik group', { 
+        groupId, 
+        userIdCount: userIds.length,
+        userIds,
+        error: errorDetails,
+        statusCode,
+        responseBody,
+        fullError: error
+      });
+      
+      throw new Error(`Failed to remove users from Authentik group ${groupId}: ${errorDetails}`);
     }
   }
 

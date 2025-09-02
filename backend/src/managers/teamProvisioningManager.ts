@@ -96,27 +96,80 @@ export class TeamProvisioningManager {
     try {
       const teamMembers = await this.getTeamMembers(task.teamId);
 
+      // Determine team subtype and parent group based on team type
+      let teamSubtype = '';
+      
+      if (data.type.toUpperCase() === 'COMPETITION') {
+        // Competition teams always have a subtype (BLUE, RED, CTF)
+        if (data.subtype) {
+          teamSubtype = data.subtype.toLowerCase();
+          logger.info(`Competition team with subtype '${teamSubtype}'`);
+        } else {
+          // Fallback if no subtype is set
+          teamSubtype = 'blue';
+          logger.warn(`Competition team has no subtype, defaulting to 'blue'`);
+        }
+      } else if (data.type.toUpperCase() === 'DEVELOPMENT') {
+        // Development teams use development-team as parent
+        teamSubtype = 'development';
+        logger.info(`Development team, using subtype '${teamSubtype}'`);
+      } else {
+        // Unknown team type, default to general
+        teamSubtype = 'general';
+        logger.warn(`Unknown team type '${data.type}', defaulting to 'general'`);
+      }
+      
+      // Set the parent group based on the determined team subtype
+      const parentGroupName = `${teamSubtype}-team`;
+      logger.info(`Team provisioning details:`, { 
+        teamType: data.type, 
+        teamName: data.name, 
+        teamSubtype,
+        parentGroupName,
+        teamId: task.teamId 
+      });
+
       // 1. Authentik - Always create group and assign members
       try {
         const startTime = Date.now();
-        const parentGroup = await this.authentikService.getParentGroup(data.type);
-        const groupName = `${data.type}-team-${data.name}`;
+        
+        const parentGroup = await this.authentikService.getParentGroup(parentGroupName);
+        
+        // Always use the format: {subtype}-team-{name}
+        const groupName = `${teamSubtype}-team-${data.name}`;
+        logger.info(`Creating Authentik group: ${groupName} under parent: ${parentGroupName}`);
         const authentikGroup = await this.authentikService.createGroup(groupName, data.description, parentGroup.id);
+        
         if (teamMembers.length > 0) {
           const userIds = teamMembers.map(m => m.userId);
+          logger.info(`Adding ${userIds.length} team members to Authentik group ${authentikGroup.id}`, { 
+            groupId: authentikGroup.id, 
+            userIds,
+            teamId: task.teamId,
+            groupName,
+            parentGroup: parentGroupName
+          });
+          
           await this.authentikService.addUsersToGroup(authentikGroup.id, userIds);
+          logger.info(`Successfully added ${userIds.length} team members to Authentik group`);
+        } else {
+          logger.info('No team members to add to Authentik group');
         }
+        
         results.authentik = { success: true, message: 'Successfully created Authentik group and assigned members', data: authentikGroup, duration: Date.now() - startTime };
       } catch (error) {
-        results.authentik = { success: false, message: 'Failed to create Authentik group', error: error instanceof Error ? error.message : 'Unknown error', duration: Date.now() - startTime };
-        errors.push(`Authentik: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        const startTime = Date.now();
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        logger.error(`Failed to create Authentik group for team ${task.teamId}:`, { error: errorMessage, teamId: task.teamId });
+        results.authentik = { success: false, message: 'Failed to create Authentik group', error: errorMessage, duration: Date.now() - startTime };
+        errors.push(`Authentik: ${errorMessage}`);
       }
 
       // 2. Wiki.js - Optional
       if (options.wikijs) {
         try {
           const startTime = Date.now();
-          const wikiPage = await this.wikijsService.createTeamIndexPage(data.type, data.name);
+          const wikiPage = await this.wikijsService.createTeamIndexPage(teamSubtype, data.name);
           results.wikijs = { success: true, message: 'Successfully created Wiki.js page', data: wikiPage, duration: Date.now() - startTime };
         } catch (error) {
           results.wikijs = { success: false, message: 'Failed to create Wiki.js page', error: error instanceof Error ? error.message : 'Unknown error', duration: Date.now() - startTime };
@@ -127,7 +180,7 @@ export class TeamProvisioningManager {
       // 3. Nextcloud - Always create group, optionally create other resources
       try {
         const startTime = Date.now();
-        const nextcloudGroup = await this.nextcloudService.createGroup(`${data.type}-team-${data.name}`, data.description);
+        const nextcloudGroup = await this.nextcloudService.createGroup(`${teamSubtype}-team-${data.name}`, data.description);
         
         // Add members to group
         if (teamMembers.length > 0) {
@@ -140,7 +193,7 @@ export class TeamProvisioningManager {
         // Optional Nextcloud resources
         if (options.nextcloudFolder) {
           try {
-            const folder = await this.nextcloudService.createGroupFolder(`${data.type}-team/${data.name}`, nextcloudGroup.id);
+            const folder = await this.nextcloudService.createGroupFolder(`${teamSubtype}-team-${data.name}`, nextcloudGroup.id);
             nextcloudResults.folder = folder;
           } catch (error) {
             warnings.push(`Nextcloud folder: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -150,6 +203,16 @@ export class TeamProvisioningManager {
         if (options.nextcloudCalendar) {
           try {
             const calendar = await this.nextcloudService.createCalendar(data.name, nextcloudGroup.id);
+            
+            // Grant the group access to the created calendar
+            try {
+              await this.nextcloudService.grantGroupCalendarAccess(calendar.name, nextcloudGroup.id, 'read-write');
+              logger.info(`Successfully granted group ${nextcloudGroup.id} access to calendar ${calendar.name}`);
+            } catch (accessError) {
+              logger.warn(`Failed to grant group access to calendar ${calendar.name}: ${accessError instanceof Error ? accessError.message : 'Unknown error'}`);
+              warnings.push(`Calendar access: ${accessError instanceof Error ? accessError.message : 'Unknown error'}`);
+            }
+            
             nextcloudResults.calendar = calendar;
           } catch (error) {
             warnings.push(`Nextcloud calendar: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -200,7 +263,7 @@ export class TeamProvisioningManager {
       if (options.discord) {
         try {
           const startTime = Date.now();
-          const discordRole = await this.discordService.createRole(`${data.type}-team-${data.name}`, data.description);
+          const discordRole = await this.discordService.createRole(`${teamSubtype}-team-${data.name}`, data.description);
           const discordChannel = await this.discordService.createChannel(data.name, data.description, data.type);
           await this.discordService.setChannelPermissions(discordChannel.id, discordRole.id);
           
@@ -281,11 +344,12 @@ export class TeamProvisioningManager {
       const newMembers = await this.getTeamMembers(task.teamId);
       
       // Calculate member changes
+      // Note: newMembers contains Authentik PKs, currentMembers contains database users
       const addedMembers = newMembers.filter(nm => 
-        !currentMembers.find(cm => cm.id === nm.userId)
+        !currentMembers.find(cm => cm.authentikPk === nm.userId)
       );
       const removedMembers = currentMembers.filter(cm => 
-        !newMembers.find(nm => nm.userId === cm.id)
+        !newMembers.find(nm => nm.userId === cm.authentikPk)
       );
 
       // 1. Handle name changes
@@ -300,14 +364,31 @@ export class TeamProvisioningManager {
         // Update Authentik group
         try {
           const startTime = Date.now();
-          if (addedMembers.length > 0) {
-            const userIds = addedMembers.map(m => m.userId);
-            // Add to Authentik group
+          
+          // Find the Authentik group for this team
+          const team = await prisma.team.findUnique({
+            where: { id: task.teamId },
+            include: { group: true }
+          });
+          
+          if (team?.group?.externalId) {
+            const groupId = team.group.externalId;
+            
+            if (addedMembers.length > 0) {
+              const userIds = addedMembers.map(m => m.userId);
+              logger.info(`Adding ${userIds.length} members to Authentik group ${groupId}`, { userIds });
+              await this.authentikService.addUsersToGroup(groupId, userIds);
+            }
+            
+            if (removedMembers.length > 0) {
+              const userIds = removedMembers.map(m => m.userId);
+              logger.info(`Removing ${userIds.length} members from Authentik group ${groupId}`, { userIds });
+              await this.authentikService.removeUsersFromGroup(groupId, userIds);
+            }
+          } else {
+            logger.warn('Team does not have an associated Authentik group', { teamId: task.teamId });
           }
-          if (removedMembers.length > 0) {
-            const userIds = removedMembers.map(m => m.userId);
-            // Remove from Authentik group
-          }
+          
           const duration = Date.now() - startTime;
           results.authentik = {
             success: true,
@@ -448,17 +529,54 @@ export class TeamProvisioningManager {
         include: { user: true }
       });
 
-      return userTeams.map(ut => ({
-        userId: ut.user.id,
-        email: ut.user.email,
-        firstName: ut.user.firstName,
-        lastName: ut.user.lastName,
-        role: ut.role,
-        // These would come from user attributes in a real implementation
-        discordId: undefined,
-        githubUsername: undefined,
-        nextcloudUsername: undefined
-      }));
+      const teamMembers: TeamMember[] = [];
+      
+      for (const ut of userTeams) {
+        let authentikPk = ut.user.authentikPk;
+        
+        // If we don't have the Authentik PK, try to look it up by email
+        if (!authentikPk) {
+          try {
+            logger.debug(`Looking up Authentik PK for email: ${ut.user.email}`);
+            const authentikUser = await this.authentikService.getUserByEmail(ut.user.email);
+            authentikPk = authentikUser.id;
+            
+            // Store the Authentik PK in the database for future use
+            await prisma.user.update({
+              where: { id: ut.user.id },
+              data: { authentikPk: authentikPk.toString() }
+            });
+            
+            logger.debug(`Found and stored Authentik PK for user ${ut.user.email}: ${authentikPk}`);
+          } catch (error) {
+            logger.warn(`Failed to look up Authentik PK for ${ut.user.email}:`, error);
+            // Continue without this user - they won't be added to Authentik groups
+            continue;
+          }
+        }
+        
+        if (authentikPk) {
+          // Ensure authentikPk is a string for consistency
+          const userId = typeof authentikPk === 'string' ? authentikPk : authentikPk.toString();
+          
+          teamMembers.push({
+            userId: userId, // Use Authentik PK instead of database ID
+            email: ut.user.email,
+            firstName: ut.user.firstName,
+            lastName: ut.user.lastName,
+            role: ut.role,
+            // These would come from user attributes in a real implementation
+            discordId: undefined,
+            githubUsername: undefined,
+            nextcloudUsername: undefined
+          });
+          
+          logger.debug(`Added team member with Authentik PK: ${userId} (${ut.user.email})`);
+        }
+      }
+
+      logger.info(`Retrieved ${teamMembers.length} team members with Authentik PKs for team ${teamId}`);
+      return teamMembers;
     } catch (error) {
       logger.error(`Error getting team members for ${teamId}:`, error);
       return [];
@@ -493,6 +611,53 @@ export class TeamProvisioningManager {
       logger.info(`Team ${teamId} deleted by user ${userId} at ${new Date().toISOString()}`);
     } catch (error) {
       logger.error(`Error logging team deletion for ${teamId}:`, error);
+    }
+  }
+
+  private getParentGroupName(teamType: string, teamName?: string): string {
+    // If team type is COMPETITION, try to extract the actual type from the team name
+    if (teamType.toUpperCase() === 'COMPETITION' && teamName) {
+      const nameParts = teamName.split('-');
+      if (nameParts.length >= 2) {
+        const extractedType = nameParts[0]; // First part should be 'blue', 'red', 'ctf', or 'development'
+        logger.info(`Extracted team type '${extractedType}' from team name '${teamName}'`);
+        
+        switch (extractedType.toLowerCase()) {
+          case 'blue':
+            return 'blue-team';
+          case 'red':
+            return 'red-team';
+          case 'ctf':
+            return 'ctf-team';
+          case 'development':
+            return 'development-team';
+        }
+      }
+      
+      // If we can't extract the type from the name, default to blue-team for COMPETITION teams
+      logger.info(`Could not extract team type from name '${teamName}', defaulting to blue-team for COMPETITION teams`);
+      return 'blue-team';
+    }
+    
+    // Handle direct team type mapping
+    const normalizedType = teamType.toLowerCase();
+    
+    switch (normalizedType) {
+      case 'blue':
+      case 'blue-team':
+        return 'blue-team';
+      case 'red':
+      case 'red-team':
+        return 'red-team';
+      case 'ctf':
+      case 'ctf-team':
+        return 'ctf-team';
+      case 'development':
+      case 'development-team':
+        return 'development-team';
+      default:
+        logger.warn(`Unknown team type: ${teamType}, defaulting to blue-team`);
+        return 'blue-team'; // Default fallback
     }
   }
 }

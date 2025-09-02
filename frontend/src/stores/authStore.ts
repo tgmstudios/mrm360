@@ -49,6 +49,7 @@ export const useAuthStore = defineStore('auth', () => {
     accessToken.value = token
     // Store token in localStorage for persistence
     localStorage.setItem('accessToken', token)
+    console.log('Token set in store and localStorage:', token ? 'exists' : 'missing')
   }
 
   async function loginWithCredentials(username: string, password: string) {
@@ -115,6 +116,10 @@ export const useAuthStore = defineStore('auth', () => {
         
         // Set authenticated state
         setAuthenticated(true)
+        
+        // Ensure token is properly set in localStorage
+        localStorage.setItem('accessToken', data.token)
+        localStorage.setItem('userData', JSON.stringify(data.user))
         
         console.log('Auth state after login:', {
           isAuthenticated: isAuthenticated.value,
@@ -235,6 +240,46 @@ export const useAuthStore = defineStore('auth', () => {
     await checkAuth()
   }
 
+  // Refresh all stores after authentication
+  async function refreshStores() {
+    if (!isAuthenticated.value || !accessToken.value) {
+      console.warn('Cannot refresh stores - not authenticated')
+      return
+    }
+
+    try {
+      // Verify token synchronization
+      const localStorageToken = localStorage.getItem('accessToken')
+      if (localStorageToken !== accessToken.value) {
+        console.warn('Token mismatch detected, synchronizing...')
+        localStorage.setItem('accessToken', accessToken.value || '')
+      }
+      
+      // Small delay to ensure token is properly set in localStorage
+      await new Promise(resolve => setTimeout(resolve, 100))
+      
+      // Import stores dynamically to avoid circular dependencies
+      const { useUserStore } = await import('@/stores/userStore')
+      const { useEventStore } = await import('@/stores/eventStore')
+      const { useTeamStore } = await import('@/stores/teamStore')
+
+      const userStore = useUserStore()
+      const eventStore = useEventStore()
+      const teamStore = useTeamStore()
+
+      // Refresh all stores in parallel
+      await Promise.all([
+        userStore.fetchUsers(),
+        eventStore.fetchEvents(),
+        teamStore.fetchTeams()
+      ])
+
+      console.log('All stores refreshed successfully')
+    } catch (error) {
+      console.error('Failed to refresh stores:', error)
+    }
+  }
+
   return {
     // State
     user,
@@ -255,6 +300,7 @@ export const useAuthStore = defineStore('auth', () => {
     checkAuth,
     can,
     init,
+    refreshStores,
     setAuthenticated,
     setUser,
     setToken

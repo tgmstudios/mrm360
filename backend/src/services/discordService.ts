@@ -1,32 +1,40 @@
 import { DiscordChannel, DiscordRole, DiscordPermission } from '@/types';
-import { DiscordBotService } from './discordBotService';
 import { logger } from '@/utils/logger';
+import { addJobToQueue } from '@/tasks/queue';
 
 export class DiscordService {
-  private discordBotService: DiscordBotService;
-
   constructor(config: {
     botToken: string;
     guildId: string;
     categoryId: string;
   }) {
-    this.discordBotService = new DiscordBotService(config);
+    // Store config for reference, but don't create Discord bot instance
+    // The Discord bot will be managed by the background worker
   }
 
   async createChannel(name: string, categoryId?: string): Promise<DiscordChannel> {
     try {
       logger.info(`Creating Discord channel: ${name}`);
       
-      // Connect to Discord if not already connected
-      await this.discordBotService.connect();
+      // Add job to Discord queue for background processing
+      const job = await addJobToQueue('DISCORD', {
+        action: 'createChannel',
+        name,
+        categoryId
+      });
       
-      const channel = await this.discordBotService.createChannel(name, categoryId);
+      logger.info(`Discord channel creation job queued: ${job.id}`);
       
-      logger.info(`Successfully created Discord channel: ${name}`);
-      return channel;
+      // Return placeholder response
+      return {
+        id: 'pending',
+        name,
+        categoryId: categoryId || '',
+        permissions: []
+      };
     } catch (error) {
-      logger.error(`Error creating Discord channel ${name}:`, error);
-      throw new Error(`Failed to create Discord channel: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      logger.error(`Error queuing Discord channel creation for ${name}:`, error);
+      throw new Error(`Failed to queue Discord channel creation: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -34,16 +42,25 @@ export class DiscordService {
     try {
       logger.info(`Updating Discord channel: ${channelId}`);
       
-      // Connect to Discord if not already connected
-      await this.discordBotService.connect();
+      // Add job to Discord queue for background processing
+      const job = await addJobToQueue('DISCORD', {
+        action: 'updateChannel',
+        channelId,
+        updates
+      });
       
-      const channel = await this.discordBotService.updateChannel(channelId, updates);
+      logger.info(`Discord channel update job queued: ${job.id}`);
       
-      logger.info(`Successfully updated Discord channel: ${channelId}`);
-      return channel;
+      // Return placeholder response
+      return {
+        id: channelId,
+        name: updates.name || 'pending',
+        categoryId: updates.categoryId || '',
+        permissions: updates.permissions || []
+      };
     } catch (error) {
-      logger.error(`Error updating Discord channel ${channelId}:`, error);
-      throw new Error(`Failed to update Discord channel: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      logger.error(`Error queuing Discord channel update for ${channelId}:`, error);
+      throw new Error(`Failed to queue Discord channel update: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -51,15 +68,16 @@ export class DiscordService {
     try {
       logger.info(`Deleting Discord channel: ${channelId}`);
       
-      // Connect to Discord if not already connected
-      await this.discordBotService.connect();
+      // Add job to Discord queue for background processing
+      const job = await addJobToQueue('DISCORD', {
+        action: 'deleteChannel',
+        channelId
+      });
       
-      await this.discordBotService.deleteChannel(channelId);
-      
-      logger.info(`Successfully deleted Discord channel: ${channelId}`);
+      logger.info(`Discord channel deletion job queued: ${job.id}`);
     } catch (error) {
-      logger.error(`Error deleting Discord channel ${channelId}:`, error);
-      throw new Error(`Failed to delete Discord channel: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      logger.error(`Error queuing Discord channel deletion for ${channelId}:`, error);
+      throw new Error(`Failed to queue Discord channel deletion: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -67,16 +85,25 @@ export class DiscordService {
     try {
       logger.info(`Creating Discord role: ${name}`);
       
-      // Connect to Discord if not already connected
-      await this.discordBotService.connect();
+      // Add job to Discord queue for background processing
+      const job = await addJobToQueue('DISCORD', {
+        action: 'createRole',
+        name,
+        permissions
+      });
       
-      const role = await this.discordBotService.createRole(name, permissions);
+      logger.info(`Discord role creation job queued: ${job.id}`);
       
-      logger.info(`Successfully created Discord role: ${name}`);
-      return role;
+      // Return placeholder response
+      return {
+        id: 'pending',
+        name,
+        permissions,
+        members: []
+      };
     } catch (error) {
-      logger.error(`Error creating Discord role ${name}:`, error);
-      throw new Error(`Failed to create Discord role: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      logger.error(`Error queuing Discord role creation for ${name}:`, error);
+      throw new Error(`Failed to queue Discord role creation: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -84,16 +111,25 @@ export class DiscordService {
     try {
       logger.info(`Updating Discord role: ${roleId}`);
       
-      // Connect to Discord if not already connected
-      await this.discordBotService.connect();
+      // Add job to Discord queue for background processing
+      const job = await addJobToQueue('DISCORD', {
+        action: 'updateRole',
+        roleId,
+        updates
+      });
       
-      const role = await this.discordBotService.updateRole(roleId, updates);
+      logger.info(`Discord role update job queued: ${job.id}`);
       
-      logger.info(`Successfully updated Discord role: ${roleId}`);
-      return role;
+      // Return placeholder response
+      return {
+        id: roleId,
+        name: updates.name || 'pending',
+        permissions: updates.permissions || [],
+        members: []
+      };
     } catch (error) {
-      logger.error(`Error updating Discord role ${roleId}:`, error);
-      throw new Error(`Failed to update Discord role: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      logger.error(`Error queuing Discord role update for ${roleId}:`, error);
+      throw new Error(`Failed to queue Discord role update: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -101,15 +137,52 @@ export class DiscordService {
     try {
       logger.info(`Deleting Discord role: ${roleId}`);
       
-      // Connect to Discord if not already connected
-      await this.discordBotService.connect();
+      // Add job to Discord queue for background processing
+      const job = await addJobToQueue('DISCORD', {
+        action: 'deleteRole',
+        roleId
+      });
       
-      await this.discordBotService.deleteRole(roleId);
-      
-      logger.info(`Successfully deleted Discord role: ${roleId}`);
+      logger.info(`Discord role deletion job queued: ${job.id}`);
     } catch (error) {
-      logger.error(`Error deleting Discord role ${roleId}:`, error);
-      throw new Error(`Failed to delete Discord role: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      logger.error(`Error queuing Discord role deletion for ${roleId}:`, error);
+      throw new Error(`Failed to queue Discord role deletion: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  async assignRole(userId: string, roleId: string): Promise<void> {
+    try {
+      logger.info(`Assigning Discord role ${roleId} to user ${userId}`);
+      
+      // Add job to Discord queue for background processing
+      const job = await addJobToQueue('DISCORD', {
+        action: 'assignRole',
+        userId,
+        roleId
+      });
+      
+      logger.info(`Discord role assignment job queued: ${job.id}`);
+    } catch (error) {
+      logger.error(`Error queuing Discord role assignment for user ${userId}:`, error);
+      throw new Error(`Failed to queue Discord role assignment: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  async removeRole(userId: string, roleId: string): Promise<void> {
+    try {
+      logger.info(`Removing Discord role ${roleId} from user ${userId}`);
+      
+      // Add job to Discord queue for background processing
+      const job = await addJobToQueue('DISCORD', {
+        action: 'removeRole',
+        userId,
+        roleId
+      });
+      
+      logger.info(`Discord role removal job queued: ${job.id}`);
+    } catch (error) {
+      logger.error(`Error queuing Discord role removal for user ${userId}:`, error);
+      throw new Error(`Failed to queue Discord role removal: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -117,15 +190,17 @@ export class DiscordService {
     try {
       logger.info(`Setting permissions for Discord channel: ${channelId}`);
       
-      // Connect to Discord if not already connected
-      await this.discordBotService.connect();
+      // Add job to Discord queue for background processing
+      const job = await addJobToQueue('DISCORD', {
+        action: 'setChannelPermissions',
+        channelId,
+        permissions
+      });
       
-      await this.discordBotService.setChannelPermissions(channelId, permissions);
-      
-      logger.info(`Successfully set permissions for Discord channel: ${channelId}`);
+      logger.info(`Discord channel permissions job queued: ${job.id}`);
     } catch (error) {
-      logger.error(`Error setting permissions for Discord channel ${channelId}:`, error);
-      throw new Error(`Failed to set Discord channel permissions: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      logger.error(`Error queuing Discord channel permissions for ${channelId}:`, error);
+      throw new Error(`Failed to queue Discord channel permissions: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -133,15 +208,17 @@ export class DiscordService {
     try {
       logger.info(`Assigning role ${roleId} to ${userIds.length} users`);
       
-      // Connect to Discord if not already connected
-      await this.discordBotService.connect();
+      // Add job to Discord queue for background processing
+      const job = await addJobToQueue('DISCORD', {
+        action: 'assignRoleToUsers',
+        roleId,
+        userIds
+      });
       
-      await this.discordBotService.assignRoleToUsers(roleId, userIds);
-      
-      logger.info(`Successfully assigned role ${roleId} to users`);
+      logger.info(`Discord role assignment to users job queued: ${job.id}`);
     } catch (error) {
-      logger.error(`Error assigning role ${roleId} to users:`, error);
-      throw new Error(`Failed to assign Discord role: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      logger.error(`Error queuing Discord role assignment to users:`, error);
+      throw new Error(`Failed to queue Discord role assignment to users: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -149,15 +226,39 @@ export class DiscordService {
     try {
       logger.info(`Removing role ${roleId} from ${userIds.length} users`);
       
-      // Connect to Discord if not already connected
-      await this.discordBotService.connect();
+      // Add job to Discord queue for background processing
+      const job = await addJobToQueue('DISCORD', {
+        action: 'removeRoleFromUsers',
+        roleId,
+        userIds
+      });
       
-      await this.discordBotService.removeRoleFromUsers(roleId, userIds);
-      
-      logger.info(`Successfully removed role ${roleId} from users`);
+      logger.info(`Discord role removal from users job queued: ${job.id}`);
     } catch (error) {
-      logger.error(`Error removing role ${roleId} from users:`, error);
-      throw new Error(`Failed to remove Discord role: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      logger.error(`Error queuing Discord role removal from users:`, error);
+      throw new Error(`Failed to queue Discord role removal from users: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  async batchUpdateRoles(userId: string, targetRoles: string[], rolesToRemove: string[]): Promise<void> {
+    try {
+      logger.info(`Batch updating roles for user ${userId}`, {
+        targetRoles,
+        rolesToRemove
+      });
+      
+      // Add job to Discord queue for background processing
+      const job = await addJobToQueue('DISCORD', {
+        action: 'batchUpdateRoles',
+        userId,
+        targetRoles,
+        rolesToRemove
+      });
+      
+      logger.info(`Discord batch role update job queued: ${job.id}`);
+    } catch (error) {
+      logger.error(`Error queuing Discord batch role update for user ${userId}:`, error);
+      throw new Error(`Failed to queue Discord batch role update: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -165,15 +266,24 @@ export class DiscordService {
     try {
       logger.info(`Getting Discord channel: ${channelId}`);
       
-      // Connect to Discord if not already connected
-      await this.discordBotService.connect();
+      // Add job to Discord queue for background processing
+      const job = await addJobToQueue('DISCORD', {
+        action: 'getChannel',
+        channelId
+      });
       
-      const channel = await this.discordBotService.getChannel(channelId);
+      logger.info(`Discord get channel job queued: ${job.id}`);
       
-      return channel;
+      // Return placeholder response
+      return {
+        id: channelId,
+        name: 'pending',
+        categoryId: '',
+        permissions: []
+      };
     } catch (error) {
-      logger.error(`Error getting Discord channel ${channelId}:`, error);
-      throw new Error(`Failed to get Discord channel: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      logger.error(`Error queuing Discord get channel for ${channelId}:`, error);
+      throw new Error(`Failed to queue Discord get channel: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -181,15 +291,24 @@ export class DiscordService {
     try {
       logger.info(`Getting Discord role: ${roleId}`);
       
-      // Connect to Discord if not already connected
-      await this.discordBotService.connect();
+      // Add job to Discord queue for background processing
+      const job = await addJobToQueue('DISCORD', {
+        action: 'getRole',
+        roleId
+      });
       
-      const role = await this.discordBotService.getRole(roleId);
+      logger.info(`Discord get role job queued: ${job.id}`);
       
-      return role;
+      // Return placeholder response
+      return {
+        id: roleId,
+        name: 'pending',
+        permissions: [],
+        members: []
+      };
     } catch (error) {
-      logger.error(`Error getting Discord role ${roleId}:`, error);
-      throw new Error(`Failed to get Discord role: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      logger.error(`Error queuing Discord get role for ${roleId}:`, error);
+      throw new Error(`Failed to queue Discord get role: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -197,15 +316,19 @@ export class DiscordService {
     try {
       logger.info(`Checking if Discord channel exists: ${name}`);
       
-      // Connect to Discord if not already connected
-      await this.discordBotService.connect();
+      // Add job to Discord queue for background processing
+      const job = await addJobToQueue('DISCORD', {
+        action: 'channelExists',
+        name
+      });
       
-      const exists = await this.discordBotService.channelExists(name);
+      logger.info(`Discord channel exists check job queued: ${job.id}`);
       
-      return exists;
+      // Return placeholder response
+      return false;
     } catch (error) {
-      logger.error(`Error checking if Discord channel exists ${name}:`, error);
-      throw new Error(`Failed to check Discord channel existence: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      logger.error(`Error queuing Discord channel exists check for ${name}:`, error);
+      throw new Error(`Failed to queue Discord channel exists check: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -213,15 +336,19 @@ export class DiscordService {
     try {
       logger.info(`Checking if Discord role exists: ${name}`);
       
-      // Connect to Discord if not already connected
-      await this.discordBotService.connect();
+      // Add job to Discord queue for background processing
+      const job = await addJobToQueue('DISCORD', {
+        action: 'roleExists',
+        name
+      });
       
-      const exists = await this.discordBotService.roleExists(name);
+      logger.info(`Discord role exists check job queued: ${job.id}`);
       
-      return exists;
+      // Return placeholder response
+      return false;
     } catch (error) {
-      logger.error(`Error checking if Discord role exists ${name}:`, error);
-      throw new Error(`Failed to check Discord role existence: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      logger.error(`Error queuing Discord role exists check for ${name}:`, error);
+      throw new Error(`Failed to queue Discord role exists check: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -229,16 +356,19 @@ export class DiscordService {
     try {
       logger.info(`Creating Discord category: ${name}`);
       
-      // Connect to Discord if not already connected
-      await this.discordBotService.connect();
+      // Add job to Discord queue for background processing
+      const job = await addJobToQueue('DISCORD', {
+        action: 'createCategory',
+        name
+      });
       
-      const categoryId = await this.discordBotService.createCategory(name);
+      logger.info(`Discord category creation job queued: ${job.id}`);
       
-      logger.info(`Successfully created Discord category: ${name} with ID: ${categoryId}`);
-      return categoryId;
+      // Return placeholder response
+      return 'pending';
     } catch (error) {
-      logger.error(`Error creating Discord category ${name}:`, error);
-      throw new Error(`Failed to create Discord category: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      logger.error(`Error queuing Discord category creation for ${name}:`, error);
+      throw new Error(`Failed to queue Discord category creation: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -246,15 +376,17 @@ export class DiscordService {
     try {
       logger.info(`Moving Discord channel ${channelId} to category ${categoryId}`);
       
-      // Connect to Discord if not already connected
-      await this.discordBotService.connect();
+      // Add job to Discord queue for background processing
+      const job = await addJobToQueue('DISCORD', {
+        action: 'moveChannelToCategory',
+        channelId,
+        categoryId
+      });
       
-      await this.discordBotService.moveChannelToCategory(channelId, categoryId);
-      
-      logger.info(`Successfully moved Discord channel ${channelId} to category ${categoryId}`);
+      logger.info(`Discord move channel to category job queued: ${job.id}`);
     } catch (error) {
-      logger.error(`Error moving Discord channel ${channelId} to category ${categoryId}:`, error);
-      throw new Error(`Failed to move Discord channel: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      logger.error(`Error queuing Discord move channel to category:`, error);
+      throw new Error(`Failed to queue Discord move channel to category: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 }

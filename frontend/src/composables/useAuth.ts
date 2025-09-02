@@ -2,6 +2,7 @@ import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import { useToast } from 'vue-toastification'
+import { initiateOAuthLogin } from '@/utils/oauth'
 
 export function useAuth() {
   const router = useRouter()
@@ -19,16 +20,7 @@ export function useAuth() {
   async function login() {
     try {
       // Redirect to Authentik OIDC login
-      const authUrl = `${import.meta.env.VITE_AUTHENTIK_BASE_URL}/application/o/authorize/`
-      const params = new URLSearchParams({
-        client_id: import.meta.env.VITE_AUTHENTIK_CLIENT_ID,
-        redirect_uri: import.meta.env.VITE_AUTHENTIK_REDIRECT_URI,
-        response_type: 'code',
-        scope: 'openid profile email groups',
-        state: generateRandomState()
-      })
-      
-      window.location.href = `${authUrl}?${params.toString()}`
+      initiateOAuthLogin()
     } catch (error) {
       console.error('Login error:', error)
       toast.error('Failed to initiate login')
@@ -44,12 +36,12 @@ export function useAuth() {
         router.push('/dashboard')
       } else {
         toast.error('Login failed')
-        router.push('/auth/login')
+        login()
       }
     } catch (error) {
       console.error('Callback error:', error)
       toast.error('Login failed')
-      router.push('/auth/login')
+      login()
     }
   }
 
@@ -57,11 +49,11 @@ export function useAuth() {
     try {
       await authStore.logout()
       toast.success('Logged out successfully')
-      router.push('/auth/login')
+      login()
     } catch (error) {
       console.error('Logout error:', error)
       // Force redirect even if logout fails
-      router.push('/auth/login')
+      login()
     }
   }
 
@@ -77,7 +69,7 @@ export function useAuth() {
 
   function requireAuth() {
     if (!isAuthenticated.value) {
-      router.push('/auth/login')
+      login()
       return false
     }
     return true
@@ -105,10 +97,7 @@ export function useAuth() {
     return true
   }
 
-  // Utility functions
-  function generateRandomState(): string {
-    return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
-  }
+
 
   // Initialize auth on mount - only if not already initialized
   onMounted(() => {

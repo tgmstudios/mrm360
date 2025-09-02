@@ -61,6 +61,13 @@ export class HttpClient {
           // Ignore error body parsing errors
         }
         
+        logger.error(`HTTP request failed: ${errorMessage}`, {
+          url,
+          status: response.status,
+          statusText: response.statusText,
+          headers: Object.fromEntries(response.headers.entries())
+        });
+        
         throw new Error(errorMessage);
       }
 
@@ -94,10 +101,23 @@ export class HttpClient {
     const headers = { ...this.config.headers, ...customHeaders };
 
     try {
+      // Determine if we should send data as JSON or raw string
+      let body: string | undefined;
+      if (data) {
+        const contentType = headers['Content-Type'] || headers['content-type'] || '';
+        if (contentType.includes('application/xml') || contentType.includes('text/xml')) {
+          // Send XML data as raw string
+          body = data;
+        } else {
+          // Send other data as JSON
+          body = JSON.stringify(data);
+        }
+      }
+
       const response = await fetch(url, {
         method: 'POST',
         headers,
-        body: data ? JSON.stringify(data) : undefined,
+        body,
         signal: AbortSignal.timeout(this.config.timeout!)
       });
 
@@ -146,10 +166,23 @@ export class HttpClient {
     const headers = { ...this.config.headers, ...customHeaders };
 
     try {
+      // Determine if we should send data as JSON or raw string
+      let body: string | undefined;
+      if (data) {
+        const contentType = headers['Content-Type'] || headers['content-type'] || '';
+        if (contentType.includes('application/xml') || contentType.includes('text/xml')) {
+          // Send XML data as raw string
+          body = data;
+        } else {
+          // Send other data as JSON
+          body = JSON.stringify(data);
+        }
+      }
+
       const response = await fetch(url, {
         method: 'PUT',
         headers,
-        body: data ? JSON.stringify(data) : undefined,
+        body,
         signal: AbortSignal.timeout(this.config.timeout!)
       });
 
@@ -186,7 +219,30 @@ export class HttpClient {
         headers: this.parseHeaders(response.headers)
       };
     } catch (error) {
-      logger.error(`PUT request failed for ${url}:`, error);
+      // Enhanced error logging
+      let errorMessage = 'Unknown error';
+      let errorType = 'unknown';
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        errorType = error.constructor.name;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+        errorType = 'string';
+      } else if (error && typeof error === 'object') {
+        errorMessage = JSON.stringify(error);
+        errorType = 'object';
+      }
+      
+      logger.error(`PUT request failed for ${url}:`, { 
+        error: errorMessage,
+        errorType,
+        endpoint,
+        data: data ? JSON.stringify(data) : undefined,
+        headers: JSON.stringify(headers),
+        fullError: error
+      });
+      
       throw error;
     }
   }
@@ -293,6 +349,63 @@ export class HttpClient {
       };
     } catch (error) {
       logger.error(`MKCOL request failed for ${url}:`, error);
+      throw error;
+    }
+  }
+
+  // WebDAV PROPPATCH method for updating properties (used for calendar sharing)
+  async proppatch<T = any>(endpoint: string, customHeaders?: Record<string, string>, data?: string): Promise<HttpResponse<T>> {
+    const url = this.buildUrl(endpoint);
+    logger.debug(`Making PROPPATCH request to: ${url}`);
+
+    const headers = { ...this.config.headers, ...customHeaders };
+
+    try {
+      const requestOptions: RequestInit = {
+        method: 'PROPPATCH',
+        headers,
+        signal: AbortSignal.timeout(this.config.timeout!)
+      };
+
+      // Add body if data is provided (for calendar sharing)
+      if (data) {
+        requestOptions.body = data;
+      }
+
+      const response = await fetch(url, requestOptions);
+
+      if (!response.ok) {
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        
+        try {
+          const errorBody = await response.text();
+          if (errorBody) {
+            errorMessage += ` - ${errorBody}`;
+          }
+        } catch (e) {
+          // Ignore error body parsing errors
+        }
+        
+        throw new Error(errorMessage);
+      }
+
+      // PROPPATCH typically returns no content
+      let responseData: T;
+      try {
+        responseData = await response.json();
+      } catch (e) {
+        // If no JSON response, create empty data
+        responseData = {} as T;
+      }
+      
+      return {
+        data: responseData,
+        status: response.status,
+        statusText: response.statusText,
+        headers: this.parseHeaders(response.headers)
+      };
+    } catch (error) {
+      logger.error(`PROPPATCH request failed for ${url}:`, error);
       throw error;
     }
   }

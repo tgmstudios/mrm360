@@ -14,6 +14,7 @@
     "db:studio": "prisma studio",
     "worker": "tsx src/tasks/worker.ts",
     "worker:team-provisioning": "tsx scripts/startTeamProvisioningWorker.ts",
+    "worker:discord": "tsx scripts/startDiscordBotWorker.ts",
     "worker:dev": "tsx scripts/startTeamProvisioningWorker.ts",
     "worker:prod": "NODE_ENV=production tsx scripts/startTeamProvisioningWorker.ts",
     "create-admin": "tsx scripts/create-admin.ts",
@@ -22,8 +23,12 @@
     "test:nextcloud:auth": "tsx scripts/testNextcloudAuth.ts",
     "test:wikijs": "tsx scripts/testWikiJsService.ts",
     "test:wikijs:groups": "tsx scripts/testWikiJsGroupsAndPermissions.ts",
-    "example:wikijs:groups": "tsx scripts/exampleWikiJsGroupsAndPermissions.ts",
-    "test:discord": "tsx scripts/testDiscordBotService.ts"
+    "test:discord": "tsx scripts/testDiscordBotService.ts",
+    "test:discord:connection": "tsx scripts/testDiscordBotConnection.ts",
+    "test:discord:role-manager": "tsx scripts/testDiscordRoleManager.ts",
+    "test:discord:roles": "tsx scripts/testDiscordRoleConfig.ts",
+    "test:listmonk:worker": "tsx scripts/testListMonkWorker.ts",
+    "test:member-paid-status": "tsx scripts/testMemberPaidStatus.ts"
   },
   "dependencies": {
     "@casl/ability": "^6.0.0",
@@ -54,6 +59,7 @@
     "@types/bcryptjs": "^2.4.0",
     "@types/compression": "^1.7.0",
     "@types/cors": "^2.8.0",
+    "@types/jest": "^30.0.0",
     "@types/jsonwebtoken": "^9.0.0",
     "@types/node": "^20.0.0",
     "@types/react": "^18.0.0",

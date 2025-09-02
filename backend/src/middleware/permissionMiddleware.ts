@@ -1,9 +1,16 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { AuthenticatedRequest } from './authMiddleware';
-import { logger } from '../utils/logger';
+import { logger } from '@/utils/logger';
+import { getEffectiveSystemRole } from '@/utils/roleUtils';
 
-export interface PermissionRequest extends AuthenticatedRequest {
-  // Extends AuthenticatedRequest with user info
+export interface PermissionRequest extends NextApiRequest {
+  user: {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    role: string;
+    groups: string[];
+  };
 }
 
 export function withPermissions(
@@ -12,53 +19,36 @@ export function withPermissions(
 ) {
   return async (req: NextApiRequest, res: NextApiResponse) => {
     try {
-      // Cast to PermissionRequest since this middleware should be used after withAuth
-      const permissionReq = req as PermissionRequest;
-
-      if (!permissionReq.user) {
-        logger.warn('Permission check attempted without authentication', { 
-          path: req.url, 
-          method: req.method 
-        });
-        
-        return res.status(401).json({ 
-          error: 'Unauthorized',
-          message: 'Authentication required' 
-        });
-      }
-
-      // Get required permissions (either static array or dynamic function)
+      // Get the required permissions
       const permissions = typeof requiredPermissions === 'function' 
         ? requiredPermissions(req) 
         : requiredPermissions;
 
-      // Check if user has required permissions
-      const hasPermission = await checkPermissions(permissionReq.user, permissions);
+      // Get user from request (should be set by auth middleware)
+      const user = (req as any).user;
       
-      if (!hasPermission) {
-        logger.warn('Insufficient permissions', { 
-          userId: permissionReq.user.id, 
-          userRole: permissionReq.user.role,
-          requiredPermissions: permissions,
-          path: req.url 
-        });
-        
-        return res.status(403).json({ 
-          error: 'Forbidden',
-          message: 'Insufficient permissions for this operation' 
+      if (!user) {
+        return res.status(401).json({ 
+          error: 'Unauthorized',
+          message: 'User not authenticated' 
         });
       }
 
-      logger.info('Permission check passed', { 
-        userId: permissionReq.user.id, 
-        requiredPermissions: permissions,
-        path: req.url 
-      });
+      // Check permissions
+      const hasPermission = await checkPermissions(user, permissions);
+      
+      if (!hasPermission) {
+        return res.status(403).json({ 
+          error: 'Forbidden',
+          message: 'Permission check failed' 
+        });
+      }
 
-      // Call the original handler
-      await handler(permissionReq, res);
+      // Call the handler
+      await handler(req as PermissionRequest, res);
+      
     } catch (error) {
-      logger.error('Permission middleware error', { error, path: req.url });
+      logger.error('Permission middleware error:', error);
       return res.status(500).json({ 
         error: 'Internal server error',
         message: 'Permission check failed' 
@@ -97,13 +87,14 @@ async function checkPermissions(user: any, requiredPermissions: string[]): Promi
 
   // Check if user has tech-team group in authentikGroups (OIDC groups)
   // If they do, give them admin permissions regardless of their role
-  let effectiveRole = user.role;
+  let effectiveRole = getEffectiveSystemRole(user.role);
   if (user.authentikGroups && Array.isArray(user.authentikGroups)) {
     if (user.authentikGroups.includes('tech-team')) {
       effectiveRole = 'ADMIN';
       logger.info('User has tech-team group, elevating to admin permissions', {
         userId: user.id,
         originalRole: user.role,
+        effectiveRole,
         authentikGroups: user.authentikGroups
       });
     }

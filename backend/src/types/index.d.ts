@@ -10,6 +10,8 @@ export interface UserProfile {
   paidStatus: boolean;
   qrCode?: string;
   role: Role;
+  authentikId?: string;
+  isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -233,6 +235,23 @@ export interface EmailTask {
   template?: string;
 }
 
+export interface ListMonkTask {
+  action: 'subscribe' | 'unsubscribe' | 'update' | 'create' | 'delete' | 'sync';
+  data: {
+    email?: string;
+    listId?: string | number;
+    subscriberId?: string;
+    subscriber?: Partial<ListMonkSubscriber>;
+    lists?: number[];
+    status?: 'enabled' | 'disabled' | 'blocklisted';
+  };
+  options?: {
+    retryOnFailure?: boolean;
+    notifyOnFailure?: boolean;
+    priority?: 'low' | 'normal' | 'high';
+  };
+}
+
 export interface QRCodeTask {
   userId: string;
   size?: number;
@@ -430,4 +449,101 @@ export interface PermissionCheck {
   action: string;
   subject: string;
   subjectId?: string;
+}
+
+// ListMonk types
+export interface ListMonkConfig {
+  baseUrl: string;
+  username: string;
+  password: string;
+  timeout?: number;
+}
+
+export interface ListMonkSubscriber {
+  id?: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  displayName?: string;
+  status: 'enabled' | 'disabled' | 'blocklisted';
+  lists: number[];
+  attributes?: Record<string, any>;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+export interface ListMonkList {
+  id: number;
+  name: string;
+  description?: string;
+  type: 'public' | 'private' | 'optin' | 'optout';
+  optin: 'single' | 'double';
+  tags?: string[];
+  subscriberCount?: number;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+export interface ListMonkCampaign {
+  id: number;
+  name: string;
+  subject: string;
+  body: string;
+  status: 'draft' | 'scheduled' | 'running' | 'paused' | 'finished';
+  lists: number[];
+  templateId?: number;
+  createdAt?: Date;
+  updatedAt?: Date;
+  startedAt?: Date;
+  finishedAt?: Date;
+}
+
+export interface CreateSubscriberRequest {
+  email: string;
+  name?: string;
+  status?: 'enabled' | 'disabled' | 'blocklisted';
+  lists: number[];
+  attributes?: Record<string, any>;
+}
+
+export interface UpdateSubscriberRequest {
+  email?: string;
+  name?: string;
+  status?: 'enabled' | 'disabled' | 'blocklisted';
+  lists?: number[];
+  attributes?: Record<string, any>;
+}
+
+export interface CreateListRequest {
+  name: string;
+  description?: string;
+  type?: 'public' | 'private' | 'optin' | 'optout';
+  optin?: 'single' | 'double';
+  tags?: string[];
+}
+
+export interface UpdateListRequest {
+  name?: string;
+  description?: string;
+  type?: 'public' | 'private' | 'optin' | 'optout';
+  optin?: 'single' | 'double';
+  tags?: string[];
+}
+
+export interface CreateCampaignRequest {
+  name: string;
+  subject: string;
+  body: string;
+  lists: number[];
+  templateId?: number;
+  status?: 'draft' | 'scheduled';
+}
+
+export interface UpdateCampaignRequest {
+  name?: string;
+  subject?: string;
+  body?: string;
+  lists?: number[];
+  templateId?: number;
+  status?: 'draft' | 'scheduled' | 'running' | 'paused' | 'finished';
 }

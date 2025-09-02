@@ -4,10 +4,23 @@ export default {
     "./index.html",
     "./src/**/*.{vue,js,ts,jsx,tsx}",
   ],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
         primary: {
+          50: '#e6e8ff',
+          100: '#c7ccff',
+          200: '#9aa0ff',
+          300: '#6c74ff',
+          400: '#3e48ff',
+          500: '#000966',
+          600: '#000966',
+          700: '#000966',
+          800: '#000966',
+          900: '#000966',
+        },
+        blue: {
           50: '#eff6ff',
           100: '#dbeafe',
           200: '#bfdbfe',

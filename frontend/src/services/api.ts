@@ -49,6 +49,10 @@ class ApiService {
           console.log('Authorization header set for:', config.url)
         } else {
           console.log('No token found for request to:', config.url)
+          // If no token and this is not an auth endpoint, this might indicate an auth issue
+          if (!config.url?.includes('/auth/')) {
+            console.warn('No token found for non-auth request:', config.url)
+          }
         }
         return config
       },

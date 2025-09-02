@@ -1,26 +1,9 @@
-import { AbilityBuilder, Ability, AbilityClass, ExtractSubjectType, InferSubjects } from '@casl/ability';
-import { Role } from '@prisma/client';
+import { AbilityBuilder, Ability, AbilityClass } from '@casl/ability';
 import { AuthenticatedUser } from '@/types';
+import { getEffectiveSystemRole } from '@/utils/roleUtils';
 
-export type Actions = 
-  | 'create' 
-  | 'read' 
-  | 'update' 
-  | 'delete' 
-  | 'manage' 
-  | 'assign' 
-  | 'checkin'
-  | 'rsvp';
-
-export type Subjects = 
-  | 'User' 
-  | 'Group' 
-  | 'Team' 
-  | 'Event' 
-  | 'Task'
-  | 'RSVP' 
-  | 'CheckIn' 
-  | 'all';
+export type Actions = 'create' | 'read' | 'update' | 'delete' | 'manage' | 'rsvp';
+export type Subjects = 'User' | 'Group' | 'Team' | 'Event' | 'Task' | 'RSVP' | 'CheckIn' | 'all';
 
 export type AppAbility = Ability<[Actions, Subjects]>;
 export const AppAbility = Ability as AbilityClass<AppAbility>;
@@ -28,14 +11,17 @@ export const AppAbility = Ability as AbilityClass<AppAbility>;
 export function defineAbilitiesFor(user: AuthenticatedUser) {
   const { can, build } = new AbilityBuilder<AppAbility>(AppAbility);
 
+  // Get the effective system role, ensuring it's not a class rank role
+  const effectiveRole = getEffectiveSystemRole(user.role);
+
   // Admin can do everything
-  if (user.role === Role.ADMIN) {
+  if (effectiveRole === 'ADMIN') {
     can('manage', 'all');
     return build();
   }
 
   // Executive Board permissions
-  if (user.role === Role.EXEC_BOARD) {
+  if (effectiveRole === 'EXEC_BOARD') {
     // User management
     can('read', 'User');
     can('create', 'User');
@@ -63,7 +49,7 @@ export function defineAbilitiesFor(user: AuthenticatedUser) {
   }
 
   // Member permissions
-  if (user.role === Role.MEMBER) {
+  if (effectiveRole === 'MEMBER') {
     // User management
     can('read', 'User');
     can('update', 'User');
@@ -108,11 +94,8 @@ export function defineAbilitiesFor(user: AuthenticatedUser) {
 }
 
 export function createMongoQueryMatcher(ability: AppAbility) {
-  return (rule: any) => {
-    if (rule.conditions) {
-      return rule.conditions;
-    }
-    return {};
+  return (query: any) => {
+    return query;
   };
 }
 

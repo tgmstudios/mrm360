@@ -468,7 +468,7 @@ This is the main page for the ${teamName} team.
 
       // Handle case where basePath is just "/" to avoid double slashes
       const basePath = this.basePath === '/' ? '' : this.basePath;
-      const path = `${basePath}/${teamType}-team/${teamName}`;
+      const path = `${basePath}/${teamType}-team/${teamName}`.replace(/^\/+/, '');
       const title = `${teamName} Team`;
       const content = `# ${teamName} Team
 

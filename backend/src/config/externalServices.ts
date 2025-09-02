@@ -1,6 +1,7 @@
 import { TeamProvisioningConfig } from '@/types';
 import { AuthentikConfigValidator, AuthentikConfig } from '@/utils/authentikConfigValidator';
-import { NextcloudConfigValidator, NextcloudConfig } from '@/services/nextcloudServiceFactory';
+import { NextcloudConfigValidator } from '@/utils/nextcloudConfigValidator';
+import { NextcloudConfig } from '@/services/nextcloudServiceFactory';
 
 // Configuration for external service integrations
 export const externalServicesConfig: TeamProvisioningConfig = {
@@ -11,7 +12,7 @@ export const externalServicesConfig: TeamProvisioningConfig = {
   },
   wikijs: {
     baseUrl: process.env.WIKIJS_BASE_URL || 'http://localhost:3000',
-    token: process.env.WIKIJS_TOKEN || 'mock-token',
+    token: process.env.WIKIJS_API_TOKEN || 'mock-token',
     basePath: process.env.WIKIJS_BASE_PATH || '/'
   },
   nextcloud: {
@@ -52,7 +53,7 @@ export function getAuthentikConfig(): AuthentikConfig {
   const config: AuthentikConfig = {
     baseUrl: process.env.AUTHENTIK_BASE_URL || 'http://localhost:9000',
     token: process.env.AUTHENTIK_TOKEN || 'mock-token',
-    parentGroupTemplate: process.env.AUTHENTIK_PARENT_GROUP_TEMPLATE || '{parent_team_type}-team'
+    parentGroupTemplate: process.env.AUTHENTIK_PARENT_GROUP_TEMPLATE || '{parent_team_type}'
   };
 
   // Validate configuration
