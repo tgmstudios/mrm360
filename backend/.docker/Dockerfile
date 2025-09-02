@@ -7,6 +7,12 @@ WORKDIR /usr/src/app
 # Copy package.json and package-lock.json to the working directory
 COPY package*.json ./
 
+# Copy entrypoint script and ensure proper line endings
+COPY .docker/docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh && \
+    sed -i 's/\r$//' /docker-entrypoint.sh && \
+    cat /docker-entrypoint.sh
+
 # Install project dependencies
 RUN npm install
 
@@ -19,5 +25,9 @@ COPY . .
 # Expose a port (if your application needs it)
 EXPOSE 3000
 
-# Start the application
-CMD [ "npm", "run", "dev" ]
+# Specify the environment variable
+ENV CONTAINER_TYPE=backend
+
+# Use custom entrypoint script
+ENTRYPOINT ["/docker-entrypoint.sh"]
+CMD ["npm", "run", "dev"]
