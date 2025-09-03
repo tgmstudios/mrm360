@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { logger } from '@/utils/logger';
-import { getEffectiveSystemRole } from '@/utils/roleUtils';
+import { getEffectiveSystemRole, hasAdminGroups } from '@/utils/roleUtils';
 
 export interface PermissionRequest extends NextApiRequest {
   user: {
@@ -85,13 +85,13 @@ async function checkPermissions(user: any, requiredPermissions: string[]): Promi
     ]
   };
 
-  // Check if user has tech-team group in authentikGroups (OIDC groups)
+  // Check if user has admin groups in authentikGroups (OIDC groups)
   // If they do, give them admin permissions regardless of their role
   let effectiveRole = getEffectiveSystemRole(user.role);
   if (user.authentikGroups && Array.isArray(user.authentikGroups)) {
-    if (user.authentikGroups.includes('tech-team')) {
+    if (hasAdminGroups(user.authentikGroups)) {
       effectiveRole = 'ADMIN';
-      logger.info('User has tech-team group, elevating to admin permissions', {
+      logger.info('User has admin groups, elevating to admin permissions', {
         userId: user.id,
         originalRole: user.role,
         effectiveRole,

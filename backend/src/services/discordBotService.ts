@@ -1146,6 +1146,15 @@ Green buttons: Select roles that interest you.
   }
 
   private async handleSetNewUsers(interaction: ChatInputCommandInteraction): Promise<void> {
+    // Check if user has administrator permissions
+    if (!interaction.memberPermissions?.has('Administrator')) {
+      await interaction.reply({ 
+        content: '❌ You need Administrator permissions to use this command.', 
+        ephemeral: true 
+      });
+      return;
+    }
+
     try {
       // Get the current channel ID
       const channelId = interaction.channelId;

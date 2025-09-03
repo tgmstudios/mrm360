@@ -4,6 +4,7 @@ import { logger } from '../../../utils/logger';
 import { withCORS } from '../../../middleware/corsMiddleware';
 import { verifyJWT } from '../../../utils/jwt';
 import { DiscordRoleManager } from '../../../utils/discordRoleManager';
+import { DiscordBotService } from '../../../services/discordBotService';
 
 export default withCORS(async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -45,6 +46,19 @@ export default withCORS(async function handler(req: NextApiRequest, res: NextApi
     if (!discordUser) {
       logger.error('Failed to get Discord user info');
       return res.status(400).json({ error: 'Failed to get Discord user info' });
+    }
+
+    // Check if user is a member of the Discord server
+    const isServerMember = await checkDiscordServerMembership(discordUser.id);
+    
+    if (!isServerMember) {
+      logger.info('User is not a member of the Discord server', { discordId: discordUser.id });
+      return res.status(400).json({
+        success: false,
+        error: 'NOT_SERVER_MEMBER',
+        message: 'You must join our Discord server before linking your account.',
+        inviteUrl: 'https://r.psuccso.org/B5LMI'
+      });
     }
 
     // Get user from JWT token in Authorization header
@@ -171,4 +185,60 @@ async function linkDiscordAccount(userId: string, discordUser: any) {
   await DiscordRoleManager.assignRolesOnLink(userId, discordUser.id);
 
   logger.info('Discord account linked successfully', { userId, discordId: discordUser.id });
+}
+
+async function checkDiscordServerMembership(discordId: string): Promise<boolean> {
+  try {
+    const botToken = process.env.DISCORD_BOT_TOKEN;
+    const guildId = process.env.DISCORD_GUILD_ID;
+    
+    if (!botToken || !guildId) {
+      logger.error('Discord bot configuration missing');
+      return false;
+    }
+
+    // Import Discord.js client
+    const { Client, GatewayIntentBits } = require('discord.js');
+    
+    // Create a temporary Discord client to check membership
+    const client = new Client({
+      intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers]
+    });
+
+    // Wait for the bot to be ready
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Discord bot initialization timeout'));
+      }, 10000);
+
+      client.once('ready', () => {
+        clearTimeout(timeout);
+        resolve();
+      });
+
+      client.login(botToken);
+    });
+
+    // Check if user is a member of the guild
+    const guild = await client.guilds.fetch(guildId);
+    if (!guild) {
+      logger.error('Failed to get Discord guild');
+      return false;
+    }
+
+    try {
+      const member = await guild.members.fetch(discordId);
+      logger.info('User is a member of the Discord server', { discordId });
+      return true;
+    } catch (error) {
+      logger.info('User is not a member of the Discord server', { discordId });
+      return false;
+    } finally {
+      // Clean up the client connection
+      client.destroy();
+    }
+  } catch (error) {
+    logger.error('Error checking Discord server membership', { error, discordId });
+    return false;
+  }
 }

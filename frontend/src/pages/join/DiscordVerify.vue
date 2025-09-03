@@ -40,18 +40,32 @@
         <p class="text-gray-400">Please wait while we link your Discord account</p>
       </div>
 
-      <!-- Error Message -->
-      <div v-else-if="error" class="bg-red-900 border border-red-700 rounded-xl p-6 text-center mb-6 sm:mb-8">
+      <!-- Notice Message -->
+      <div v-else-if="error" class="bg-blue-900 border border-blue-700 rounded-xl p-6 text-center mb-6 sm:mb-8">
         <div class="flex items-center justify-center space-x-2 mb-2">
-          <svg class="w-5 h-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+          <svg class="w-5 h-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
           </svg>
-          <span class="text-red-200 font-medium">Verification Failed</span>
+          <span class="text-blue-200 font-medium">Action Required</span>
         </div>
-        <p class="text-red-300 mb-4">{{ error }}</p>
+        <p class="text-blue-300 mb-4">{{ error }}</p>
+        
+        <!-- Special handling for server membership error -->
+        <div v-if="error.includes('join our Discord server')" class="mb-4">
+          <a 
+            href="https://r.psuccso.org/B5LMI" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            class="inline-block bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 mb-3"
+          >
+            Join Discord Server
+          </a>
+          <p class="text-sm text-blue-400">After joining, come back and try linking again.</p>
+        </div>
+        
         <button
           @click="retryVerification"
-          class="bg-red-600 hover:bg-red-700 text-white font-medium py-3 px-6 rounded-lg transition-colors duration-200 min-h-[48px] touch-manipulation"
+          class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition-colors duration-200 min-h-[48px] touch-manipulation"
         >
           Try Again
         </button>
@@ -270,6 +284,12 @@ async function processOAuth2Callback(code: string, state: string) {
        }
      } else {
        const errorData = await response.json()
+       
+       // Handle specific error cases
+       if (errorData.error === 'NOT_SERVER_MEMBER') {
+         throw new Error(errorData.message || 'You must join our Discord server before linking your account.')
+       }
+       
        throw new Error(errorData.error || errorData.message || 'Failed to link Discord account')
      }
     
@@ -338,9 +358,34 @@ function continueToInterests() {
 }
 
 function retryVerification() {
-  // Clear error and try again
+  // Clear error and restart the Discord OAuth flow
   error.value = ''
-  // Reload the page to restart the flow
-  window.location.reload()
+  isLoading.value = true
+  
+  const clientId = window.ENV.VITE_DISCORD_CLIENT_ID
+  const redirectUri = window.ENV.VITE_DISCORD_REDIRECT_URI
+  
+  if (!clientId || !redirectUri) {
+    console.error('Discord OAuth2 configuration missing')
+    isLoading.value = false
+    return
+  }
+
+  // Generate a fresh state parameter for CSRF protection
+  const state = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
+  
+  // Store fresh state in sessionStorage
+  sessionStorage.setItem('discord_oauth_state', state)
+  
+  // Build Discord OAuth2 URL
+  const authUrl = new URL('https://discord.com/api/oauth2/authorize')
+  authUrl.searchParams.set('client_id', clientId)
+  authUrl.searchParams.set('redirect_uri', redirectUri)
+  authUrl.searchParams.set('response_type', 'code')
+  authUrl.searchParams.set('scope', 'identify')
+  authUrl.searchParams.set('state', state)
+  
+  // Redirect to Discord OAuth2
+  window.location.href = authUrl.toString()
 }
 </script>

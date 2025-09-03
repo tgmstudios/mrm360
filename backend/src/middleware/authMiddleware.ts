@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { logger } from '@/utils/logger';
-import { getEffectiveSystemRole } from '@/utils/roleUtils';
+import { getEffectiveSystemRole, hasAdminGroups } from '@/utils/roleUtils';
 
 export interface AuthenticatedRequest extends NextApiRequest {
   user: {
@@ -15,9 +15,9 @@ export interface AuthenticatedRequest extends NextApiRequest {
 
 // Helper function to determine effective role based on OIDC groups
 function getEffectiveRole(userRole: string, authentikGroups: string[]): string {
-  // If user has tech-team group, elevate to admin regardless of base role
-  if (authentikGroups.includes('tech-team')) {
-    logger.info('User has tech-team group, elevating to admin role', {
+  // If user has admin groups, elevate to admin regardless of base role
+  if (hasAdminGroups(authentikGroups)) {
+    logger.info('User has admin groups, elevating to admin role', {
       originalRole: userRole,
       authentikGroups
     });

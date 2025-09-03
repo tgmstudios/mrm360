@@ -29,7 +29,8 @@
     "test:discord:role-manager": "tsx scripts/testDiscordRoleManager.ts",
     "test:discord:roles": "tsx scripts/testDiscordRoleConfig.ts",
     "test:listmonk:worker": "tsx scripts/testListMonkWorker.ts",
-    "test:member-paid-status": "tsx scripts/testMemberPaidStatus.ts"
+    "test:member-paid-status": "tsx scripts/testMemberPaidStatus.ts",
+    "fix-user-roles": "tsx scripts/fix-user-roles.ts"
   },
   "dependencies": {
     "@casl/ability": "^6.0.0",

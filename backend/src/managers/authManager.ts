@@ -1,6 +1,7 @@
 import { PrismaClient, User, Role } from '@prisma/client';
 import { logger } from '../utils/logger';
 import { MemberPaidStatusService } from '../services/memberPaidStatusService';
+import { hasAdminGroups, determineRoleFromGroups } from '../utils/roleUtils';
 
 export interface AuthentikUserInfo {
   sub: string;
@@ -26,6 +27,13 @@ export class AuthManager {
 
   constructor(prisma: PrismaClient) {
     this.prisma = prisma;
+  }
+
+  /**
+   * Determine the appropriate system role based on Authentik groups
+   */
+  public determineRoleFromGroups(authentikGroups: string[]): Role {
+    return determineRoleFromGroups(authentikGroups);
   }
 
   async authenticateUser(authikUserInfo: AuthentikUserInfo): Promise<SessionUser> {
@@ -61,12 +69,15 @@ export class AuthManager {
         // Create new user
         logger.info('Creating new user from Authentik', { email: authikUserInfo.email });
         
+        // Determine initial role based on Authentik groups
+        const initialRole = this.determineRoleFromGroups(authikUserInfo.groups);
+        
         const createdUser = await this.prisma.user.create({
           data: {
             email: authikUserInfo.email,
             firstName: authikUserInfo.name.split(' ')[0] || authikUserInfo.name,
             lastName: authikUserInfo.name.split(' ').slice(1).join(' ') || '',
-            role: Role.MEMBER, // Default role
+            role: initialRole,
             paidStatus: false, // Default to unpaid
             qrCode: this.generateQRCode(authikUserInfo.email),
             authentikId: authikUserInfo.sub, // OIDC sub for authentication
@@ -105,11 +116,18 @@ export class AuthManager {
         // Update existing user info
         logger.info('Updating existing user from Authentik', { userId: user.id });
         
+        // Sync groups from Authentik first
+        await this.syncUserGroups(user.id, authikUserInfo.groups);
+        
+        // Determine updated role based on current Authentik groups
+        const updatedRole = this.determineRoleFromGroups(authikUserInfo.groups);
+        
         user = await this.prisma.user.update({
           where: { id: user.id },
           data: {
             firstName: authikUserInfo.name.split(' ')[0] || authikUserInfo.name,
             lastName: authikUserInfo.name.split(' ').slice(1).join(' ') || '',
+            role: updatedRole, // Update role based on current Authentik groups
             authentikId: authikUserInfo.sub, // OIDC sub for authentication
             authentikPk: authentikPk, // Authentik PK for group management
           },
@@ -121,27 +139,6 @@ export class AuthManager {
             },
           },
         });
-
-        // Sync groups from Authentik
-        await this.syncUserGroups(user.id, authikUserInfo.groups);
-        
-        // Refresh user data to include updated groups
-        const refreshedUser = await this.prisma.user.findUnique({
-          where: { id: user.id },
-          include: {
-            userGroups: {
-              include: {
-                group: true,
-              },
-            },
-          },
-        });
-        
-        if (!refreshedUser) {
-          throw new Error('Failed to refresh user data after group sync');
-        }
-        
-        user = refreshedUser;
       }
 
       // Build session user object
@@ -293,6 +290,51 @@ export class AuthManager {
       logger.info('User role updated successfully', { userId, newRole });
     } catch (error) {
       logger.error('Failed to update user role', { error, userId, newRole });
+      throw error;
+    }
+  }
+
+  async updateUserRoleFromGroups(userId: string): Promise<void> {
+    try {
+      logger.info('Updating user role from groups', { userId });
+      
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        include: {
+          userGroups: {
+            include: { group: true }
+          }
+        }
+      });
+
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      const currentGroups = user.userGroups.map(ug => ug.group.name);
+      const correctRole = this.determineRoleFromGroups(currentGroups);
+
+      if (user.role !== correctRole) {
+        await this.prisma.user.update({
+          where: { id: userId },
+          data: { role: correctRole }
+        });
+
+        logger.info('Updated user role from groups', {
+          userId,
+          oldRole: user.role,
+          newRole: correctRole,
+          groups: currentGroups
+        });
+      } else {
+        logger.info('User role is already correct', {
+          userId,
+          role: user.role,
+          groups: currentGroups
+        });
+      }
+    } catch (error) {
+      logger.error('Failed to update user role from groups', { error, userId });
       throw error;
     }
   }

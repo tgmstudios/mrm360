@@ -142,6 +142,35 @@ export class BackgroundTaskService {
     
     if (data.action === 'sync_user_groups') {
       await authManager.syncUserGroups(data.userId, data.authentikGroups);
+      
+      // Also update the user's role based on the new groups
+      const user = await prisma.user.findUnique({
+        where: { id: data.userId },
+        include: {
+          userGroups: {
+            include: { group: true }
+          }
+        }
+      });
+      
+              if (user) {
+          const currentGroups = user.userGroups.map(ug => ug.group.name);
+          const updatedRole = authManager.determineRoleFromGroups(currentGroups);
+        
+        if (user.role !== updatedRole) {
+          await prisma.user.update({
+            where: { id: data.userId },
+            data: { role: updatedRole }
+          });
+          
+          logger.info('Updated user role based on Authentik groups', {
+            userId: data.userId,
+            oldRole: user.role,
+            newRole: updatedRole,
+            groups: currentGroups
+          });
+        }
+      }
     }
     
     return { success: true };

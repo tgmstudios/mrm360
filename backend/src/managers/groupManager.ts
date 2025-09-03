@@ -255,8 +255,9 @@ export class GroupManager {
       const mockAuthentikGroups = [
         { id: 'auth-group-1', name: 'Competition Team', description: 'Competition team members' },
         { id: 'auth-group-2', name: 'Development Team', description: 'Development team members' },
-        { id: 'auth-group-3', name: 'Executive Board', description: 'Executive board members' },
-        { id: 'auth-group-4', name: 'General Members', description: 'General club members' }
+        { id: 'auth-group-3', name: 'General Members', description: 'General club members' },
+        { id: 'auth-group-4', name: 'tech-team', description: 'Technical team members' },
+        { id: 'auth-group-5', name: 'executive-board', description: 'Executive board members' }
       ];
 
       let created = 0;
