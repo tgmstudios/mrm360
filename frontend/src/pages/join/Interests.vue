@@ -189,7 +189,7 @@ const router = useRouter()
 const authStore = useAuthStore()
 
 const selectedClassRank = ref('')
-const selectedInterests = ref<string[]>([])
+const selectedInterests = ref<string[]>(['OFFENSE', 'DEFENSE', 'CTF'])
 const subscribeNewsletter = ref(true)
 const isSubmitting = ref(false)
 
@@ -218,7 +218,7 @@ const clubInterests = [
     value: 'CTF', 
     emoji: '🏳️', 
     label: 'CTF', 
-    description: 'For people interested in competing in CTFs such as NCL and PicoCTF. This is also for people interested in other platforms such as Hack the box, TryHackMe, and Blue team labs online!' 
+    description: 'For people interested in competing in CTFs such as NCL and PicoCTF. This is also for people interested in other platforms such as Hack the Box, TryHackMe, and Blue team labs online!' 
   },
   { 
     value: 'GAMING', 
