@@ -1,6 +1,6 @@
 import { Queue } from 'bullmq';
 import { logger } from '../utils/logger';
-import { emailQueue, qrCodeQueue, syncGroupsQueue, provisionQueue } from '../tasks/queue';
+import { emailQueue, qrCodeQueue, syncGroupsQueue, provisionQueue, paymentStatusQueue } from '../tasks/queue';
 import { prisma } from '@/models/prismaClient';
 import { BackgroundTaskManager } from './backgroundTaskManager';
 
@@ -23,17 +23,24 @@ export interface SyncGroupsJobData {
   force?: boolean;
 }
 
+export interface PaymentStatusJobData {
+  type: 'check-expired' | 'update-user-status';
+  userId?: string;
+}
+
 export class TaskManager {
   private emailQueue: Queue;
   private qrCodeQueue: Queue;
   private syncGroupsQueue: Queue;
   private provisionQueue: Queue;
+  private paymentStatusQueue: Queue;
 
   constructor() {
     this.emailQueue = emailQueue;
     this.qrCodeQueue = qrCodeQueue;
     this.syncGroupsQueue = syncGroupsQueue;
     this.provisionQueue = provisionQueue;
+    this.paymentStatusQueue = paymentStatusQueue;
   }
 
   async enqueueEmailJob(data: EmailJobData, options?: {
@@ -141,6 +148,32 @@ export class TaskManager {
     }
   }
 
+  async enqueuePaymentStatusJob(data: PaymentStatusJobData, options?: {
+    delay?: number;
+    priority?: number;
+    attempts?: number;
+  }): Promise<string> {
+    try {
+      logger.info('Enqueueing payment status job', { type: data.type, userId: data.userId });
+      
+      const job = await this.paymentStatusQueue.add('payment-status', data, {
+        delay: options?.delay || 0,
+        priority: options?.priority || 0,
+        attempts: options?.attempts || 3,
+        backoff: {
+          type: 'exponential',
+          delay: 2000,
+        },
+      });
+
+      logger.info('Payment status job enqueued successfully', { jobId: job.id });
+      return job.id as string;
+    } catch (error) {
+      logger.error('Failed to enqueue payment status job', { error, data });
+      throw error;
+    }
+  }
+
   async getJobStatus(queueName: string, jobId: string): Promise<any> {
     try {
       let queue: Queue;
@@ -154,6 +187,9 @@ export class TaskManager {
           break;
         case 'sync-groups':
           queue = this.syncGroupsQueue;
+          break;
+        case 'payment-status':
+          queue = this.paymentStatusQueue;
           break;
         default:
           throw new Error(`Unknown queue: ${queueName}`);
@@ -200,6 +236,9 @@ export class TaskManager {
         case 'sync-groups':
           queue = this.syncGroupsQueue;
           break;
+        case 'payment-status':
+          queue = this.paymentStatusQueue;
+          break;
         default:
           throw new Error(`Unknown queue: ${queueName}`);
       }
@@ -240,6 +279,9 @@ export class TaskManager {
         case 'sync-groups':
           queue = this.syncGroupsQueue;
           break;
+        case 'payment-status':
+          queue = this.paymentStatusQueue;
+          break;
         default:
           throw new Error(`Unknown queue: ${queueName}`);
       }
@@ -271,6 +313,9 @@ export class TaskManager {
           break;
         case 'sync-groups':
           queue = this.syncGroupsQueue;
+          break;
+        case 'payment-status':
+          queue = this.paymentStatusQueue;
           break;
         default:
           throw new Error(`Unknown queue: ${queueName}`);

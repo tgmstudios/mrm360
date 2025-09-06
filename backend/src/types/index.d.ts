@@ -195,6 +195,7 @@ export interface UserQueryParams {
   search?: string;
   role?: Role;
   paidStatus?: boolean;
+  isActive?: boolean;
   groupId?: string;
   teamId?: string;
   sortBy?: string;
@@ -324,6 +325,41 @@ export interface AuthentikUser {
   email: string;
   groups: string[];
   attributes?: Record<string, any>;
+}
+
+// Wiretap Integration types
+export interface WiretapProject {
+  id: string;
+  name: string;
+  description?: string;
+  parentProjectId?: string;
+  users: string[];
+  resources: string[];
+  status: 'active' | 'inactive' | 'suspended';
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface WiretapUser {
+  id: string;
+  username: string;
+  email: string;
+  projects: string[];
+  roles: string[];
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface WiretapResource {
+  id: string;
+  name: string;
+  type: string;
+  projectId: string;
+  status: 'creating' | 'active' | 'deleting' | 'error';
+  config: Record<string, any>;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface WikiPage {

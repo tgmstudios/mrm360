@@ -16,7 +16,8 @@ export const QUEUE_NAMES = {
   TEAM_PROVISIONING: 'team-provisioning',
   DISCORD: 'discord',
   LISTMONK: 'listmonk',
-  AUTHENTIK: 'authentik'
+  AUTHENTIK: 'authentik',
+  PAYMENT_STATUS: 'payment-status'
 } as const;
 
 // Create queues
@@ -104,6 +105,17 @@ export const authentikQueue = new Queue(QUEUE_NAMES.AUTHENTIK, {
   }
 });
 
+export const paymentStatusQueue = new Queue(QUEUE_NAMES.PAYMENT_STATUS, {
+  connection: redis,
+  defaultJobOptions: {
+    attempts: 3,
+    backoff: {
+      type: 'exponential',
+      delay: 2000
+    }
+  }
+});
+
 // Note: Not using QueueScheduler due to BullMQ version constraints
 // Note: BullMQ event handlers may need to be configured differently
 // For now, we'll log queue status through other means
@@ -154,6 +166,10 @@ function getQueueByName(queueName: keyof typeof QUEUE_NAMES) {
       return discordQueue;
     case 'LISTMONK':
       return listmonkQueue;
+    case 'AUTHENTIK':
+      return authentikQueue;
+    case 'PAYMENT_STATUS':
+      return paymentStatusQueue;
     default:
       return null;
   }
@@ -168,6 +184,8 @@ export async function closeQueues() {
   await teamProvisioningQueue.close();
   await discordQueue.close();
   await listmonkQueue.close();
+  await authentikQueue.close();
+  await paymentStatusQueue.close();
   await redis.quit();
   logger.info('All queues closed');
 }
@@ -185,7 +203,9 @@ export async function getQueueHealth() {
         provision: await provisionQueue.getJobCounts(),
         teamProvisioning: await teamProvisioningQueue.getJobCounts(),
         discord: await discordQueue.getJobCounts(),
-        listmonk: await listmonkQueue.getJobCounts()
+        listmonk: await listmonkQueue.getJobCounts(),
+        authentik: await authentikQueue.getJobCounts(),
+        paymentStatus: await paymentStatusQueue.getJobCounts()
       }
     };
   } catch (error) {

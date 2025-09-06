@@ -8,6 +8,7 @@ import {
   discordQueue,
   listmonkQueue,
   authentikQueue,
+  paymentStatusQueue,
   QUEUE_NAMES 
 } from './queue';
 import { processProvisionJob, processProvisionJobFailed } from './workers/provisionWorker';
@@ -18,6 +19,7 @@ import { processTeamProvisioningJob, processTeamProvisioningJobFailed } from './
 import { processDiscordJob, processDiscordJobFailed, initializeDiscordBotWorker, shutdownDiscordBot } from './workers/discordBotWorker';
 import { processListMonkJob, processListMonkJobFailed } from './workers/listmonkWorker';
 import { processAuthentikJob, processAuthentikJobFailed } from './workers/authentikWorker';
+import { processPaymentStatusJob, processPaymentStatusJobFailed } from './workers/paymentStatusWorker';
 
 // Import Redis connection from queue file
 import Redis from 'ioredis';
@@ -94,6 +96,13 @@ const listmonkWorker = new Worker(QUEUE_NAMES.LISTMONK, processListMonkJob, {
 const authentikWorker = new Worker(QUEUE_NAMES.AUTHENTIK, processAuthentikJob, {
   connection: redis,
   concurrency: 1, // Process one Authentik job at a time to avoid conflicts
+  removeOnComplete: { count: 100 },
+  removeOnFail: { count: 50 }
+});
+
+const paymentStatusWorker = new Worker(QUEUE_NAMES.PAYMENT_STATUS, processPaymentStatusJob, {
+  connection: redis,
+  concurrency: 2, // Process up to 2 payment status jobs concurrently
   removeOnComplete: { count: 100 },
   removeOnFail: { count: 50 }
 });
@@ -203,6 +212,19 @@ authentikWorker.on('failed', (job, err) => {
   }
 });
 
+paymentStatusWorker.on('completed', (job) => {
+  if (job) {
+    logger.info(`Payment status worker completed job ${job.id}`);
+  }
+});
+
+paymentStatusWorker.on('failed', (job, err) => {
+  if (job) {
+    logger.error(`Payment status worker failed job ${job.id}:`, err);
+    processPaymentStatusJobFailed(job, err);
+  }
+});
+
 // Graceful shutdown
 async function gracefulShutdown() {
   logger.info('Shutting down workers gracefully...');
@@ -215,6 +237,7 @@ async function gracefulShutdown() {
   await discordWorker.close();
   await listmonkWorker.close();
   await authentikWorker.close();
+  await paymentStatusWorker.close();
   
   // Shutdown Discord bot
   await shutdownDiscordBot();

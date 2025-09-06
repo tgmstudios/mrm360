@@ -33,6 +33,12 @@ const listUsersSchema = z.object({
     if (val === 'false') return false;
     return undefined;
   }),
+  isActive: z.string().optional().transform(val => {
+    if (val === '') return undefined;
+    if (val === 'true') return true;
+    if (val === 'false') return false;
+    return undefined;
+  }),
   groupId: z.string().optional().transform(val => {
     if (val === '') return undefined;
     return val;
@@ -177,7 +183,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         search: queryParams.search,
         role: queryParams.role,
         paidStatus: queryParams.paidStatus,
+        isActive: queryParams.isActive,
         groupId: queryParams.groupId,
+        teamId: queryParams.teamId,
       });
 
       res.status(200).json(result);

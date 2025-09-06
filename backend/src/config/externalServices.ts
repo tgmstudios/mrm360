@@ -2,6 +2,7 @@ import { TeamProvisioningConfig } from '@/types';
 import { AuthentikConfigValidator, AuthentikConfig } from '@/utils/authentikConfigValidator';
 import { NextcloudConfigValidator } from '@/utils/nextcloudConfigValidator';
 import { NextcloudConfig } from '@/services/nextcloudServiceFactory';
+import { WiretapConfigValidator, WiretapConfig } from '@/utils/wiretapConfigValidator';
 
 // Configuration for external service integrations
 export const externalServicesConfig: TeamProvisioningConfig = {
@@ -31,6 +32,11 @@ export const externalServicesConfig: TeamProvisioningConfig = {
     botToken: process.env.DISCORD_BOT_TOKEN || 'mock-bot-token',
     guildId: process.env.DISCORD_GUILD_ID || 'mock-guild-id',
     categoryId: process.env.DISCORD_CATEGORY_ID || 'mock-category-id'
+  },
+  wiretap: {
+    baseUrl: process.env.WIRETAP_BASE_URL || 'http://localhost:8080',
+    token: process.env.WIRETAP_TOKEN || 'mock-token',
+    projectTemplate: process.env.WIRETAP_PROJECT_TEMPLATE || '{event_type}-project'
   }
 };
 
@@ -38,14 +44,20 @@ export const externalServicesConfig: TeamProvisioningConfig = {
 export const requiredEnvVars = {
   AUTHENTIK_BASE_URL: 'Base URL for Authentik instance',
   AUTHENTIK_TOKEN: 'API token for Authentik',
-  AUTHENTIK_PARENT_GROUP_TEMPLATE: 'Template for parent group names (should include {parent_team_type})'
+  AUTHENTIK_PARENT_GROUP_TEMPLATE: 'Template for parent group names (should include {parent_team_type})',
+  WIRETAP_BASE_URL: 'Base URL for Wiretap instance',
+  WIRETAP_TOKEN: 'API token for Wiretap',
+  WIRETAP_PROJECT_TEMPLATE: 'Template for project names (should include {event_type})'
 };
 
 // Optional environment variables
 export const optionalEnvVars = {
   AUTHENTIK_TIMEOUT: 'Timeout for Authentik API calls in milliseconds (default: 30000)',
   AUTHENTIK_RETRY_ATTEMPTS: 'Number of retry attempts for failed API calls (default: 3)',
-  AUTHENTIK_RETRY_DELAY: 'Delay between retry attempts in milliseconds (default: 1000)'
+  AUTHENTIK_RETRY_DELAY: 'Delay between retry attempts in milliseconds (default: 1000)',
+  WIRETAP_TIMEOUT: 'Timeout for Wiretap API calls in milliseconds (default: 30000)',
+  WIRETAP_RETRY_ATTEMPTS: 'Number of retry attempts for failed API calls (default: 3)',
+  WIRETAP_RETRY_DELAY: 'Delay between retry attempts in milliseconds (default: 1000)'
 };
 
 // Get validated Authentik configuration
@@ -117,4 +129,42 @@ export function isNextcloudConfigured(): boolean {
 export function isNextcloudProductionReady(): boolean {
   const config = getNextcloudConfig();
   return NextcloudConfigValidator.isProductionReady(config);
+}
+
+// Get validated Wiretap configuration
+export function getWiretapConfig(): WiretapConfig {
+  const config: WiretapConfig = {
+    baseUrl: process.env.WIRETAP_BASE_URL || 'http://localhost:8080',
+    token: process.env.WIRETAP_TOKEN || 'mock-token',
+    projectTemplate: process.env.WIRETAP_PROJECT_TEMPLATE || '{event_type}-project'
+  };
+
+  // Validate configuration
+  const validation = WiretapConfigValidator.validate(config);
+  
+  if (!validation.isValid) {
+    console.error('Wiretap configuration validation failed:', validation.errors);
+    console.warn('Wiretap configuration warnings:', validation.warnings);
+  }
+
+  return config;
+}
+
+// Check if Wiretap is properly configured
+export function isWiretapConfigured(): boolean {
+  const config = getWiretapConfig();
+  const validation = WiretapConfigValidator.validate(config);
+  return validation.isValid;
+}
+
+// Check if Wiretap is production ready
+export function isWiretapProductionReady(): boolean {
+  const config = getWiretapConfig();
+  return WiretapConfigValidator.isProductionReady(config);
+}
+
+// Get configuration summary
+export function getWiretapConfigSummary(): string {
+  const config = getWiretapConfig();
+  return WiretapConfigValidator.getConfigSummary(config);
 }

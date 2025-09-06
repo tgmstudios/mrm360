@@ -1,3 +1,42 @@
+// Payment types
+export interface Payment {
+  id: string
+  userId: string
+  amount: number
+  paymentType: 'SEMESTER' | 'YEARLY'
+  status: 'PENDING' | 'COMPLETED' | 'FAILED' | 'REFUNDED'
+  paymentMethod?: string
+  transactionId?: string
+  paidAt?: string
+  expiresAt: string
+  createdAt: string
+  updatedAt: string
+  user?: {
+    id: string
+    email: string
+    firstName: string
+    lastName: string
+  }
+}
+
+export interface PaymentStats {
+  totalPayments: number
+  activePayments: number
+  expiredPayments: number
+  totalRevenue: number
+  paymentsByType: {
+    SEMESTER: number
+    YEARLY: number
+  }
+}
+
+export interface UserPaymentStatus {
+  isPaid: boolean
+  activePayments: Payment[]
+  expiredPayments: Payment[]
+  nextExpiration?: string
+}
+
 // User types
 export interface User {
   id: string
@@ -19,6 +58,7 @@ export interface User {
   events: Event[]
   discordAccount?: DiscordAccount
   interests?: UserInterest[]
+  payments?: Payment[]
 }
 
 export interface UserCreate {

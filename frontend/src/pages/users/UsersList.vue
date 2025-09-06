@@ -173,7 +173,7 @@
             </tr>
           </thead>
           <tbody class="bg-gray-800 divide-y divide-gray-700">
-            <tr v-for="user in filteredUsers" :key="user?.id" class="hover:bg-gray-700">
+            <tr v-for="user in users" :key="user?.id" class="hover:bg-gray-700">
               <td class="px-6 py-4 whitespace-nowrap">
                 <div class="flex items-center">
                   <div class="flex-shrink-0 h-10 w-10">
@@ -234,26 +234,35 @@
                   >
                     View
                   </router-link>
-                                     <button
-                     @click="togglePaidStatus(user)"
+                   <button
+                     v-if="!user.isPaid"
+                     @click="openPaymentModal(user)"
                      :disabled="isTogglingPaidStatus === user.id"
-                     :class="[
-                       'transition-colors duration-200',
-                       user.isPaid 
-                         ? 'text-yellow-400 hover:text-yellow-300' 
-                         : 'text-green-400 hover:text-green-300'
-                     ]"
+                     class="text-green-400 hover:text-green-300 transition-colors duration-200"
                    >
                      <span v-if="isTogglingPaidStatus === user.id" class="flex items-center">
                        <svg class="animate-spin -ml-1 mr-1 h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                        </svg>
-                       {{ user.isPaid ? 'Unpay' : 'Pay' }}
+                       Pay
                      </span>
-                     <span v-else>
-                       {{ user.isPaid ? 'Unpay' : 'Pay' }}
+                     <span v-else>Pay</span>
+                   </button>
+                   <button
+                     v-else
+                     @click="markUserUnpaid(user)"
+                     :disabled="isTogglingPaidStatus === user.id"
+                     class="text-yellow-400 hover:text-yellow-300 transition-colors duration-200"
+                   >
+                     <span v-if="isTogglingPaidStatus === user.id" class="flex items-center">
+                       <svg class="animate-spin -ml-1 mr-1 h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                       </svg>
+                       Unpay
                      </span>
+                     <span v-else>Unpay</span>
                    </button>
                    <button
                      @click="deleteUser(user)"
@@ -269,8 +278,68 @@
       </div>
     </div>
 
+    <!-- Pagination -->
+    <div v-if="pagination.totalPages > 1" class="bg-gray-800 shadow rounded-lg border border-gray-700 p-4">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center text-sm text-gray-400">
+          <span>
+            Showing {{ ((pagination.page - 1) * pagination.limit) + 1 }} to 
+            {{ Math.min(pagination.page * pagination.limit, pagination.total) }} of 
+            {{ pagination.total }} results
+          </span>
+        </div>
+        
+        <div class="flex items-center space-x-2">
+          <!-- Previous Button -->
+          <button
+            @click="goToPage(pagination.page - 1)"
+            :disabled="pagination.page <= 1"
+            :class="[
+              'px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200',
+              pagination.page <= 1
+                ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white'
+            ]"
+          >
+            Previous
+          </button>
+          
+          <!-- Page Numbers -->
+          <div class="flex items-center space-x-1">
+            <button
+              v-for="page in visiblePages"
+              :key="page"
+              @click="goToPage(page)"
+              :class="[
+                'px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200',
+                page === pagination.page
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white'
+              ]"
+            >
+              {{ page }}
+            </button>
+          </div>
+          
+          <!-- Next Button -->
+          <button
+            @click="goToPage(pagination.page + 1)"
+            :disabled="pagination.page >= pagination.totalPages"
+            :class="[
+              'px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200',
+              pagination.page >= pagination.totalPages
+                ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white'
+            ]"
+          >
+            Next
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Empty State -->
-    <div v-if="filteredUsers.length === 0" class="text-center py-12">
+    <div v-if="users.length === 0 && !userStore.isLoading" class="text-center py-12">
       <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
       </svg>
@@ -280,7 +349,13 @@
       </p>
     </div>
 
-    <!-- Modals removed - no modals in this app -->
+    <!-- Payment Modal -->
+    <PaymentModal
+      :is-open="isPaymentModalOpen"
+      :user="selectedUser"
+      @close="closePaymentModal"
+      @payment-created="handlePaymentCreated"
+    />
   </div>
 </template>
 
@@ -290,8 +365,9 @@ import { useUserStore } from '@/stores/userStore'
 import { useTeamStore } from '@/stores/teamStore'
 import { useGroupStore } from '@/stores/groupStore'
 import { useToast } from 'vue-toastification'
-import type { User, Team, Group, UserFilters } from '@/types/api'
+import type { User, UserFilters } from '@/types/api'
 import BaseButton from '@/components/common/BaseButton.vue'
+import PaymentModal from '@/components/payments/PaymentModal.vue'
 
 const userStore = useUserStore()
 const teamStore = useTeamStore()
@@ -300,6 +376,8 @@ const toast = useToast()
 
 // State
 const isTogglingPaidStatus = ref<string | null>(null)
+const isPaymentModalOpen = ref(false)
+const selectedUser = ref<User | null>(null)
 
 // Filters
 const filters = ref<UserFilters>({
@@ -314,62 +392,36 @@ const filters = ref<UserFilters>({
   groupId: ''
 })
 
-// Table columns
-const tableColumns = [
-  { key: 'displayName', label: 'Name', sortable: true },
-  { key: 'email', label: 'Email', sortable: true },
-  { key: 'isActive', label: 'Status', sortable: true },
-  { key: 'isPaid', label: 'Payment', sortable: true },
-  { key: 'teams', label: 'Teams', sortable: false },
-  { key: 'createdAt', label: 'Joined', sortable: true, formatter: (value: string) => new Date(value).toLocaleDateString() },
-  { key: 'actions', label: 'Actions', sortable: false, width: 'w-32' }
-]
 
 // Computed
 const users = computed(() => userStore.users)
 const teams = computed(() => teamStore.teams)
 const groups = computed(() => groupStore.groups)
+const pagination = computed(() => userStore.pagination)
 
-const filteredUsers = computed(() => {
-  let filtered = users.value.filter(user => user && user.id) // Filter out undefined users
-
-  // Apply search filter
-  if (filters.value.query) {
-    const query = filters.value.query.toLowerCase()
-    filtered = filtered.filter(user => 
-      user.displayName?.toLowerCase().includes(query) ||
-      user.email?.toLowerCase().includes(query) ||
-      `${user.firstName} ${user.lastName}`.toLowerCase().includes(query)
-    )
+// Calculate visible page numbers for pagination
+const visiblePages = computed(() => {
+  const current = pagination.value.page
+  const total = pagination.value.totalPages
+  const delta = 2 // Number of pages to show on each side of current page
+  
+  let start = Math.max(1, current - delta)
+  let end = Math.min(total, current + delta)
+  
+  // Adjust if we're near the beginning or end
+  if (current <= delta) {
+    end = Math.min(total, 2 * delta + 1)
   }
-
-  // Apply status filter
-  if (filters.value.isActive !== undefined) {
-    filtered = filtered.filter(user => user.isActive === filters.value.isActive)
+  if (current + delta >= total) {
+    start = Math.max(1, total - 2 * delta)
   }
-
-  // Apply payment status filter
-  if (filters.value.isPaid !== undefined) {
-    filtered = filtered.filter(user => user.isPaid === filters.value.isPaid)
+  
+  const pages = []
+  for (let i = start; i <= end; i++) {
+    pages.push(i)
   }
-
-  // Apply team filter
-  if (filters.value.teamId) {
-    const teamId = filters.value.teamId as string
-    filtered = filtered.filter(user => 
-      user.teams?.some(team => team.id === teamId)
-    )
-  }
-
-  // Apply group filter
-  if (filters.value.groupId) {
-    const groupId = filters.value.groupId
-    filtered = filtered.filter(user => 
-      user.authentikGroups?.includes(groupId)
-    )
-  }
-
-  return filtered
+  
+  return pages
 })
 
 // Methods
@@ -381,7 +433,38 @@ const deleteUser = async (user: User) => {
   }
 }
 
-const togglePaidStatus = async (user: User) => {
+const openPaymentModal = (user: User) => {
+  if (!user?.id) {
+    toast.error('Invalid user ID')
+    return
+  }
+  
+  selectedUser.value = user
+  isPaymentModalOpen.value = true
+}
+
+const closePaymentModal = () => {
+  isPaymentModalOpen.value = false
+  selectedUser.value = null
+}
+
+const handlePaymentCreated = async () => {
+  // Refresh the user list to show updated payment status
+  const backendFilters = {
+    page: filters.value.page,
+    limit: filters.value.limit,
+    search: filters.value.query,
+    paidStatus: filters.value.isPaid,
+    isActive: filters.value.isActive,
+    teamId: filters.value.teamId,
+    groupId: filters.value.groupId,
+    sortBy: filters.value.sortBy,
+    sortOrder: filters.value.sortOrder
+  }
+  await userStore.fetchUsers(backendFilters)
+}
+
+const markUserUnpaid = async (user: User) => {
   if (!user?.id) {
     toast.error('Invalid user ID')
     return
@@ -390,19 +473,15 @@ const togglePaidStatus = async (user: User) => {
   isTogglingPaidStatus.value = user.id
   
   try {
-    // Store the new paid status we're setting
-    const newPaidStatus = !user.isPaid
-    
     await userStore.updateUser(user.id, {
-      isPaid: newPaidStatus
+      isPaid: false
     })
     
-    // Show success message since the operation completed
-    toast.success(`User ${newPaidStatus ? 'paid' : 'unpaid'} successfully`)
+    toast.success(`${user.displayName} marked as unpaid`)
     
   } catch (error) {
-    console.error('Error toggling paid status:', error)
-    toast.error('Failed to update paid status')
+    console.error('Error marking user as unpaid:', error)
+    toast.error('Failed to update payment status')
   } finally {
     isTogglingPaidStatus.value = null
   }
@@ -422,6 +501,26 @@ const clearFilters = () => {
     teamId: '',
     groupId: ''
   }
+}
+
+// Pagination methods
+const goToPage = async (page: number) => {
+  if (page < 1 || page > pagination.value.totalPages) return
+  
+  filters.value.page = page
+  // Map frontend filter names to backend parameter names
+  const backendFilters = {
+    page: filters.value.page,
+    limit: filters.value.limit,
+    search: filters.value.query,
+    paidStatus: filters.value.isPaid,
+    isActive: filters.value.isActive,
+    teamId: filters.value.teamId,
+    groupId: filters.value.groupId,
+    sortBy: filters.value.sortBy,
+    sortOrder: filters.value.sortOrder
+  };
+  await userStore.fetchUsers(backendFilters)
 }
 
 // Utility functions
@@ -448,11 +547,30 @@ onMounted(async () => {
   ])
 })
 
-// Watch filters for changes
-watch(filters, async () => {
+// Watch filters for changes (excluding page changes)
+watch(() => ({
+  query: filters.value.query,
+  isActive: filters.value.isActive,
+  isPaid: filters.value.isPaid,
+  teamId: filters.value.teamId,
+  groupId: filters.value.groupId,
+  sortBy: filters.value.sortBy,
+  sortOrder: filters.value.sortOrder
+}), async () => {
   // Reset to first page when filters change
   filters.value.page = 1;
-  // Fetch users with new filters
-  await userStore.fetchUsers(filters.value);
+  // Fetch users with new filters - map frontend filter names to backend parameter names
+  const backendFilters = {
+    page: filters.value.page,
+    limit: filters.value.limit,
+    search: filters.value.query,
+    paidStatus: filters.value.isPaid,
+    isActive: filters.value.isActive,
+    teamId: filters.value.teamId,
+    groupId: filters.value.groupId,
+    sortBy: filters.value.sortBy,
+    sortOrder: filters.value.sortOrder
+  };
+  await userStore.fetchUsers(backendFilters);
 }, { deep: true })
 </script>

@@ -183,7 +183,7 @@ export class UserManager {
 
   async getUsers(params: UserQueryParams): Promise<PaginatedResponse<UserProfile>> {
     try {
-      const { page = 1, limit = 20, search, role, paidStatus, groupId, teamId, sortBy, sortOrder } = params;
+      const { page = 1, limit = 20, search, role, paidStatus, isActive, groupId, teamId, sortBy, sortOrder } = params;
       const skip = (page - 1) * limit;
 
       // Build where clause
@@ -203,6 +203,14 @@ export class UserManager {
 
       if (paidStatus !== undefined) {
         where.paidStatus = paidStatus;
+      }
+
+      if (isActive !== undefined) {
+        if (isActive) {
+          where.authentikId = { not: null };
+        } else {
+          where.authentikId = null;
+        }
       }
 
       if (groupId) {
