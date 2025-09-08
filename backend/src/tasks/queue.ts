@@ -17,7 +17,8 @@ export const QUEUE_NAMES = {
   DISCORD: 'discord',
   LISTMONK: 'listmonk',
   AUTHENTIK: 'authentik',
-  PAYMENT_STATUS: 'payment-status'
+  PAYMENT_STATUS: 'payment-status',
+  WIRETAP: 'wiretap'
 } as const;
 
 // Create queues
@@ -116,6 +117,17 @@ export const paymentStatusQueue = new Queue(QUEUE_NAMES.PAYMENT_STATUS, {
   }
 });
 
+export const wiretapQueue = new Queue(QUEUE_NAMES.WIRETAP, {
+  connection: redis,
+  defaultJobOptions: {
+    attempts: 3,
+    backoff: {
+      type: 'exponential',
+      delay: 2000
+    }
+  }
+});
+
 // Note: Not using QueueScheduler due to BullMQ version constraints
 // Note: BullMQ event handlers may need to be configured differently
 // For now, we'll log queue status through other means
@@ -170,6 +182,8 @@ function getQueueByName(queueName: keyof typeof QUEUE_NAMES) {
       return authentikQueue;
     case 'PAYMENT_STATUS':
       return paymentStatusQueue;
+    case 'WIRETAP':
+      return wiretapQueue;
     default:
       return null;
   }
@@ -186,6 +200,7 @@ export async function closeQueues() {
   await listmonkQueue.close();
   await authentikQueue.close();
   await paymentStatusQueue.close();
+  await wiretapQueue.close();
   await redis.quit();
   logger.info('All queues closed');
 }
@@ -205,7 +220,8 @@ export async function getQueueHealth() {
         discord: await discordQueue.getJobCounts(),
         listmonk: await listmonkQueue.getJobCounts(),
         authentik: await authentikQueue.getJobCounts(),
-        paymentStatus: await paymentStatusQueue.getJobCounts()
+        paymentStatus: await paymentStatusQueue.getJobCounts(),
+        wiretap: await wiretapQueue.getJobCounts()
       }
     };
   } catch (error) {

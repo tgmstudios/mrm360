@@ -1,11 +1,11 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { prisma } from '../../../models/prismaClient';
-import { MemberPaidStatusService } from '../../../services/memberPaidStatusService';
-import { withCORS } from '../../../middleware/corsMiddleware';
-import { withAuth } from '../../../middleware/authMiddleware';
-import { withPermissions } from '../../../middleware/permissionMiddleware';
-import { logger } from '../../../utils/logger';
-import { handleApiError, ApiError } from '../../../middleware/errorHandler';
+import { prisma } from '@/models/prismaClient';
+import { MemberPaidStatusService } from '@/services/memberPaidStatusService';
+import { withCORS } from '@/middleware/corsMiddleware';
+import { withAuth } from '@/middleware/authMiddleware';
+import { withPermissions } from '@/middleware/permissionMiddleware';
+import { logger } from '@/utils/logger';
+import { handleApiError, ApiError } from '@/middleware/errorHandler';
 
 /**
  * @swagger

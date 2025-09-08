@@ -20,6 +20,7 @@ import { processDiscordJob, processDiscordJobFailed, initializeDiscordBotWorker,
 import { processListMonkJob, processListMonkJobFailed } from './workers/listmonkWorker';
 import { processAuthentikJob, processAuthentikJobFailed } from './workers/authentikWorker';
 import { processPaymentStatusJob, processPaymentStatusJobFailed } from './workers/paymentStatusWorker';
+import { processWiretapJob, processWiretapJobFailed } from './workers/wiretapWorker';
 
 // Import Redis connection from queue file
 import Redis from 'ioredis';
@@ -103,6 +104,13 @@ const authentikWorker = new Worker(QUEUE_NAMES.AUTHENTIK, processAuthentikJob, {
 const paymentStatusWorker = new Worker(QUEUE_NAMES.PAYMENT_STATUS, processPaymentStatusJob, {
   connection: redis,
   concurrency: 2, // Process up to 2 payment status jobs concurrently
+  removeOnComplete: { count: 100 },
+  removeOnFail: { count: 50 }
+});
+
+const wiretapWorker = new Worker(QUEUE_NAMES.WIRETAP, processWiretapJob, {
+  connection: redis,
+  concurrency: 1, // Process one Wiretap job at a time to avoid conflicts
   removeOnComplete: { count: 100 },
   removeOnFail: { count: 50 }
 });
@@ -225,6 +233,19 @@ paymentStatusWorker.on('failed', (job, err) => {
   }
 });
 
+wiretapWorker.on('completed', (job) => {
+  if (job) {
+    logger.info(`Wiretap worker completed job ${job.id}`);
+  }
+});
+
+wiretapWorker.on('failed', (job, err) => {
+  if (job) {
+    logger.error(`Wiretap worker failed job ${job.id}:`, err);
+    processWiretapJobFailed(job, err);
+  }
+});
+
 // Graceful shutdown
 async function gracefulShutdown() {
   logger.info('Shutting down workers gracefully...');
@@ -238,6 +259,7 @@ async function gracefulShutdown() {
   await listmonkWorker.close();
   await authentikWorker.close();
   await paymentStatusWorker.close();
+  await wiretapWorker.close();
   
   // Shutdown Discord bot
   await shutdownDiscordBot();
@@ -279,6 +301,8 @@ async function initializeWorkers() {
     logger.info(`Discord worker: ${QUEUE_NAMES.DISCORD}`);
     logger.info(`ListMonk worker: ${QUEUE_NAMES.LISTMONK}`);
     logger.info(`Authentik worker: ${QUEUE_NAMES.AUTHENTIK}`);
+    logger.info(`Payment Status worker: ${QUEUE_NAMES.PAYMENT_STATUS}`);
+    logger.info(`Wiretap worker: ${QUEUE_NAMES.WIRETAP}`);
   } catch (error) {
     logger.error('Failed to initialize workers:', error);
     process.exit(1);

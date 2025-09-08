@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import swagger from '../../utils/swagger';
+import swagger from '@/utils/swagger';
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'GET') {

@@ -1,11 +1,11 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { prisma } from '../../../models/prismaClient';
-import { logger } from '../../../utils/logger';
-import { withCORS } from '../../../middleware/corsMiddleware';
+import { prisma } from '@/models/prismaClient';
+import { logger } from '@/utils/logger';
+import { withCORS } from '@/middleware/corsMiddleware';
 import { AuthManager } from '../../../managers/authManager';
-import { hasAdminGroups } from '../../../utils/roleUtils';
+import { hasAdminGroups } from '@/utils/roleUtils';
 
 // Helper function to determine effective role based on OIDC groups
 function getEffectiveRole(userRole: string, authentikGroups: string[]): string {
@@ -111,6 +111,8 @@ async function handleOIDCLogin(req: NextApiRequest, res: NextApiResponse, code: 
         displayName: user.displayName || `${user.firstName} ${user.lastName}`.trim(),
         role: effectiveRole,
         paidStatus: user.paidStatus,
+        isActive: !!user.authentikId, // User is active if they have an authentikId
+        createdAt: user.createdAt,
         authentikGroups: authentikGroups
       }
     });
@@ -175,6 +177,8 @@ async function handlePasswordLogin(req: NextApiRequest, res: NextApiResponse, us
         displayName: user.displayName || `${user.firstName} ${user.lastName}`.trim(),
         role: effectiveRole,
         paidStatus: user.paidStatus,
+        isActive: !!user.authentikId, // User is active if they have an authentikId
+        createdAt: user.createdAt,
         authentikGroups: authentikGroups
       }
     });

@@ -52,6 +52,7 @@ model User {
   userInterests  UserInterest[]
   userTeams      UserTeam[]
   payments       Payment[]
+  eventTeamMembers EventTeamMember[]
 
   @@map("users")
 }
@@ -160,19 +161,27 @@ model UserClassRank {
 }
 
 model Event {
-  id             String         @id @default(cuid())
-  title          String
-  description    String?
-  startTime      DateTime
-  endTime        DateTime
-  category       EventCategory
-  linkedTeamId   String?
-  attendanceType AttendanceType @default(SOFT)
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-  checkIns       CheckIn[]
-  linkedTeam     Team?          @relation(fields: [linkedTeamId], references: [id])
-  rsvps          RSVP[]
+  id                String         @id @default(cuid())
+  title             String
+  description       String?
+  startTime         DateTime
+  endTime           DateTime
+  category          EventCategory
+  linkedTeamId      String?
+  wiretapWorkshopId String?
+  attendanceType    AttendanceType @default(SOFT)
+  checkInCode       String         @unique
+  attendanceCap     Int?           // Maximum number of attendees (null = no cap)
+  waitlistEnabled   Boolean        @default(false) // Whether to enable waitlist when cap is reached
+  teamsEnabled      Boolean        @default(false) // Whether teams are enabled for this event
+  membersPerTeam    Int?           @default(4) // Number of members per team for auto-assignment
+  autoAssignEnabled Boolean        @default(false) // Whether to auto-assign confirmed RSVPs to teams
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  checkIns          CheckIn[]
+  linkedTeam        Team?          @relation(fields: [linkedTeamId], references: [id])
+  rsvps             RSVP[]
+  eventTeams        EventTeam[]
 
   @@map("events")
 }
@@ -202,6 +211,33 @@ model CheckIn {
 
   @@unique([userId, eventId])
   @@map("check_ins")
+}
+
+model EventTeam {
+  id             String             @id @default(cuid())
+  eventId        String
+  teamNumber     Int                // Team number (1, 2, 3, etc.)
+  wiretapTeamId  String?            // Optional Wiretap team ID for integration
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  event          Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  members        EventTeamMember[]
+
+  @@unique([eventId, teamNumber])
+  @@map("event_teams")
+}
+
+model EventTeamMember {
+  id          String    @id @default(cuid())
+  eventTeamId String
+  userId      String
+  email       String    // Store email for wiretap sync
+  joinedAt    DateTime  @default(now())
+  eventTeam   EventTeam @relation(fields: [eventTeamId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventTeamId, userId])
+  @@map("event_team_members")
 }
 
 enum TaskStatus {
@@ -256,6 +292,7 @@ enum RSVPStatus {
   CONFIRMED
   DECLINED
   MAYBE
+  WAITLIST
 }
 
 enum InterestType {

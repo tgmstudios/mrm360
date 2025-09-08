@@ -52,28 +52,18 @@ export function defineAbilitiesFor(user: AuthenticatedUser) {
   if (effectiveRole === 'MEMBER') {
     // User management
     can('read', 'User');
-    can('update', 'User');
 
     // Group management
     can('read', 'Group');
 
     // Team management
     can('read', 'Team');
-    can('create', 'Team');
-    can('update', 'Team');
-    can('delete', 'Team');
 
     // Event management
     can('read', 'Event');
-    can('create', 'Event');
-    can('update', 'Event');
-    can('delete', 'Event');
 
     // Task management
     can('read', 'Task');
-    can('create', 'Task');
-    can('update', 'Task');
-    can('delete', 'Task');
 
     // RSVP management
     can('read', 'RSVP');

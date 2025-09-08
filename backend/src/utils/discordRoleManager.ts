@@ -1,6 +1,7 @@
 import { prisma } from '@/models/prismaClient';
 import { logger } from '@/utils/logger';
 import { addJobToQueue } from '@/tasks/queue';
+import { DiscordBatchTaskManager, DiscordRoleOperation } from '@/managers/discordBatchTaskManager';
 
 export class DiscordRoleManager {
   private static classRankRoleMap: Record<string, string> = {
@@ -37,6 +38,37 @@ export class DiscordRoleManager {
       logger.error(`Error getting role ID from database for key: ${configKey}`, error);
       return null;
     }
+  }
+
+  /**
+   * Get all possible Discord role IDs from database
+   */
+  private static async getAllPossibleRoles(): Promise<string[]> {
+    const allRoles: string[] = [];
+    
+    // Add member role
+    const memberRoleId = await this.getRoleIdFromDatabase('DISCORD_MEMBER_ROLE_ID');
+    if (memberRoleId) {
+      allRoles.push(memberRoleId);
+    }
+    
+    // Add all class rank roles
+    for (const configKey of Object.values(this.classRankRoleMap)) {
+      const roleId = await this.getRoleIdFromDatabase(configKey);
+      if (roleId) {
+        allRoles.push(roleId);
+      }
+    }
+    
+    // Add all interest roles
+    for (const configKey of Object.values(this.interestRoleMap)) {
+      const roleId = await this.getRoleIdFromDatabase(configKey);
+      if (roleId) {
+        allRoles.push(roleId);
+      }
+    }
+
+    return allRoles;
   }
 
   /**
@@ -108,21 +140,53 @@ export class DiscordRoleManager {
         }
       }
 
-      // Create a single batch job for efficient role updates
+      // Create batch operations for role updates
+      const operations: DiscordRoleOperation[] = [];
+      
+      // Add remove operations for roles that need to be removed
+      const rolesToRemove = Array.from(allPossibleRoles).filter(roleId => roleId && !targetRoles.has(roleId));
+      for (const roleId of rolesToRemove) {
+        operations.push({
+          action: 'removeRole',
+          userId: discordAccount.discordId,
+          roleId
+        });
+      }
+      
+      // Add assign operations for roles that need to be assigned
+      for (const roleId of targetRoles) {
+        operations.push({
+          action: 'assignRole',
+          userId: discordAccount.discordId,
+          roleId
+        });
+      }
+
+      // Create batch task and queue the job
+      const batchTaskManager = new DiscordBatchTaskManager(prisma);
+      const batchTask = await batchTaskManager.createUserRoleBatchTask({
+        userId: discordAccount.discordId,
+        operations,
+        description: `Update Discord roles for user based on class rank: ${classRank}, interests: ${interests.join(', ')}`
+      });
+
+      // Queue the batch job with the background task ID
       await addJobToQueue('DISCORD', {
         action: 'batchUpdateRoles',
         userId: discordAccount.discordId,
         targetRoles: Array.from(targetRoles),
-        rolesToRemove: Array.from(allPossibleRoles).filter(roleId => roleId && !targetRoles.has(roleId))
+        rolesToRemove: rolesToRemove,
+        backgroundTaskId: batchTask.id
       });
 
-      logger.info('Discord batch role update job queued', { 
+      logger.info('Discord batch role update job queued with batch task', { 
         userId, 
         discordId: discordAccount.discordId,
         classRank, 
         interests,
         targetRoles: Array.from(targetRoles),
-        removedRoles: Array.from(allPossibleRoles).filter(roleId => roleId && !targetRoles.has(roleId))
+        removedRoles: rolesToRemove,
+        batchTaskId: batchTask.id
       });
       
     } catch (error) {
@@ -147,24 +211,37 @@ export class DiscordRoleManager {
         return;
       }
 
-      // First, remove ALL possible roles to ensure a clean slate
-      await this.removeAllRoles(discordAccount.discordId);
+      // Create batch operations for role assignments
+      const operations: DiscordRoleOperation[] = [];
 
-      // Then assign the new roles
-      // Assign class rank role
-      const classRankRoleId = this.classRankRoleMap[classRank];
-      if (classRankRoleId) {
-        await addJobToQueue('DISCORD', {
-          action: 'assignRole',
+      // First, remove ALL possible roles to ensure a clean slate
+      const allPossibleRoles = await this.getAllPossibleRoles();
+      for (const roleId of allPossibleRoles) {
+        operations.push({
+          action: 'removeRole',
           userId: discordAccount.discordId,
-          roleId: classRankRoleId
+          roleId
         });
       }
 
+      // Then assign the new roles
+      // Assign class rank role
+      const classRankConfigKey = this.classRankRoleMap[classRank];
+      if (classRankConfigKey) {
+        const classRankRoleId = await this.getRoleIdFromDatabase(classRankConfigKey);
+        if (classRankRoleId) {
+          operations.push({
+            action: 'assignRole',
+            userId: discordAccount.discordId,
+            roleId: classRankRoleId
+          });
+        }
+      }
+
       // Assign member role
-      const memberRoleId = process.env.DISCORD_MEMBER_ROLE_ID;
+      const memberRoleId = await this.getRoleIdFromDatabase('DISCORD_MEMBER_ROLE_ID');
       if (memberRoleId) {
-        await addJobToQueue('DISCORD', {
+        operations.push({
           action: 'assignRole',
           userId: discordAccount.discordId,
           roleId: memberRoleId
@@ -173,21 +250,42 @@ export class DiscordRoleManager {
 
       // Assign interest roles
       for (const interest of interests) {
-        const roleId = this.interestRoleMap[interest];
-        if (roleId) {
-          await addJobToQueue('DISCORD', {
-            action: 'assignRole',
-            userId: discordAccount.discordId,
-            roleId: roleId
-          });
+        const interestConfigKey = this.interestRoleMap[interest];
+        if (interestConfigKey) {
+          const roleId = await this.getRoleIdFromDatabase(interestConfigKey);
+          if (roleId) {
+            operations.push({
+              action: 'assignRole',
+              userId: discordAccount.discordId,
+              roleId: roleId
+            });
+          }
         }
       }
 
-      logger.info('Discord role assignment jobs queued successfully', { 
+      // Create batch task and queue the job
+      const batchTaskManager = new DiscordBatchTaskManager(prisma);
+      const batchTask = await batchTaskManager.createUserRoleBatchTask({
+        userId: discordAccount.discordId,
+        operations,
+        description: `Assign Discord roles for user based on class rank: ${classRank}, interests: ${interests.join(', ')}`
+      });
+
+      // Queue the batch job with the background task ID
+      await addJobToQueue('DISCORD', {
+        action: 'batchUpdateRoles',
+        userId: discordAccount.discordId,
+        targetRoles: operations.filter(op => op.action === 'assignRole').map(op => op.roleId),
+        rolesToRemove: operations.filter(op => op.action === 'removeRole').map(op => op.roleId),
+        backgroundTaskId: batchTask.id
+      });
+
+      logger.info('Discord role assignment jobs queued successfully with batch task', { 
         userId, 
         discordId: discordAccount.discordId,
         classRank, 
-        interests 
+        interests,
+        batchTaskId: batchTask.id
       });
       
     } catch (error) {
@@ -196,121 +294,44 @@ export class DiscordRoleManager {
     }
   }
 
-  /**
-   * Remove all possible Discord roles from a user
-   * This is used internally by assignRoles to ensure a clean slate
-   */
-  private static async removeAllRoles(discordId: string): Promise<void> {
-    try {
-      // Remove member role
-      const memberRoleId = process.env.DISCORD_MEMBER_ROLE_ID;
-      if (memberRoleId) {
-        await addJobToQueue('DISCORD', {
-          action: 'removeRole',
-          userId: discordId,
-          roleId: memberRoleId
-        });
-      }
-
-      // Remove ALL class rank roles
-      const allClassRankRoleIds = [
-        process.env.DISCORD_FIRST_YEAR_ROLE_ID!,
-        process.env.DISCORD_SECOND_YEAR_ROLE_ID!,
-        process.env.DISCORD_THIRD_YEAR_ROLE_ID!,
-        process.env.DISCORD_FOURTH_YEAR_ROLE_ID!,
-        process.env.DISCORD_ALUMNI_OTHER_ROLE_ID!
-      ];
-
-      for (const roleId of allClassRankRoleIds) {
-        if (roleId) {
-          await addJobToQueue('DISCORD', {
-            action: 'removeRole',
-            userId: discordId,
-            roleId: roleId
-          });
-        }
-      }
-
-      // Remove ALL interest roles
-      const allInterestRoleIds = [
-        process.env.DISCORD_OFFENSE_ROLE_ID!,
-        process.env.DISCORD_DEFENSE_ROLE_ID!,
-        process.env.DISCORD_CTF_ROLE_ID!,
-        process.env.DISCORD_GAMING_ROLE_ID!
-      ];
-
-      for (const roleId of allInterestRoleIds) {
-        if (roleId) {
-          await addJobToQueue('DISCORD', {
-            action: 'removeRole',
-            userId: discordId,
-            roleId: roleId
-          });
-        }
-      }
-
-      logger.info('All Discord roles removed for clean slate', { discordId });
-      
-    } catch (error) {
-      logger.error('Failed to remove all Discord roles', { error, discordId });
-      // Don't fail the process if role removal fails
-    }
-  }
 
   /**
    * Remove Discord roles from a user when unlinking their Discord account
    */
   static async removeRoles(userId: string, discordId: string): Promise<void> {
     try {
-      // Remove ALL possible roles that the user might have had assigned
-      // This includes member role, all class rank roles, and all interest roles
+      // Get all possible roles to remove
+      const allPossibleRoles = await this.getAllPossibleRoles();
       
-      // Remove member role
-      const memberRoleId = await this.getRoleIdFromDatabase('DISCORD_MEMBER_ROLE_ID');
-      if (memberRoleId) {
-        await addJobToQueue('DISCORD', {
-          action: 'removeRole',
-          userId: discordId,
-          roleId: memberRoleId
-        });
-      }
+      // Create batch operations for role removal
+      const operations: DiscordRoleOperation[] = allPossibleRoles.map(roleId => ({
+        action: 'removeRole',
+        userId: discordId,
+        roleId
+      }));
 
-      // Remove ALL class rank roles (in case they had a different role before)
-      const allClassRankRoleIds: string[] = [];
-      for (const configKey of Object.values(this.classRankRoleMap)) {
-        const roleId = await this.getRoleIdFromDatabase(configKey);
-        if (roleId) {
-          allClassRankRoleIds.push(roleId);
-          await addJobToQueue('DISCORD', {
-            action: 'removeRole',
-            userId: discordId,
-            roleId: roleId
-          });
-        }
-      }
+      // Create batch task and queue the job
+      const batchTaskManager = new DiscordBatchTaskManager(prisma);
+      const batchTask = await batchTaskManager.createUserRoleBatchTask({
+        userId: discordId,
+        operations,
+        description: `Remove all Discord roles for user ${userId} (unlinking account)`
+      });
 
-      // Remove ALL interest roles (in case they had different interests before)
-      const allInterestRoleIds: string[] = [];
-      for (const configKey of Object.values(this.interestRoleMap)) {
-        const roleId = await this.getRoleIdFromDatabase(configKey);
-        if (roleId) {
-          allInterestRoleIds.push(roleId);
-          await addJobToQueue('DISCORD', {
-            action: 'removeRole',
-            userId: discordId,
-            roleId: roleId
-          });
-        }
-      }
+      // Queue the batch job with the background task ID
+      await addJobToQueue('DISCORD', {
+        action: 'batchUpdateRoles',
+        userId: discordId,
+        targetRoles: [],
+        rolesToRemove: allPossibleRoles,
+        backgroundTaskId: batchTask.id
+      });
 
-      logger.info('All Discord role removal jobs queued successfully', { 
+      logger.info('All Discord role removal jobs queued successfully with batch task', { 
         userId, 
         discordId,
-        removedRoles: {
-          member: memberRoleId,
-          classRanks: allClassRankRoleIds,
-          interests: allInterestRoleIds
-        }
+        removedRoles: allPossibleRoles,
+        batchTaskId: batchTask.id
       });
       
     } catch (error) {
@@ -338,13 +359,16 @@ export class DiscordRoleManager {
         return;
       }
 
+      // Create batch operations for role assignments
+      const operations: DiscordRoleOperation[] = [];
+
       // Assign class rank role if user has one
       if (user.userClassRank) {
         const classRankConfigKey = this.classRankRoleMap[user.userClassRank.classRank];
         if (classRankConfigKey) {
           const classRankRoleId = await this.getRoleIdFromDatabase(classRankConfigKey);
           if (classRankRoleId) {
-            await addJobToQueue('DISCORD', {
+            operations.push({
               action: 'assignRole',
               userId: discordId,
               roleId: classRankRoleId
@@ -356,7 +380,7 @@ export class DiscordRoleManager {
       // Assign member role
       const memberRoleId = await this.getRoleIdFromDatabase('DISCORD_MEMBER_ROLE_ID');
       if (memberRoleId) {
-        await addJobToQueue('DISCORD', {
+        operations.push({
           action: 'assignRole',
           userId: discordId,
           roleId: memberRoleId
@@ -369,7 +393,7 @@ export class DiscordRoleManager {
         if (interestConfigKey) {
           const roleId = await this.getRoleIdFromDatabase(interestConfigKey);
           if (roleId) {
-            await addJobToQueue('DISCORD', {
+            operations.push({
               action: 'assignRole',
               userId: discordId,
               roleId: roleId
@@ -378,11 +402,29 @@ export class DiscordRoleManager {
         }
       }
 
-      logger.info('Discord role assignment jobs queued successfully on link', { 
+      // Create batch task and queue the job
+      const batchTaskManager = new DiscordBatchTaskManager(prisma);
+      const batchTask = await batchTaskManager.createUserRoleBatchTask({
+        userId: discordId,
+        operations,
+        description: `Assign Discord roles for user ${userId} on account link`
+      });
+
+      // Queue the batch job with the background task ID
+      await addJobToQueue('DISCORD', {
+        action: 'batchUpdateRoles',
+        userId: discordId,
+        targetRoles: operations.map(op => op.roleId),
+        rolesToRemove: [],
+        backgroundTaskId: batchTask.id
+      });
+
+      logger.info('Discord role assignment jobs queued successfully on link with batch task', { 
         userId, 
         discordId, 
         classRank: user.userClassRank?.classRank,
-        interests: user.userInterests.map(i => i.interest)
+        interests: user.userInterests.map(i => i.interest),
+        batchTaskId: batchTask.id
       });
       
     } catch (error) {

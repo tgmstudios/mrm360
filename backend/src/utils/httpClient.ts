@@ -27,8 +27,8 @@ export class HttpClient {
       ...config
     };
 
-    // Add authorization header if token is provided
-    if (this.config.token) {
+    // Add authorization header if token is provided and not already set
+    if (this.config.token && !this.config.headers?.['Authorization']) {
       this.config.headers = {
         ...this.config.headers,
         'Authorization': `Bearer ${this.config.token}`

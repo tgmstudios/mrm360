@@ -1,11 +1,15 @@
 <template>
-  <div class="auth-layout bg-gray-900 min-h-screen">
-    <h1 class="text-blue-400">CCSO MRM</h1>
-    <h2 class="text-gray-100">{{ title }}</h2>
-    <p v-if="subtitle" class="text-gray-400">{{ subtitle }}</p>
-    
-    <div class="content">
-      <slot />
+  <div class="auth-layout bg-gray-900 min-h-screen flex flex-col justify-center">
+    <div class="w-full max-w-md mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center mb-8">
+        <h1 class="text-2xl sm:text-3xl font-bold text-blue-400 mb-2">CCSO MRM</h1>
+        <h2 class="text-xl sm:text-2xl font-semibold text-gray-100 mb-2">{{ title }}</h2>
+        <p v-if="subtitle" class="text-sm sm:text-base text-gray-400">{{ subtitle }}</p>
+      </div>
+      
+      <div class="content">
+        <slot />
+      </div>
     </div>
   </div>
 </template>
@@ -23,29 +27,7 @@ withDefaults(defineProps<Props>(), {
 </script>
 
 <style scoped>
-.auth-layout {
-  padding: 20px;
-  text-align: center;
-}
-
-.auth-layout h1 {
-  font-size: 2rem;
-  color: #60a5fa;
-  margin-bottom: 1rem;
-}
-
-.auth-layout h2 {
-  font-size: 1.5rem;
-  margin-bottom: 0.5rem;
-}
-
-.auth-layout p {
-  color: #9ca3af;
-  margin-bottom: 2rem;
-}
-
 .content {
-  max-width: 400px;
-  margin: 0 auto;
+  width: 100%;
 }
 </style>

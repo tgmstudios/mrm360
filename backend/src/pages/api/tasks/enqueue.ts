@@ -1,9 +1,9 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { z } from 'zod';
 import { TaskManager } from '../../../managers/taskManager';
-import { withAuth } from '../../../middleware/authMiddleware';
-import { withPermissions } from '../../../middleware/permissionMiddleware';
-import { logger } from '../../../utils/logger';
+import { withAuth } from '@/middleware/authMiddleware';
+import { withPermissions } from '@/middleware/permissionMiddleware';
+import { logger } from '@/utils/logger';
 import { withCORS } from '@/middleware/corsMiddleware';
 
 // Validation schemas

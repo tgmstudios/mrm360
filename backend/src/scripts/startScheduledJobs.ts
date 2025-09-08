@@ -1,7 +1,7 @@
 #!/usr/bin/env ts-node
 
-import { ScheduledJobService } from '../services/scheduledJobService';
-import { logger } from '../utils/logger';
+import { ScheduledJobService } from '@/services/scheduledJobService';
+import { logger } from '@/utils/logger';
 
 /**
  * Script to start scheduled jobs

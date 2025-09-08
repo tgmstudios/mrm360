@@ -49,7 +49,17 @@ export class TeamManager {
       });
 
       logger.info(`Created team: ${team.name}`);
-      return team;
+      return {
+        id: team.id,
+        name: team.name,
+        description: team.description || undefined,
+        type: team.type,
+        subtype: team.subtype || undefined,
+        parentTeamId: team.parentTeamId || undefined,
+        groupId: team.groupId || undefined,
+        createdAt: team.createdAt,
+        updatedAt: team.updatedAt
+      };
     } catch (error) {
       logger.error('Error creating team:', error);
       throw error;
@@ -64,6 +74,11 @@ export class TeamManager {
           group: true,
           parentTeam: true,
           subteams: true,
+          events: {
+            orderBy: {
+              startTime: 'desc'
+            }
+          },
           userTeams: {
             include: {
               user: {
@@ -85,7 +100,17 @@ export class TeamManager {
         throw Errors.NOT_FOUND('Team');
       }
 
-      return team;
+      return {
+        id: team.id,
+        name: team.name,
+        description: team.description || undefined,
+        type: team.type,
+        subtype: team.subtype || undefined,
+        parentTeamId: team.parentTeamId || undefined,
+        groupId: team.groupId || undefined,
+        createdAt: team.createdAt,
+        updatedAt: team.updatedAt
+      };
     } catch (error) {
       logger.error(`Error getting team ${id}:`, error);
       throw error;
@@ -142,7 +167,17 @@ export class TeamManager {
 
       return {
         success: true,
-        data: teams,
+        data: teams.map(team => ({
+          id: team.id,
+          name: team.name,
+          description: team.description || undefined,
+          type: team.type,
+          subtype: team.subtype || undefined,
+          parentTeamId: team.parentTeamId || undefined,
+          groupId: team.groupId || undefined,
+          createdAt: team.createdAt,
+          updatedAt: team.updatedAt
+        })),
         pagination: {
           page,
           limit,
@@ -202,7 +237,17 @@ export class TeamManager {
       });
 
       logger.info(`Updated team: ${team.name}`);
-      return team;
+      return {
+        id: team.id,
+        name: team.name,
+        description: team.description || undefined,
+        type: team.type,
+        subtype: team.subtype || undefined,
+        parentTeamId: team.parentTeamId || undefined,
+        groupId: team.groupId || undefined,
+        createdAt: team.createdAt,
+        updatedAt: team.updatedAt
+      };
     } catch (error) {
       logger.error(`Error updating team ${id}:`, error);
       throw error;
@@ -361,7 +406,17 @@ export class TeamManager {
         orderBy: { name: 'asc' }
       });
 
-      return subteams;
+      return subteams.map(team => ({
+        id: team.id,
+        name: team.name,
+        description: team.description || undefined,
+        type: team.type,
+        subtype: team.subtype || undefined,
+        parentTeamId: team.parentTeamId || undefined,
+        groupId: team.groupId || undefined,
+        createdAt: team.createdAt,
+        updatedAt: team.updatedAt
+      }));
     } catch (error) {
       logger.error(`Error getting subteams for team ${teamId}:`, error);
       throw error;

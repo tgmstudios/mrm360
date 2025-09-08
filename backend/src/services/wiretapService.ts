@@ -104,6 +104,24 @@ export class WiretapService {
     }
   }
 
+  async addUsersToProjectByEmail(projectId: string, emails: string[]): Promise<void> {
+    try {
+      logger.info(`Adding ${emails.length} users by email to Wiretap project: ${projectId}`);
+      
+      if (emails.length === 0) {
+        logger.warn('No email addresses provided for project assignment');
+        return;
+      }
+
+      await this.apiClient.addUsersToProjectByEmail(projectId, emails);
+      
+      logger.info(`Successfully added users by email to Wiretap project: ${projectId}`);
+    } catch (error) {
+      logger.error(`Error adding users by email to Wiretap project ${projectId}:`, error);
+      throw new Error(`Failed to add users by email to Wiretap project: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
   async removeUsersFromProject(projectId: string, userIds: string[]): Promise<void> {
     try {
       logger.info(`Removing ${userIds.length} users from Wiretap project: ${projectId}`);
@@ -119,6 +137,24 @@ export class WiretapService {
     } catch (error) {
       logger.error(`Error removing users from Wiretap project ${projectId}:`, error);
       throw new Error(`Failed to remove users from Wiretap project: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  async removeUsersFromProjectByEmail(projectId: string, emails: string[]): Promise<void> {
+    try {
+      logger.info(`Removing ${emails.length} users by email from Wiretap project: ${projectId}`);
+      
+      if (emails.length === 0) {
+        logger.warn('No email addresses provided for project removal');
+        return;
+      }
+
+      await this.apiClient.removeUsersFromProjectByEmail(projectId, emails);
+      
+      logger.info(`Successfully removed users by email from Wiretap project: ${projectId}`);
+    } catch (error) {
+      logger.error(`Error removing users by email from Wiretap project ${projectId}:`, error);
+      throw new Error(`Failed to remove users by email from Wiretap project: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -182,11 +218,27 @@ export class WiretapService {
     }
   }
 
+  async listWorkshops(): Promise<WiretapProject[]> {
+    try {
+      logger.info('Listing Wiretap workshops');
+      
+      const responses = await this.apiClient.listWorkshops();
+      const workshops = WiretapTransformers.transformProjectResponses(responses);
+      
+      logger.info(`Successfully retrieved ${workshops.length} Wiretap workshops`);
+      return workshops;
+    } catch (error) {
+      logger.error('Error listing Wiretap workshops:', error);
+      throw new Error(`Failed to list Wiretap workshops: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
   async listProjects(params?: { name?: string; parent?: string }): Promise<WiretapProject[]> {
     try {
       logger.info('Listing Wiretap projects', { params });
       
-      const responses = await this.apiClient.listProjects(params);
+      // Use workshops endpoint since that's what Wiretap calls them
+      const responses = await this.apiClient.listWorkshops();
       const projects = WiretapTransformers.transformProjectResponses(responses);
       
       logger.info(`Successfully retrieved ${projects.length} Wiretap projects`);
@@ -369,6 +421,22 @@ export class WiretapService {
     } catch (error) {
       logger.error(`Error cleaning up resources for event ${eventId}:`, error);
       throw new Error(`Failed to cleanup event resources: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Add a team member by email to a Wiretap team
+   */
+  async addTeamMemberByEmail(teamId: string, email: string): Promise<void> {
+    try {
+      logger.info(`Adding team member by email: ${email} to team ${teamId}`);
+      
+      await this.apiClient.addTeamMemberByEmail(teamId, email);
+      
+      logger.info(`Successfully added team member ${email} to Wiretap team ${teamId}`);
+    } catch (error) {
+      logger.error(`Error adding team member ${email} to Wiretap team ${teamId}:`, error);
+      throw new Error(`Failed to add team member: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 }

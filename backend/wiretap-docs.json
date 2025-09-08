@@ -1,0 +1,4329 @@
+
+window.onload = function() {
+    // Build a system
+    var url = window.location.search.match(/url=([^&]+)/);
+    if (url && url.length > 1) {
+      url = decodeURIComponent(url[1]);
+    } else {
+      url = window.location.origin;
+    }
+    var options = {
+    "swaggerDoc": {
+      "openapi": "3.0.0",
+      "info": {
+        "title": "Wiretap API Documentation",
+        "version": "1.0.0",
+        "description": "API documentation for Wiretap - OpenStack VM Management Platform"
+      },
+      "servers": [
+        {
+          "url": "http://localhost:5011/",
+          "description": "Development server"
+        },
+        {
+          "url": "https://tap.psuccso.org/",
+          "description": "Production server"
+        }
+      ],
+      "security": [
+        {
+          "BearerAuth": []
+        },
+        {
+          "ServiceAccountAuth": []
+        }
+      ],
+      "components": {
+        "securitySchemes": {
+          "BearerAuth": {
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "JWT",
+            "description": "JWT token for authentication"
+          },
+          "ServiceAccountAuth": {
+            "type": "apiKey",
+            "in": "header",
+            "name": "Authorization",
+            "description": "Service account API key (starts with sk-)"
+          }
+        },
+        "schemas": {
+          "Error": {
+            "type": "object",
+            "properties": {
+              "error": {
+                "type": "string",
+                "description": "Error message"
+              }
+            }
+          },
+          "SuccessMessage": {
+            "type": "object",
+            "properties": {
+              "message": {
+                "type": "string",
+                "description": "Success message"
+              }
+            }
+          },
+          "PaginationInfo": {
+            "type": "object",
+            "properties": {
+              "total": {
+                "type": "integer",
+                "description": "Total number of items"
+              },
+              "page": {
+                "type": "integer",
+                "description": "Current page number"
+              },
+              "limit": {
+                "type": "integer",
+                "description": "Number of items per page"
+              }
+            }
+          },
+          "LogEntry": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "description": "Log entry ID"
+              },
+              "timestamp": {
+                "type": "string",
+                "format": "date-time",
+                "description": "When the log entry was created"
+              },
+              "user": {
+                "type": "string",
+                "description": "User who performed the action or 'System'"
+              },
+              "type": {
+                "type": "string",
+                "description": "Type of log entry"
+              },
+              "action": {
+                "type": "string",
+                "description": "Action performed"
+              },
+              "ip_address": {
+                "type": "string",
+                "description": "IP address of the user"
+              },
+              "details": {
+                "type": "string",
+                "description": "Additional details about the action"
+              }
+            }
+          },
+          "ServiceAccount": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "description": "Service account ID"
+              },
+              "name": {
+                "type": "string",
+                "description": "Service account name"
+              },
+              "api_key": {
+                "type": "string",
+                "description": "API key for authentication"
+              },
+              "last_used": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true,
+                "description": "When the service account was last used"
+              },
+              "created_at": {
+                "type": "string",
+                "format": "date-time",
+                "description": "When the service account was created"
+              }
+            }
+          },
+          "LockoutSchedule": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "description": "Workshop ID"
+              },
+              "name": {
+                "type": "string",
+                "description": "Workshop name"
+              },
+              "lockout_start": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true,
+                "description": "When the lockout period starts"
+              },
+              "lockout_end": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true,
+                "description": "When the lockout period ends"
+              },
+              "nowLocked": {
+                "type": "boolean",
+                "description": "Whether the workshop is currently locked"
+              },
+              "nextAction": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "lock",
+                          "unlock"
+                        ],
+                        "description": "Type of next action"
+                      },
+                      "at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "When the next action will occur"
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "at"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "tags": [
+        {
+          "name": "Authentication",
+          "description": "OpenID Connect authentication endpoints"
+        },
+        {
+          "name": "Providers",
+          "description": "OpenStack provider management endpoints"
+        },
+        {
+          "name": "Workshops",
+          "description": "Workshop (OpenStack project) management endpoints"
+        },
+        {
+          "name": "Teams",
+          "description": "Team management endpoints"
+        },
+        {
+          "name": "Users",
+          "description": "User management endpoints"
+        },
+        {
+          "name": "Instances",
+          "description": "VM instance management endpoints"
+        },
+        {
+          "name": "VNC",
+          "description": "VNC console connection endpoints"
+        }
+      ],
+      "paths": {
+        "/api/admin/stats": {
+          "get": {
+            "summary": "Get admin statistics",
+            "description": "Retrieves system-wide statistics including user, team, workshop, and instance counts",
+            "tags": [
+              "Admin"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Admin statistics retrieved successfully",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "users": {
+                          "type": "integer",
+                          "description": "Total number of users in the system",
+                          "example": 150
+                        },
+                        "teams": {
+                          "type": "integer",
+                          "description": "Total number of teams",
+                          "example": 25
+                        },
+                        "workshops": {
+                          "type": "integer",
+                          "description": "Total number of workshops",
+                          "example": 10
+                        },
+                        "instances": {
+                          "type": "integer",
+                          "description": "Total number of VM instances",
+                          "example": 75
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "500": {
+                "description": "Internal server error",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "$ref": "#/components/schemas/Error"
+                    },
+                    "example": {
+                      "error": "Failed to fetch stats"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "/api/admin/logs": {
+          "get": {
+            "summary": "Get system logs",
+            "description": "Retrieves paginated system logs with optional filtering by type and user",
+            "tags": [
+              "Admin"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "query",
+                "name": "page",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "default": 1
+                },
+                "description": "Page number for pagination"
+              },
+              {
+                "in": "query",
+                "name": "limit",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 100,
+                  "default": 50
+                },
+                "description": "Number of logs per page"
+              },
+              {
+                "in": "query",
+                "name": "type",
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Filter logs by type (e.g., 'AUTH', 'INSTANCE', 'WORKSHOP')"
+              },
+              {
+                "in": "query",
+                "name": "user_id",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Filter logs by specific user ID"
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "System logs retrieved successfully",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "logs": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid",
+                                "description": "Log entry ID"
+                              },
+                              "timestamp": {
+                                "type": "string",
+                                "format": "date-time",
+                                "description": "When the log entry was created"
+                              },
+                              "user": {
+                                "type": "string",
+                                "description": "User who performed the action or 'System'"
+                              },
+                              "type": {
+                                "type": "string",
+                                "description": "Type of log entry"
+                              },
+                              "action": {
+                                "type": "string",
+                                "description": "Action performed"
+                              },
+                              "ip_address": {
+                                "type": "string",
+                                "description": "IP address of the user"
+                              },
+                              "details": {
+                                "type": "string",
+                                "description": "Additional details about the action"
+                              }
+                            }
+                          }
+                        },
+                        "total": {
+                          "type": "integer",
+                          "description": "Total number of logs matching the filters"
+                        },
+                        "page": {
+                          "type": "integer",
+                          "description": "Current page number"
+                        },
+                        "limit": {
+                          "type": "integer",
+                          "description": "Number of logs per page"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "500": {
+                "description": "Internal server error",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "error": {
+                          "type": "string",
+                          "example": "Failed to fetch logs"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "/api/admin/instances/{id}/lockout": {
+          "post": {
+            "summary": "Lock out an instance",
+            "description": "Locks a specific VM instance, preventing user access",
+            "tags": [
+              "Admin"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Instance ID to lock"
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Instance locked out successfully",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "message": {
+                          "type": "string",
+                          "example": "Instance locked out successfully"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "404": {
+                "description": "Instance not found",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "error": {
+                          "type": "string",
+                          "example": "Instance not found"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "500": {
+                "description": "Internal server error",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "error": {
+                          "type": "string",
+                          "example": "Failed to lock out instance"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "/api/admin/instances/{id}/unlock": {
+          "post": {
+            "summary": "Unlock an instance",
+            "description": "Unlocks a specific VM instance, restoring user access",
+            "tags": [
+              "Admin"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Instance ID to unlock"
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Instance unlocked successfully",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "message": {
+                          "type": "string",
+                          "example": "Instance unlocked successfully"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "404": {
+                "description": "Instance not found",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "error": {
+                          "type": "string",
+                          "example": "Instance not found"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "500": {
+                "description": "Internal server error",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "error": {
+                          "type": "string",
+                          "example": "Failed to unlock instance"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "/api/admin/service-accounts": {
+          "get": {
+            "summary": "Get service accounts",
+            "description": "Retrieves a list of all service accounts in the system",
+            "tags": [
+              "Admin"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Service accounts retrieved successfully",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "Service account ID"
+                          },
+                          "name": {
+                            "type": "string",
+                            "description": "Service account name"
+                          },
+                          "api_key": {
+                            "type": "string",
+                            "description": "API key for authentication"
+                          },
+                          "last_used": {
+                            "type": "string",
+                            "format": "date-time",
+                            "nullable": true,
+                            "description": "When the service account was last used"
+                          },
+                          "created_at": {
+                            "type": "string",
+                            "format": "date-time",
+                            "description": "When the service account was created"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "500": {
+                "description": "Internal server error",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "error": {
+                          "type": "string",
+                          "example": "Failed to fetch service accounts"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "post": {
+            "summary": "Create service account",
+            "description": "Creates a new service account with an automatically generated API key",
+            "tags": [
+              "Admin"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "requestBody": {
+              "required": true,
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "required": [
+                      "name"
+                    ],
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 255,
+                        "description": "Name for the service account",
+                        "example": "CI/CD Pipeline"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "responses": {
+              "201": {
+                "description": "Service account created successfully",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid",
+                          "description": "Service account ID"
+                        },
+                        "name": {
+                          "type": "string",
+                          "description": "Service account name"
+                        },
+                        "api_key": {
+                          "type": "string",
+                          "description": "Generated API key for authentication"
+                        },
+                        "last_used": {
+                          "type": "string",
+                          "format": "date-time",
+                          "nullable": true,
+                          "description": "When the service account was last used"
+                        },
+                        "created_at": {
+                          "type": "string",
+                          "format": "date-time",
+                          "description": "When the service account was created"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "400": {
+                "description": "Bad request - name is required",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "error": {
+                          "type": "string",
+                          "example": "Name is required"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "500": {
+                "description": "Internal server error",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "error": {
+                          "type": "string",
+                          "example": "Failed to create service account"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "/api/admin/service-accounts/{id}": {
+          "put": {
+            "summary": "Update service account",
+            "description": "Updates the name of an existing service account",
+            "tags": [
+              "Admin"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Service account ID to update"
+              }
+            ],
+            "requestBody": {
+              "required": true,
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "description": "New name for the service account"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "responses": {
+              "200": {
+                "description": "Service account updated successfully",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "message": {
+                          "type": "string",
+                          "example": "Service account updated successfully"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "400": {
+                "description": "Bad request - name is required",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "error": {
+                          "type": "string",
+                          "example": "Name is required"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "404": {
+                "description": "Service account not found",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "error": {
+                          "type": "string",
+                          "example": "Service account not found"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "500": {
+                "description": "Internal server error",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "error": {
+                          "type": "string",
+                          "example": "Failed to update service account"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "delete": {
+            "summary": "Delete service account",
+            "description": "Permanently deletes a service account and invalidates its API key",
+            "tags": [
+              "Admin"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Service account ID to delete"
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Service account deleted successfully",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "message": {
+                          "type": "string",
+                          "example": "Service account deleted successfully"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "404": {
+                "description": "Service account not found",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "error": {
+                          "type": "string",
+                          "example": "Service account not found"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "500": {
+                "description": "Internal server error",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "error": {
+                          "type": "string",
+                          "example": "Failed to delete service account"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "/api/admin/workshops/{id}/lock": {
+          "post": {
+            "summary": "Lock all instances in a workshop",
+            "description": "Locks all VM instances in a workshop and terminates active sessions",
+            "tags": [
+              "Admin"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Workshop ID"
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Workshop locked successfully",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "message": {
+                          "type": "string",
+                          "example": "Workshop locked: all instances locked and sessions terminated"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "404": {
+                "description": "Workshop not found",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "error": {
+                          "type": "string",
+                          "example": "Workshop not found"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "500": {
+                "description": "Internal server error",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "error": {
+                          "type": "string",
+                          "example": "Failed to lock workshop"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "/api/admin/workshops/{id}/unlock": {
+          "post": {
+            "summary": "Unlock all instances in a workshop",
+            "description": "Unlocks all VM instances in a workshop",
+            "tags": [
+              "Admin"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": "Workshop ID"
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Workshop unlocked successfully",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "message": {
+                          "type": "string",
+                          "example": "Workshop unlocked: all instances unlocked"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "404": {
+                "description": "Workshop not found",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "error": {
+                          "type": "string",
+                          "example": "Workshop not found"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "500": {
+                "description": "Internal server error",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "error": {
+                          "type": "string",
+                          "example": "Failed to unlock workshop"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "/api/admin/lockouts": {
+          "get": {
+            "summary": "Get lockout schedule for all workshops",
+            "description": "Retrieves the current lockout schedule and status for all workshops",
+            "tags": [
+              "Admin"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Lockout schedule retrieved successfully",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "now": {
+                          "type": "string",
+                          "format": "date-time",
+                          "description": "Current server time in ISO format",
+                          "example": "2024-01-15T10:30:00.000Z"
+                        },
+                        "schedule": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid",
+                                "description": "Workshop ID"
+                              },
+                              "name": {
+                                "type": "string",
+                                "description": "Workshop name"
+                              },
+                              "lockout_start": {
+                                "type": "string",
+                                "format": "date-time",
+                                "nullable": true,
+                                "description": "When the lockout period starts"
+                              },
+                              "lockout_end": {
+                                "type": "string",
+                                "format": "date-time",
+                                "nullable": true,
+                                "description": "When the lockout period ends"
+                              },
+                              "nowLocked": {
+                                "type": "boolean",
+                                "description": "Whether the workshop is currently locked"
+                              },
+                              "nextAction": {
+                                "oneOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "type": {
+                                        "type": "string",
+                                        "enum": [
+                                          "lock",
+                                          "unlock"
+                                        ],
+                                        "description": "Type of next action"
+                                      },
+                                      "at": {
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "description": "When the next action will occur"
+                                      }
+                                    },
+                                    "required": [
+                                      "type",
+                                      "at"
+                                    ]
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "500": {
+                "description": "Internal server error",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "error": {
+                          "type": "string",
+                          "example": "Failed to fetch lockout schedule"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "/api/admin/logs/cleanup": {
+          "post": {
+            "summary": "Clean up old logs",
+            "tags": [
+              "Admin"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "requestBody": {
+              "required": false,
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "days": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 365,
+                        "default": 7,
+                        "description": "Number of days to keep logs (logs older than this will be deleted)"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "responses": {
+              "200": {
+                "description": "Logs cleaned up successfully",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "message": {
+                          "type": "string",
+                          "example": "Cleaned up logs older than 7 days"
+                        },
+                        "deleted_count": {
+                          "type": "integer",
+                          "description": "Number of log entries deleted"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "400": {
+                "description": "Invalid days parameter",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "error": {
+                          "type": "string",
+                          "example": "Days must be between 1 and 365"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "500": {
+                "description": "Internal server error",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "error": {
+                          "type": "string",
+                          "example": "Failed to cleanup logs"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "/api/auth/login": {
+          "post": {
+            "summary": "Login with username and password",
+            "tags": [
+              "Authentication"
+            ],
+            "requestBody": {
+              "required": true,
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "required": [
+                      "username",
+                      "password"
+                    ],
+                    "properties": {
+                      "username": {
+                        "type": "string",
+                        "example": "admin"
+                      },
+                      "password": {
+                        "type": "string",
+                        "example": "admin123"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "responses": {
+              "200": {
+                "description": "Login successful",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "token": {
+                          "type": "string"
+                        },
+                        "user": {
+                          "type": "object"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "401": {
+                "description": "Invalid credentials"
+              }
+            }
+          }
+        },
+        "/api/auth/openid/login": {
+          "get": {
+            "summary": "Initiate OpenID Connect login",
+            "tags": [
+              "Authentication"
+            ],
+            "responses": {
+              "302": {
+                "description": "Redirect to OpenID provider"
+              }
+            }
+          }
+        },
+        "/api/auth/openid/callback": {
+          "get": {
+            "summary": "Handle OpenID Connect callback",
+            "tags": [
+              "Authentication"
+            ],
+            "parameters": [
+              {
+                "in": "query",
+                "name": "code",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              {
+                "in": "query",
+                "name": "state",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Authentication successful"
+              },
+              "400": {
+                "description": "Authentication failed"
+              }
+            }
+          }
+        },
+        "/api/auth/me": {
+          "get": {
+            "summary": "Get current user information",
+            "tags": [
+              "Authentication"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "User information retrieved successfully",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "username": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "first_name": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "last_name": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "role": {
+                          "type": "string"
+                        },
+                        "enabled": {
+                          "type": "boolean"
+                        },
+                        "isServiceAccount": {
+                          "type": "boolean"
+                        },
+                        "serviceAccountName": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "401": {
+                "description": "Invalid token or API key"
+              }
+            },
+            "description": "Returns information about the currently authenticated user or service account"
+          }
+        },
+        "/api/auth/refresh": {
+          "post": {
+            "summary": "Refresh JWT token",
+            "tags": [
+              "Authentication"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "New token generated",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "token": {
+                          "type": "string"
+                        },
+                        "user": {
+                          "type": "object"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "401": {
+                "description": "Invalid token"
+              }
+            }
+          }
+        },
+        "/api/auth/verify": {
+          "get": {
+            "summary": "Verify JWT token",
+            "tags": [
+              "Authentication"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Token is valid",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "valid": {
+                          "type": "boolean"
+                        },
+                        "user": {
+                          "type": "object"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "401": {
+                "description": "Invalid token"
+              }
+            }
+          }
+        },
+        "/api/auth/logout": {
+          "post": {
+            "summary": "Logout user",
+            "tags": [
+              "Authentication"
+            ],
+            "responses": {
+              "200": {
+                "description": "Logout successful"
+              }
+            }
+          }
+        },
+        "/api/instances": {
+          "get": {
+            "summary": "Get all instances",
+            "tags": [
+              "Instances"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "List of instances"
+              }
+            }
+          },
+          "post": {
+            "summary": "Create new instance",
+            "tags": [
+              "Instances"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "requestBody": {
+              "required": true,
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "required": [
+                      "name",
+                      "workshop_id",
+                      "openstack_id"
+                    ],
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "example": "web-server-01"
+                      },
+                      "workshop_id": {
+                        "type": "string",
+                        "example": "uuid-of-workshop"
+                      },
+                      "openstack_id": {
+                        "type": "string",
+                        "example": "uuid-from-openstack"
+                      },
+                      "team_id": {
+                        "type": "string",
+                        "example": "uuid-of-team"
+                      },
+                      "user_id": {
+                        "type": "string",
+                        "example": "uuid-of-user"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "responses": {
+              "201": {
+                "description": "Instance created successfully"
+              },
+              "400": {
+                "description": "Invalid input"
+              }
+            }
+          }
+        },
+        "/api/instances/sync": {
+          "post": {
+            "summary": "Sync all instances with OpenStack",
+            "description": "Synchronizes the status, power state, and IP addresses of all instances with their current state in OpenStack",
+            "tags": [
+              "Instances"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Instances synced successfully",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "message": {
+                          "type": "string",
+                          "example": "Instances synced successfully"
+                        },
+                        "synced_count": {
+                          "type": "number",
+                          "example": 10
+                        },
+                        "error_count": {
+                          "type": "number",
+                          "example": 2
+                        },
+                        "total_instances": {
+                          "type": "number",
+                          "example": 12
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "500": {
+                "description": "Failed to sync instances",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "error": {
+                          "type": "string",
+                          "example": "Failed to sync instances"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "/api/instances/sync-scheduled": {
+          "post": {
+            "summary": "Trigger scheduled instance sync",
+            "description": "Manually triggers the scheduled instance status update task that runs every 2 minutes",
+            "tags": [
+              "Instances"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Scheduled sync triggered successfully",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "message": {
+                          "type": "string",
+                          "example": "Scheduled sync triggered successfully"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "500": {
+                "description": "Failed to trigger scheduled sync",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "error": {
+                          "type": "string",
+                          "example": "Failed to trigger scheduled sync"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "/api/instances/{id}": {
+          "get": {
+            "summary": "Get instance by ID",
+            "tags": [
+              "Instances"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Instance details"
+              },
+              "404": {
+                "description": "Instance not found"
+              }
+            }
+          },
+          "put": {
+            "summary": "Update instance",
+            "tags": [
+              "Instances"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            ],
+            "requestBody": {
+              "required": true,
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "team_id": {
+                        "type": "string"
+                      },
+                      "user_id": {
+                        "type": "string"
+                      },
+                      "locked": {
+                        "type": "boolean"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "responses": {
+              "200": {
+                "description": "Instance updated successfully"
+              },
+              "404": {
+                "description": "Instance not found"
+              }
+            }
+          },
+          "delete": {
+            "summary": "Delete instance",
+            "tags": [
+              "Instances"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Instance deleted successfully"
+              },
+              "404": {
+                "description": "Instance not found"
+              }
+            }
+          }
+        },
+        "/api/instances/{id}/power/on": {
+          "post": {
+            "summary": "Power on instance",
+            "tags": [
+              "Instances"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Instance powered on successfully"
+              },
+              "404": {
+                "description": "Instance not found"
+              }
+            }
+          }
+        },
+        "/api/instances/{id}/power/off": {
+          "post": {
+            "summary": "Power off instance",
+            "tags": [
+              "Instances"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Instance powered off successfully"
+              },
+              "404": {
+                "description": "Instance not found"
+              }
+            }
+          }
+        },
+        "/api/instances/{id}/power/restart": {
+          "post": {
+            "summary": "Restart instance",
+            "tags": [
+              "Instances"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            ],
+            "requestBody": {
+              "required": false,
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "hard": {
+                        "type": "boolean",
+                        "example": false
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "responses": {
+              "200": {
+                "description": "Instance restarted successfully"
+              },
+              "404": {
+                "description": "Instance not found"
+              }
+            }
+          }
+        },
+        "/api/instances/{id}/status": {
+          "get": {
+            "summary": "Get instance status",
+            "tags": [
+              "Instances"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Instance status"
+              },
+              "404": {
+                "description": "Instance not found"
+              }
+            }
+          }
+        },
+        "/api/instances/{id}/power-on": {
+          "post": {
+            "summary": "Power on instance (alternative endpoint)",
+            "tags": [
+              "Instances"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Instance powered on successfully"
+              },
+              "404": {
+                "description": "Instance not found"
+              }
+            }
+          }
+        },
+        "/api/instances/{id}/power-off": {
+          "post": {
+            "summary": "Power off instance (alternative endpoint)",
+            "tags": [
+              "Instances"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Instance powered off successfully"
+              },
+              "404": {
+                "description": "Instance not found"
+              }
+            }
+          }
+        },
+        "/api/instances/{id}/reboot": {
+          "post": {
+            "summary": "Reboot instance (alternative endpoint)",
+            "tags": [
+              "Instances"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            ],
+            "requestBody": {
+              "required": false,
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "soft",
+                          "hard"
+                        ],
+                        "example": "soft"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "responses": {
+              "200": {
+                "description": "Instance rebooted successfully"
+              },
+              "404": {
+                "description": "Instance not found"
+              }
+            }
+          }
+        },
+        "/api/instances/{id}/sync": {
+          "post": {
+            "summary": "Sync single instance with OpenStack",
+            "description": "Synchronizes the status, power state, and IP addresses of a single instance with its current state in OpenStack",
+            "tags": [
+              "Instances"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Instance synced successfully",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "message": {
+                          "type": "string",
+                          "example": "Instance synced successfully"
+                        },
+                        "instance": {
+                          "type": "object"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "404": {
+                "description": "Instance not found"
+              },
+              "500": {
+                "description": "Failed to sync instance"
+              }
+            }
+          }
+        },
+        "/api/instances/{id}/console": {
+          "get": {
+            "summary": "Get console access for instance",
+            "tags": [
+              "Instances"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              {
+                "in": "query",
+                "name": "type",
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "novnc",
+                    "vnc",
+                    "spice",
+                    "serial",
+                    "rdp",
+                    "mks"
+                  ],
+                  "default": "novnc"
+                }
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Console access information"
+              },
+              "404": {
+                "description": "Instance not found"
+              }
+            }
+          }
+        },
+        "/api/providers": {
+          "get": {
+            "summary": "Get all providers",
+            "tags": [
+              "Providers"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "List of providers",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "auth_url": {
+                            "type": "string"
+                          },
+                          "identity_version": {
+                            "type": "string",
+                            "example": "v3"
+                          },
+                          "enabled": {
+                            "type": "boolean"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "post": {
+            "summary": "Create new provider",
+            "tags": [
+              "Providers"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "requestBody": {
+              "required": true,
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "required": [
+                      "name",
+                      "auth_url",
+                      "username",
+                      "password",
+                      "project_name",
+                      "region_name"
+                    ],
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "example": "Production OpenStack"
+                      },
+                      "description": {
+                        "type": "string",
+                        "example": "Production OpenStack cluster"
+                      },
+                      "auth_url": {
+                        "type": "string",
+                        "description": "Base URL for OpenStack Keystone (without version suffix)",
+                        "example": "https://openstack.example.com:5000"
+                      },
+                      "identity_version": {
+                        "type": "string",
+                        "description": "OpenStack Identity API version",
+                        "example": "v3",
+                        "default": "v3"
+                      },
+                      "username": {
+                        "type": "string",
+                        "example": "admin"
+                      },
+                      "password": {
+                        "type": "string",
+                        "example": "password123"
+                      },
+                      "project_name": {
+                        "type": "string",
+                        "example": "admin"
+                      },
+                      "region_name": {
+                        "type": "string",
+                        "example": "RegionOne"
+                      },
+                      "domain_name": {
+                        "type": "string",
+                        "example": "Default"
+                      },
+                      "domain_id": {
+                        "type": "string",
+                        "example": "default"
+                      },
+                      "proxy_through_host": {
+                        "type": "string",
+                        "description": "Optional DNS/IP host to proxy OpenStack API requests through (SNI/Host preserved)",
+                        "example": "pritunl-proxy.pritunl"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "responses": {
+              "201": {
+                "description": "Provider created successfully"
+              },
+              "400": {
+                "description": "Invalid input"
+              }
+            }
+          }
+        },
+        "/api/providers/{id}": {
+          "get": {
+            "summary": "Get provider by ID",
+            "tags": [
+              "Providers"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Provider details"
+              },
+              "404": {
+                "description": "Provider not found"
+              }
+            }
+          },
+          "put": {
+            "summary": "Update provider",
+            "tags": [
+              "Providers"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            ],
+            "requestBody": {
+              "required": true,
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "auth_url": {
+                        "type": "string",
+                        "description": "Base URL for OpenStack Keystone (without version suffix)"
+                      },
+                      "identity_version": {
+                        "type": "string",
+                        "description": "OpenStack Identity API version",
+                        "example": "v3"
+                      },
+                      "username": {
+                        "type": "string"
+                      },
+                      "password": {
+                        "type": "string"
+                      },
+                      "project_name": {
+                        "type": "string"
+                      },
+                      "region_name": {
+                        "type": "string"
+                      },
+                      "domain_name": {
+                        "type": "string"
+                      },
+                      "domain_id": {
+                        "type": "string"
+                      },
+                      "enabled": {
+                        "type": "boolean"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "responses": {
+              "200": {
+                "description": "Provider updated successfully"
+              },
+              "404": {
+                "description": "Provider not found"
+              }
+            }
+          },
+          "delete": {
+            "summary": "Delete provider",
+            "tags": [
+              "Providers"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Provider deleted successfully"
+              },
+              "404": {
+                "description": "Provider not found"
+              }
+            }
+          }
+        },
+        "/api/providers/{id}/test": {
+          "post": {
+            "summary": "Test provider connection",
+            "tags": [
+              "Providers"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Connection test result"
+              },
+              "404": {
+                "description": "Provider not found"
+              }
+            }
+          }
+        },
+        "/api/providers/{id}/instances": {
+          "get": {
+            "summary": "Get instances from provider",
+            "tags": [
+              "Providers"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              {
+                "in": "query",
+                "name": "project_name",
+                "required": false,
+                "schema": {
+                  "type": "string"
+                },
+                "description": "OpenStack project name to filter instances"
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "List of instances from provider",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "success": {
+                          "type": "boolean"
+                        },
+                        "instances": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "status": {
+                                "type": "string"
+                              },
+                              "power_state": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "404": {
+                "description": "Provider not found"
+              }
+            }
+          }
+        },
+        "/api/providers/{id}/ingest": {
+          "post": {
+            "summary": "Ingest VMs from provider",
+            "tags": [
+              "Providers"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            ],
+            "requestBody": {
+              "required": true,
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "required": [
+                      "team_id"
+                    ],
+                    "properties": {
+                      "team_id": {
+                        "type": "string",
+                        "example": "uuid-of-team"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "responses": {
+              "200": {
+                "description": "VMs ingested successfully"
+              },
+              "404": {
+                "description": "Provider not found"
+              }
+            }
+          }
+        },
+        "/api/providers/{id}/projects": {
+          "get": {
+            "summary": "Get OpenStack projects for provider",
+            "tags": [
+              "Providers"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "List of OpenStack projects",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "success": {
+                          "type": "boolean"
+                        },
+                        "projects": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "404": {
+                "description": "Provider not found"
+              }
+            }
+          }
+        },
+        "/api/teams": {
+          "get": {
+            "summary": "Get all teams",
+            "tags": [
+              "Teams"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "List of teams"
+              }
+            }
+          },
+          "post": {
+            "summary": "Create new team",
+            "tags": [
+              "Teams"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "requestBody": {
+              "required": true,
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "required": [
+                      "name",
+                      "workshop_id",
+                      "team_number"
+                    ],
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "example": "Team Alpha"
+                      },
+                      "description": {
+                        "type": "string",
+                        "example": "Advanced security team"
+                      },
+                      "workshop_id": {
+                        "type": "string",
+                        "example": "uuid-of-workshop"
+                      },
+                      "team_number": {
+                        "type": "integer",
+                        "example": 1
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "responses": {
+              "201": {
+                "description": "Team created successfully"
+              },
+              "400": {
+                "description": "Invalid input"
+              }
+            }
+          }
+        },
+        "/api/teams/{id}": {
+          "get": {
+            "summary": "Get team by ID",
+            "tags": [
+              "Teams"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Team details"
+              },
+              "404": {
+                "description": "Team not found"
+              }
+            }
+          },
+          "put": {
+            "summary": "Update team",
+            "tags": [
+              "Teams"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            ],
+            "requestBody": {
+              "required": true,
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "team_number": {
+                        "type": "integer"
+                      },
+                      "enabled": {
+                        "type": "boolean"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "responses": {
+              "200": {
+                "description": "Team updated successfully"
+              },
+              "404": {
+                "description": "Team not found"
+              }
+            }
+          },
+          "delete": {
+            "summary": "Delete team",
+            "tags": [
+              "Teams"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Team deleted successfully"
+              },
+              "404": {
+                "description": "Team not found"
+              }
+            }
+          }
+        },
+        "/api/teams/{id}/users": {
+          "get": {
+            "summary": "Get all users in team",
+            "tags": [
+              "Teams"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "List of users in team"
+              }
+            }
+          },
+          "post": {
+            "summary": "Add user to team",
+            "tags": [
+              "Teams"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            ],
+            "requestBody": {
+              "required": true,
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "required": [
+                      "user_id"
+                    ],
+                    "properties": {
+                      "user_id": {
+                        "type": "string",
+                        "example": "uuid-of-user"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "responses": {
+              "200": {
+                "description": "User added to team successfully"
+              },
+              "400": {
+                "description": "Invalid input"
+              }
+            }
+          }
+        },
+        "/api/teams/{id}/users/{userId}": {
+          "delete": {
+            "summary": "Remove user from team",
+            "tags": [
+              "Teams"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              {
+                "in": "path",
+                "name": "userId",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "User removed from team successfully"
+              },
+              "404": {
+                "description": "Team or user not found"
+              }
+            }
+          }
+        },
+        "/api/teams/{id}/users/email": {
+          "post": {
+            "summary": "Add user to team by email",
+            "tags": [
+              "Teams"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            ],
+            "requestBody": {
+              "required": true,
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "required": [
+                      "email"
+                    ],
+                    "properties": {
+                      "email": {
+                        "type": "string",
+                        "format": "email",
+                        "description": "Email address of the user to add"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "responses": {
+              "200": {
+                "description": "User added to team or queued for future addition"
+              },
+              "400": {
+                "description": "Invalid input"
+              },
+              "404": {
+                "description": "Team not found"
+              },
+              "409": {
+                "description": "User already in team or already queued"
+              }
+            }
+          }
+        },
+        "/api/teams/pending-assignments": {
+          "get": {
+            "summary": "Get all pending team assignments",
+            "tags": [
+              "Teams"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "List of all pending team assignments"
+              }
+            }
+          }
+        },
+        "/api/teams/{id}/pending-assignments": {
+          "get": {
+            "summary": "Get pending team assignments for a specific team",
+            "tags": [
+              "Teams"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "List of pending team assignments for the specified team"
+              }
+            }
+          }
+        },
+        "/api/users": {
+          "get": {
+            "summary": "Get all users",
+            "tags": [
+              "Users"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "List of users"
+              }
+            }
+          },
+          "post": {
+            "summary": "Create new user",
+            "tags": [
+              "Users"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "requestBody": {
+              "required": true,
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "required": [
+                      "username",
+                      "password"
+                    ],
+                    "properties": {
+                      "username": {
+                        "type": "string",
+                        "example": "john.doe"
+                      },
+                      "email": {
+                        "type": "string",
+                        "example": "john.doe@example.com"
+                      },
+                      "first_name": {
+                        "type": "string",
+                        "example": "John"
+                      },
+                      "last_name": {
+                        "type": "string",
+                        "example": "Doe"
+                      },
+                      "password": {
+                        "type": "string",
+                        "example": "password123"
+                      },
+                      "role": {
+                        "type": "string",
+                        "enum": [
+                          "USER",
+                          "ADMIN"
+                        ],
+                        "example": "USER"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "responses": {
+              "201": {
+                "description": "User created successfully"
+              },
+              "400": {
+                "description": "Invalid input"
+              }
+            }
+          }
+        },
+        "/api/users/{id}": {
+          "get": {
+            "summary": "Get user by ID",
+            "tags": [
+              "Users"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "User details"
+              },
+              "404": {
+                "description": "User not found"
+              }
+            }
+          },
+          "put": {
+            "summary": "Update user",
+            "tags": [
+              "Users"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            ],
+            "requestBody": {
+              "required": true,
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "username": {
+                        "type": "string"
+                      },
+                      "email": {
+                        "type": "string"
+                      },
+                      "first_name": {
+                        "type": "string"
+                      },
+                      "last_name": {
+                        "type": "string"
+                      },
+                      "role": {
+                        "type": "string",
+                        "enum": [
+                          "USER",
+                          "ADMIN"
+                        ]
+                      },
+                      "enabled": {
+                        "type": "boolean"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "responses": {
+              "200": {
+                "description": "User updated successfully"
+              },
+              "404": {
+                "description": "User not found"
+              }
+            }
+          },
+          "delete": {
+            "summary": "Delete user",
+            "tags": [
+              "Users"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "User deleted successfully"
+              },
+              "404": {
+                "description": "User not found"
+              }
+            }
+          }
+        },
+        "/api/users/generate": {
+          "post": {
+            "summary": "Generate multiple users with team assignment",
+            "tags": [
+              "Users"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "requestBody": {
+              "required": true,
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "required": [
+                      "count",
+                      "prefix",
+                      "competitionId",
+                      "usersPerTeam"
+                    ],
+                    "properties": {
+                      "count": {
+                        "type": "integer",
+                        "example": 10
+                      },
+                      "prefix": {
+                        "type": "string",
+                        "example": "user"
+                      },
+                      "competitionId": {
+                        "type": "string",
+                        "example": "uuid-of-competition"
+                      },
+                      "usersPerTeam": {
+                        "type": "integer",
+                        "example": 4
+                      },
+                      "password": {
+                        "type": "string",
+                        "example": "password123"
+                      },
+                      "passwordLength": {
+                        "type": "integer",
+                        "example": 12
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "responses": {
+              "201": {
+                "description": "Users generated successfully"
+              },
+              "400": {
+                "description": "Invalid input"
+              }
+            }
+          }
+        },
+        "/api/users/bulk": {
+          "post": {
+            "summary": "Create multiple users for a team",
+            "tags": [
+              "Users"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "requestBody": {
+              "required": true,
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "required": [
+                      "team_id",
+                      "count",
+                      "prefix"
+                    ],
+                    "properties": {
+                      "team_id": {
+                        "type": "string",
+                        "example": "uuid-of-team"
+                      },
+                      "count": {
+                        "type": "integer",
+                        "example": 5
+                      },
+                      "prefix": {
+                        "type": "string",
+                        "example": "student"
+                      },
+                      "password": {
+                        "type": "string",
+                        "example": "password123"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "responses": {
+              "201": {
+                "description": "Users created successfully"
+              },
+              "400": {
+                "description": "Invalid input"
+              }
+            }
+          }
+        },
+        "/api/users/{id}/teams": {
+          "get": {
+            "summary": "Get all teams for a user",
+            "tags": [
+              "Users"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "List of teams for user"
+              }
+            }
+          }
+        },
+        "/api/users/{id}/password": {
+          "put": {
+            "summary": "Change user password",
+            "tags": [
+              "Users"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            ],
+            "requestBody": {
+              "required": true,
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "required": [
+                      "password"
+                    ],
+                    "properties": {
+                      "password": {
+                        "type": "string",
+                        "example": "newpassword123"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "responses": {
+              "200": {
+                "description": "Password changed successfully"
+              },
+              "400": {
+                "description": "Invalid input"
+              },
+              "404": {
+                "description": "User not found"
+              }
+            }
+          }
+        },
+        "/api/users/pending-teams/{email}": {
+          "get": {
+            "summary": "Get pending team assignments for a user by email",
+            "tags": [
+              "Users"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "email",
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "format": "email",
+                  "description": "Email address to check for pending team assignments"
+                }
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "List of pending team assignments"
+              },
+              "400": {
+                "description": "Invalid email"
+              }
+            }
+          }
+        },
+        "/api/users/{id}/process-pending-teams": {
+          "post": {
+            "summary": "Process pending team assignments for a user",
+            "tags": [
+              "Users"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "description": "User ID"
+                }
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Pending team assignments processed"
+              },
+              "404": {
+                "description": "User not found"
+              }
+            }
+          }
+        },
+        "/api/users/pending-teams/{email}/remove": {
+          "delete": {
+            "summary": "Remove pending team assignment for a user by email",
+            "tags": [
+              "Users"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "email",
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "format": "email",
+                  "description": "Email address"
+                }
+              },
+              {
+                "in": "query",
+                "name": "team_id",
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "description": "Team ID to remove from pending assignments"
+                }
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Pending team assignment removed successfully"
+              },
+              "400": {
+                "description": "Invalid input"
+              },
+              "404": {
+                "description": "Pending assignment not found"
+              }
+            }
+          }
+        },
+        "/api/vnc/{instanceId}/console": {
+          "post": {
+            "summary": "Create VNC console session",
+            "tags": [
+              "VNC"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "instanceId",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            ],
+            "requestBody": {
+              "required": false,
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "console_type": {
+                        "type": "string",
+                        "enum": [
+                          "NOVNC",
+                          "VNC",
+                          "SERIAL",
+                          "SPICE",
+                          "RDP",
+                          "MKS"
+                        ],
+                        "default": "NOVNC"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "responses": {
+              "200": {
+                "description": "Console session created",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "session_token": {
+                          "type": "string"
+                        },
+                        "console_url": {
+                          "type": "string"
+                        },
+                        "expires_at": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "404": {
+                "description": "Instance not found"
+              }
+            }
+          }
+        },
+        "/api/vnc/{instanceId}/console/refresh": {
+          "post": {
+            "summary": "Refresh VNC console session",
+            "tags": [
+              "VNC"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "instanceId",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Console session refreshed"
+              },
+              "404": {
+                "description": "Instance not found"
+              }
+            }
+          }
+        },
+        "/api/vnc/sessions": {
+          "get": {
+            "summary": "Get user's active VNC sessions",
+            "tags": [
+              "VNC"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "List of active sessions"
+              }
+            }
+          }
+        },
+        "/api/vnc/sessions/{sessionId}": {
+          "delete": {
+            "summary": "Close VNC session",
+            "tags": [
+              "VNC"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "sessionId",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Session closed successfully"
+              },
+              "404": {
+                "description": "Session not found"
+              }
+            }
+          }
+        },
+        "/api/vnc/verify": {
+          "post": {
+            "summary": "Verify VNC session token",
+            "tags": [
+              "VNC"
+            ],
+            "requestBody": {
+              "required": true,
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "required": [
+                      "session_token"
+                    ],
+                    "properties": {
+                      "session_token": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "responses": {
+              "200": {
+                "description": "Token is valid"
+              },
+              "401": {
+                "description": "Invalid token"
+              }
+            }
+          }
+        },
+        "/api/workshops": {
+          "get": {
+            "summary": "Get all workshops",
+            "tags": [
+              "Workshops"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "List of workshops",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "provider_id": {
+                            "type": "string"
+                          },
+                          "openstack_project_name": {
+                            "type": "string"
+                          },
+                          "enabled": {
+                            "type": "boolean"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "post": {
+            "summary": "Create new workshop",
+            "tags": [
+              "Workshops"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "requestBody": {
+              "required": true,
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "required": [
+                      "name",
+                      "provider_id",
+                      "openstack_project_name"
+                    ],
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "example": "Workshop 2024"
+                      },
+                      "description": {
+                        "type": "string",
+                        "example": "Annual security workshop"
+                      },
+                      "provider_id": {
+                        "type": "string",
+                        "example": "uuid-of-provider"
+                      },
+                      "openstack_project_name": {
+                        "type": "string",
+                        "example": "workshop-2024"
+                      },
+                      "lockout_start": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2025-01-05T13:00:00Z"
+                      },
+                      "lockout_end": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2025-01-05T17:00:00Z"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "responses": {
+              "201": {
+                "description": "Workshop created successfully"
+              },
+              "400": {
+                "description": "Invalid input"
+              }
+            }
+          }
+        },
+        "/api/workshops/{id}": {
+          "get": {
+            "summary": "Get workshop by ID",
+            "tags": [
+              "Workshops"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Workshop details"
+              },
+              "404": {
+                "description": "Workshop not found"
+              }
+            }
+          },
+          "put": {
+            "summary": "Update workshop",
+            "tags": [
+              "Workshops"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            ],
+            "requestBody": {
+              "required": true,
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "enabled": {
+                        "type": "boolean"
+                      },
+                      "lockout_start": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "lockout_end": {
+                        "type": "string",
+                        "format": "date-time"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "responses": {
+              "200": {
+                "description": "Workshop updated successfully"
+              },
+              "404": {
+                "description": "Workshop not found"
+              }
+            }
+          },
+          "delete": {
+            "summary": "Delete workshop",
+            "tags": [
+              "Workshops"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Workshop deleted successfully"
+              },
+              "404": {
+                "description": "Workshop not found"
+              }
+            }
+          }
+        },
+        "/api/workshops/{id}/instances": {
+          "get": {
+            "summary": "Get all instances in workshop",
+            "tags": [
+              "Workshops"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "List of instances in workshop"
+              }
+            }
+          }
+        },
+        "/api/workshops/{id}/teams": {
+          "get": {
+            "summary": "Get all teams in workshop",
+            "tags": [
+              "Workshops"
+            ],
+            "security": [
+              {
+                "BearerAuth": []
+              },
+              {
+                "ServiceAccountAuth": []
+              }
+            ],
+            "parameters": [
+              {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "List of teams in workshop"
+              }
+            }
+          }
+        }
+      }
+    },
+    "customOptions": {}
+  };
+    url = options.swaggerUrl || url
+    var urls = options.swaggerUrls
+    var customOptions = options.customOptions
+    var spec1 = options.swaggerDoc
+    var swaggerOptions = {
+      spec: spec1,
+      url: url,
+      urls: urls,
+      dom_id: '#swagger-ui',
+      deepLinking: true,
+      presets: [
+        SwaggerUIBundle.presets.apis,
+        SwaggerUIStandalonePreset
+      ],
+      plugins: [
+        SwaggerUIBundle.plugins.DownloadUrl
+      ],
+      layout: "StandaloneLayout"
+    }
+    for (var attrname in customOptions) {
+      swaggerOptions[attrname] = customOptions[attrname];
+    }
+    var ui = SwaggerUIBundle(swaggerOptions)
+  
+    if (customOptions.oauth) {
+      ui.initOAuth(customOptions.oauth)
+    }
+  
+    if (customOptions.preauthorizeApiKey) {
+      const key = customOptions.preauthorizeApiKey.authDefinitionKey;
+      const value = customOptions.preauthorizeApiKey.apiKeyValue;
+      if (!!key && !!value) {
+        const pid = setInterval(() => {
+          const authorized = ui.preauthorizeApiKey(key, value);
+          if(!!authorized) clearInterval(pid);
+        }, 500)
+  
+      }
+    }
+  
+    if (customOptions.authAction) {
+      ui.authActions.authorize(customOptions.authAction)
+    }
+  
+    window.ui = ui
+  }
+  

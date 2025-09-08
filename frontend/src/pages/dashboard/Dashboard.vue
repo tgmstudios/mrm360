@@ -269,7 +269,7 @@
                   <div class="ml-3">
                     <p class="text-sm font-medium text-gray-100">Account Status</p>
                     <p class="text-sm text-gray-400">
-                      {{ authStore.user?.authentikId ? 'Active' : 'Inactive' }}
+                      {{ authStore.user?.isActive ? 'Active' : 'Inactive' }}
                     </p>
                   </div>
                 </div>
@@ -277,12 +277,12 @@
                   <span 
                     :class="[
                       'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
-                      authStore.user?.authentikId 
+                      authStore.user?.isActive 
                         ? 'bg-green-100 text-green-800' 
                         : 'bg-yellow-100 text-yellow-800'
                     ]"
                   >
-                    {{ authStore.user?.authentikId ? 'Active' : 'Inactive' }}
+                    {{ authStore.user?.isActive ? 'Active' : 'Inactive' }}
                   </span>
                 </div>
               </div>
@@ -327,7 +327,7 @@
                   <div class="ml-3">
                     <p class="text-sm font-medium text-gray-100">Member Since</p>
                     <p class="text-sm text-gray-400">
-                      {{ authStore.user?.createdAt ? formatDate(authStore.user.createdAt) : 'Recently joined' }}
+                      {{ authStore.user?.createdAt ? formatDate(authStore.user.createdAt) : 'Unknown' }}
                     </p>
                   </div>
                 </div>
@@ -395,12 +395,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onMounted, ref } from 'vue'
 import { useAuthStore } from '@/stores/authStore'
 import { useUserStore } from '@/stores/userStore'
 import { useEventStore } from '@/stores/eventStore'
 import { useTeamStore } from '@/stores/teamStore'
+import apiService from '@/services/api'
 
 import { initiateOAuthLogin } from '@/utils/oauth'
 import {
@@ -408,19 +408,17 @@ import {
   UserGroupIcon,
   CalendarIcon,
   CurrencyDollarIcon,
-  ChartBarIcon,
-  PlusIcon,
-  UserPlusIcon,
   UserIcon
 } from '@heroicons/vue/24/outline'
-import type { User, Event, Team } from '@/types/api'
+import type { User, DashboardStats } from '@/types/api'
 
-const router = useRouter()
 const authStore = useAuthStore()
 const userStore = useUserStore()
 const eventStore = useEventStore()
 const teamStore = useTeamStore()
 
+// Dashboard stats from API
+const dashboardStatsData = ref<DashboardStats | null>(null)
 
 // Check if user is admin or exec board
 const isAdminOrExecBoard = computed(() => {
@@ -432,10 +430,10 @@ const dashboardStats = computed(() => {
   const stats = []
   
   if (isAdminOrExecBoard.value) {
-    // Admin/Exec Board stats
+    // Admin/Exec Board stats - use API data for total counts
     stats.push({
       name: 'Total Members',
-      value: userStore.users.length,
+      value: dashboardStatsData.value?.totalMembers ?? userStore.users.length,
       icon: UsersIcon,
       iconColor: 'text-blue-600',
       href: '/users'
@@ -443,7 +441,7 @@ const dashboardStats = computed(() => {
     
     stats.push({
       name: 'Total Teams',
-      value: teamStore.teams.length,
+      value: dashboardStatsData.value?.totalTeams ?? teamStore.teams.length,
       icon: UserGroupIcon,
       iconColor: 'text-green-600',
       href: '/teams'
@@ -451,7 +449,7 @@ const dashboardStats = computed(() => {
     
     stats.push({
       name: 'Paid Members',
-      value: userStore.users.filter(u => u.isPaid).length,
+      value: dashboardStatsData.value?.paidMembers ?? userStore.users.filter(u => u.isPaid).length,
       icon: CurrencyDollarIcon,
       iconColor: 'text-yellow-600',
       href: '/users'
@@ -459,16 +457,16 @@ const dashboardStats = computed(() => {
     
     stats.push({
       name: 'Upcoming Events',
-      value: upcomingEvents.value.length,
+      value: dashboardStatsData.value?.upcomingEvents ?? upcomingEvents.value.length,
       icon: CalendarIcon,
       iconColor: 'text-purple-600',
       href: '/events'
     })
   } else {
-    // Regular member stats
+    // Regular member stats - use API data for upcoming events, local data for personal stats
     stats.push({
       name: 'Upcoming Events',
-      value: upcomingEvents.value.length,
+      value: dashboardStatsData.value?.upcomingEvents ?? upcomingEvents.value.length,
       icon: CalendarIcon,
       iconColor: 'text-purple-600',
       href: '/events'
@@ -543,16 +541,17 @@ const formatDate = (dateString: string) => {
   })
 }
 
-const formatRelativeTime = (date: Date) => {
-  const now = new Date()
-  const diff = now.getTime() - date.getTime()
-  const minutes = Math.floor(diff / (1000 * 60))
-  const hours = Math.floor(diff / (1000 * 60 * 60))
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
 
-  if (minutes < 60) return `${minutes}m ago`
-  if (hours < 24) return `${hours}h ago`
-  return `${days}d ago`
+// Fetch dashboard stats from API
+const fetchDashboardStats = async () => {
+  try {
+    const stats = await apiService.getDashboardStats()
+    dashboardStatsData.value = stats
+  } catch (error) {
+    console.error('Failed to fetch dashboard stats:', error)
+    // Fallback to local data if API fails
+    dashboardStatsData.value = null
+  }
 }
 
 // Load data on mount
@@ -582,6 +581,9 @@ onMounted(async () => {
   
   // Load dashboard data
   try {
+    // Fetch dashboard stats first (this gives us total counts)
+    await fetchDashboardStats()
+    
     // Check if stores need to be refreshed (e.g., after OAuth login)
     const storesNeedRefresh = userStore.users.length === 0 && 
                              eventStore.events.length === 0 && 

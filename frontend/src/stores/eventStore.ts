@@ -86,6 +86,23 @@ export const useEventStore = defineStore('events', () => {
     }
   }
 
+  async function fetchEventByCheckInCode(checkInCode: string) {
+    try {
+      isLoading.value = true
+      error.value = null
+      
+      const event = await apiService.getEventByCheckInCode(checkInCode)
+      currentEvent.value = event
+      
+      return event
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to fetch event'
+      throw err
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   async function createEvent(eventData: EventCreate) {
     try {
       isLoading.value = true
@@ -159,7 +176,7 @@ export const useEventStore = defineStore('events', () => {
 
   async function rsvpToEvent(eventId: string, attending: boolean) {
     try {
-      await apiService.rsvpToEvent(eventId, attending)
+      const result = await apiService.rsvpToEvent(eventId, attending)
       
       // Update event in store
       const event = events.value.find(e => e.id === eventId)
@@ -168,8 +185,127 @@ export const useEventStore = defineStore('events', () => {
         // For now, we'll just mark it as updated
         event.updatedAt = new Date().toISOString()
       }
+      
+      return result
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to RSVP to event'
+      throw err
+    }
+  }
+
+  async function checkInUser(eventId: string, userId: string) {
+    try {
+      const result = await apiService.checkInUser(eventId, userId)
+      
+      // Refresh the current event to get updated check-ins
+      if (currentEvent.value?.id === eventId) {
+        await fetchEvent(eventId)
+      }
+      
+      return result
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to check in user'
+      throw err
+    }
+  }
+
+  async function checkInWithQR(eventId: string, qrCode: string) {
+    try {
+      const result = await apiService.checkInWithQR(eventId, qrCode)
+      
+      // Refresh the current event to get updated check-ins
+      if (currentEvent.value?.id === eventId) {
+        await fetchEvent(eventId)
+      }
+      
+      return result
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to check in with QR code'
+      throw err
+    }
+  }
+
+  // Event Teams methods
+  async function getEventTeams(eventId: string) {
+    try {
+      const result = await apiService.getEventTeams(eventId)
+      return result
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to fetch event teams'
+      throw err
+    }
+  }
+
+  async function createEventTeams(eventId: string, membersPerTeam: number = 4, wiretapWorkshopId?: string, assignmentType: string = 'manual') {
+    try {
+      const result = await apiService.createEventTeams(eventId, membersPerTeam, wiretapWorkshopId, assignmentType)
+      
+      // Refresh the current event to get updated teams
+      if (currentEvent.value?.id === eventId) {
+        await fetchEvent(eventId)
+      }
+      
+      return result
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to create event teams'
+      throw err
+    }
+  }
+
+  async function addTeamMember(eventId: string, teamId: string, email: string) {
+    try {
+      const result = await apiService.addTeamMember(eventId, teamId, email)
+      
+      // Refresh the current event to get updated teams
+      if (currentEvent.value?.id === eventId) {
+        await fetchEvent(eventId)
+      }
+      
+      return result
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to add team member'
+      throw err
+    }
+  }
+
+  async function removeTeamMember(eventId: string, teamId: string, email: string) {
+    try {
+      const result = await apiService.removeTeamMember(eventId, teamId, email)
+      
+      // Refresh the current event to get updated teams
+      if (currentEvent.value?.id === eventId) {
+        await fetchEvent(eventId)
+      }
+      
+      return result
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to remove team member'
+      throw err
+    }
+  }
+
+  async function deleteEventTeam(eventId: string, teamId: string) {
+    try {
+      const result = await apiService.deleteEventTeam(eventId, teamId)
+      
+      // Refresh the current event to get updated teams
+      if (currentEvent.value?.id === eventId) {
+        await fetchEvent(eventId)
+      }
+      
+      return result
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to delete event team'
+      throw err
+    }
+  }
+
+  async function syncEventTeams(eventId: string, syncType: string, membersPerTeam: number = 4) {
+    try {
+      const result = await apiService.syncEventTeams(eventId, syncType, membersPerTeam)
+      return result
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to sync event teams'
       throw err
     }
   }
@@ -184,6 +320,17 @@ export const useEventStore = defineStore('events', () => {
       limit: 20,
       sortBy: 'startTime',
       sortOrder: 'asc'
+    }
+  }
+
+  // Enable teams for an event
+  async function enableEventTeams(eventId: string) {
+    try {
+      const result = await apiService.enableEventTeams(eventId)
+      return result
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to enable teams'
+      throw err
     }
   }
 
@@ -205,10 +352,20 @@ export const useEventStore = defineStore('events', () => {
     // Actions
     fetchEvents,
     fetchEvent,
+    fetchEventByCheckInCode,
     createEvent,
     updateEvent,
     deleteEvent,
     rsvpToEvent,
+    checkInUser,
+    checkInWithQR,
+    getEventTeams,
+    createEventTeams,
+    addTeamMember,
+    removeTeamMember,
+    deleteEventTeam,
+    syncEventTeams,
+    enableEventTeams,
     clearError,
     resetFilters
   }

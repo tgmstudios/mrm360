@@ -145,29 +145,29 @@
 
     <!-- Users Table -->
     <div class="bg-gray-800 shadow rounded-lg overflow-hidden border border-gray-700">
-      <div class="overflow-x-auto">
-        <table class="min-w-full divide-y divide-gray-700">
+      <div class="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
+        <table class="w-full divide-y divide-gray-700">
           <thead class="bg-gray-700">
             <tr>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-1/4">
                 Name
               </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-1/5">
                 Email
               </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-20">
                 Status
               </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-20">
                 Payment
               </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-1/6">
                 Teams
               </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-24">
                 Joined
               </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-24">
                 Actions
               </th>
             </tr>
@@ -265,6 +265,7 @@
                      <span v-else>Unpay</span>
                    </button>
                    <button
+                     v-if="can('delete', 'User')"
                      @click="deleteUser(user)"
                      class="text-red-400 hover:text-red-300"
                    >
@@ -365,6 +366,7 @@ import { useUserStore } from '@/stores/userStore'
 import { useTeamStore } from '@/stores/teamStore'
 import { useGroupStore } from '@/stores/groupStore'
 import { useToast } from 'vue-toastification'
+import { usePermissions } from '@/composables/usePermissions'
 import type { User, UserFilters } from '@/types/api'
 import BaseButton from '@/components/common/BaseButton.vue'
 import PaymentModal from '@/components/payments/PaymentModal.vue'
@@ -373,6 +375,7 @@ const userStore = useUserStore()
 const teamStore = useTeamStore()
 const groupStore = useGroupStore()
 const toast = useToast()
+const { can } = usePermissions()
 
 // State
 const isTogglingPaidStatus = ref<string | null>(null)

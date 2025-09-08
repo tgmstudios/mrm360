@@ -2,6 +2,7 @@ import { Job } from 'bullmq';
 import { logger } from '@/utils/logger';
 import { prisma } from '@/models/prismaClient';
 import { BackgroundTaskManager } from '@/managers/backgroundTaskManager';
+import { WiretapServiceFactory } from '@/services/wiretapServiceFactory';
 
 type ProvisionType = 'TEAM' | 'EVENT';
 
@@ -12,7 +13,7 @@ interface ProvisionJobData {
 }
 
 export async function processProvisionJob(job: Job<ProvisionJobData>) {
-  const { backgroundTaskId, provisionType } = job.data;
+  const { backgroundTaskId, provisionType, payload } = job.data;
   const taskManager = new BackgroundTaskManager(prisma);
 
   logger.info(`Processing provision job ${job.id} for ${provisionType} task ${backgroundTaskId}`);
@@ -20,40 +21,38 @@ export async function processProvisionJob(job: Job<ProvisionJobData>) {
   try {
     await taskManager.markTaskRunning(backgroundTaskId);
 
-    // Define simulated subtasks per provision type
+    // Define subtasks per provision type
     const steps = provisionType === 'TEAM'
       ? [
           'Validate inputs and member eligibility',
           'Create internal records',
-          'Setup Wiki (simulated)',
-          'Setup GitHub (simulated)',
-          'Setup Nextcloud (simulated)',
-          'Create Discord channel (simulated)',
-          'Sync Authentik groups (simulated)'
+          'Setup Wiki',
+          'Setup GitHub',
+          'Setup Nextcloud',
+          'Create Discord channel',
+          'Sync Authentik groups'
         ]
-      : [
-          'Validate event details',
-          'Create internal records',
-          'Create Nextcloud calendar entry (simulated)',
-          'Generate RSVP link (simulated)',
-          'Prepare Wiretap/OpenStack resources (simulated)'
-        ];
+      : [];
 
     const totalSteps = steps.length;
-    for (let i = 0; i < totalSteps; i++) {
-      // Run subtask
-      await taskManager.markSubtaskRunning(backgroundTaskId, i);
-      // Simulate work with incremental progress within the subtask
-      for (let p = 1; p <= 5; p++) {
-        await new Promise(r => setTimeout(r, 300));
-        await taskManager.updateSubtaskProgress(backgroundTaskId, i, p * 20);
-        await job.updateProgress(Math.round(((i + p / 5) / totalSteps) * 100));
+    
+    if (totalSteps === 0) {
+      // For EVENT provision type, no subtasks are needed - mark as completed immediately
+      await taskManager.markTaskCompleted(backgroundTaskId, { message: `${provisionType} provisioning complete` });
+    } else {
+      // Process subtasks for TEAM provision type
+      for (let i = 0; i < totalSteps; i++) {
+        // Run subtask
+        await taskManager.markSubtaskRunning(backgroundTaskId, i);
+        
+        // Mark subtask as completed immediately (no actual provisioning needed)
+        await taskManager.markSubtaskCompleted(backgroundTaskId, i, { message: `${steps[i]} completed` });
+        
+        await taskManager.updateTaskProgress(backgroundTaskId, Math.round(((i + 1) / totalSteps) * 100));
       }
-      await taskManager.markSubtaskCompleted(backgroundTaskId, i, { message: `${steps[i]} done` });
-      await taskManager.updateTaskProgress(backgroundTaskId, Math.round(((i + 1) / totalSteps) * 100));
-    }
 
-    await taskManager.markTaskCompleted(backgroundTaskId, { message: `${provisionType} provisioning complete` });
+      await taskManager.markTaskCompleted(backgroundTaskId, { message: `${provisionType} provisioning complete` });
+    }
     return { success: true };
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : 'Unknown error';

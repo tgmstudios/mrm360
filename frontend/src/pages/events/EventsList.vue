@@ -36,14 +36,6 @@
           </button>
         </div>
         
-        <div class="flex items-center space-x-4">
-          <BaseButton
-            @click="showCheckInModal = true"
-            variant="outline"
-          >
-            Check In
-          </BaseButton>
-        </div>
       </div>
     </div>
 
@@ -125,7 +117,7 @@
           >
             <option value="">All Teams</option>
             <option
-              v-for="team in teams"
+              v-for="team in availableTeams"
               :key="team.id"
               :value="team.id"
             >
@@ -158,32 +150,32 @@
 
     <!-- Events Table -->
     <div v-if="viewMode === 'table'" class="bg-gray-800 shadow rounded-lg overflow-hidden border border-gray-700">
-      <div class="overflow-x-auto">
-        <table class="min-w-full divide-y divide-gray-700">
+      <div class="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
+        <table class="w-full divide-y divide-gray-700">
           <thead class="bg-gray-700">
             <tr>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-1/3">
                 Event
               </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-1/5">
                 Date & Time
               </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-20">
                 Category
               </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-1/6">
                 Team
               </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-24">
                 Attendance
               </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-24">
                 Actions
               </th>
             </tr>
           </thead>
           <tbody class="bg-gray-800 divide-y divide-gray-700">
-            <tr v-for="event in filteredEvents" :key="event.id" class="hover:bg-gray-700">
+            <tr v-for="event in paginatedEvents" :key="event.id" class="hover:bg-gray-700">
               <td class="px-6 py-4 whitespace-nowrap">
                 <div class="flex items-center">
                   <div class="flex-shrink-0 h-10 w-10">
@@ -220,7 +212,7 @@
               </td>
               <td class="px-6 py-4 whitespace-nowrap">
                 <div class="text-sm text-gray-300">
-                  {{ event.attendees?.length || 0 }} attendees
+                  0 attendees
                 </div>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -232,7 +224,7 @@
                     View
                   </router-link>
                   <button
-                    v-if="canUpdate"
+                    v-if="canEdit"
                     @click="editEvent(event)"
                     class="text-green-400 hover:text-green-300"
                   >
@@ -290,8 +282,68 @@
       </div>
     </div>
 
+    <!-- Pagination -->
+    <div v-if="totalPages > 1" class="bg-gray-800 shadow rounded-lg border border-gray-700 p-4">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center text-sm text-gray-400">
+          <span>
+            Showing {{ ((currentPage - 1) * itemsPerPage) + 1 }} to 
+            {{ Math.min(currentPage * itemsPerPage, totalItems) }} of 
+            {{ totalItems }} results
+          </span>
+        </div>
+        
+        <div class="flex items-center space-x-2">
+          <!-- Previous Button -->
+          <button
+            @click="currentPage--"
+            :disabled="currentPage <= 1"
+            :class="[
+              'px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200',
+              currentPage <= 1
+                ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white'
+            ]"
+          >
+            Previous
+          </button>
+          
+          <!-- Page Numbers -->
+          <div class="flex items-center space-x-1">
+            <button
+              v-for="page in visiblePages"
+              :key="page"
+              @click="currentPage = page"
+              :class="[
+                'px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200',
+                page === currentPage
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white'
+              ]"
+            >
+              {{ page }}
+            </button>
+          </div>
+          
+          <!-- Next Button -->
+          <button
+            @click="currentPage++"
+            :disabled="currentPage >= totalPages"
+            :class="[
+              'px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200',
+              currentPage >= totalPages
+                ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white'
+            ]"
+          >
+            Next
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Empty State -->
-    <div v-if="filteredEvents.length === 0" class="text-center py-12">
+    <div v-if="paginatedEvents.length === 0" class="text-center py-12">
       <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
       </svg>
@@ -311,9 +363,9 @@ import { useRouter } from 'vue-router'
 import { useEventStore } from '@/stores/eventStore'
 import { useTeamStore } from '@/stores/teamStore'
 import { usePermissions } from '@/composables/usePermissions'
-import BaseModal from '@/components/common/BaseModal.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
-import type { Event, Team } from '@/types/api'
+import { CalendarIcon } from '@heroicons/vue/24/outline'
+import type { Event } from '@/types/api'
 
 const router = useRouter()
 const eventStore = useEventStore()
@@ -321,10 +373,6 @@ const teamStore = useTeamStore()
 const { can } = usePermissions()
 
 const loading = ref(false)
-const creating = ref(false)
-const checkingIn = ref(false)
-const showCreateModal = ref(false)
-const showCheckInModal = ref(false)
 const viewMode = ref<'table' | 'calendar'>('table')
 const currentPage = ref(1)
 const itemsPerPage = 10
@@ -337,70 +385,17 @@ const filters = reactive({
   status: '' as 'upcoming' | 'ongoing' | 'past'
 })
 
-const newEvent = reactive({
-  title: '',
-  description: '',
-  startTime: '',
-  endTime: '',
-  category: 'meeting' as const,
-  linkedTeamId: '',
-  attendanceType: 'required' as const
-})
 
-const checkInData = reactive({
-  eventId: '',
-  qrCode: ''
-})
 
-const canCreate = computed(() => can('create', 'Event'))
 const canEdit = computed(() => can('update', 'Event'))
 const canDelete = computed(() => can('delete', 'Event'))
 
-const availableTeams = computed(() => teamStore.teams.filter(t => t.status === 'active'))
+const availableTeams = computed(() => teamStore.teams)
 
-const filteredEvents = computed(() => {
-  let events = eventStore.events
-
-  if (filters.search) {
-    const search = filters.search.toLowerCase()
-    events = events.filter(event => 
-      event.title.toLowerCase().includes(search) ||
-      event.description?.toLowerCase().includes(search)
-    )
-  }
-
-  if (filters.category) {
-    events = events.filter(event => event.category === filters.category)
-  }
-
-  if (filters.linkedTeamId) {
-    events = events.filter(event => event.linkedTeamId === filters.linkedTeamId)
-  }
-
-  if (filters.status) {
-    const now = new Date()
-    switch (filters.status) {
-      case 'upcoming':
-        events = events.filter(event => new Date(event.startTime) > now)
-        break
-      case 'ongoing':
-        events = events.filter(event => new Date(event.startTime) <= now && new Date(event.endTime) >= now)
-        break
-      case 'past':
-        events = events.filter(event => new Date(event.startTime) < now)
-        break
-    }
-  }
-
-  return events.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
-})
-
-const totalPages = computed(() => Math.ceil(filteredEvents.value.length / itemsPerPage))
-const paginatedEvents = computed(() => {
-  const start = (currentPage.value - 1) * itemsPerPage
-  const end = start + itemsPerPage
-  return filteredEvents.value.slice(start, end)
-})
+// Use server-side pagination instead of client-side filtering
+const totalPages = computed(() => eventStore.pagination.totalPages)
+const totalItems = computed(() => eventStore.pagination.total)
+const paginatedEvents = computed(() => eventStore.events)
 
 const visiblePages = computed(() => {
   const pages = []
@@ -419,9 +414,38 @@ const visiblePages = computed(() => {
   return pages
 })
 
-const upcomingEvents = computed(() => 
-  eventStore.events.filter(event => new Date(event.startTime) > new Date())
-)
+
+const calendarDays = computed(() => {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = now.getMonth()
+  
+  // Get first day of month and number of days
+  const firstDay = new Date(year, month, 1)
+  const startDate = new Date(firstDay)
+  startDate.setDate(startDate.getDate() - firstDay.getDay())
+  
+  const days = []
+  for (let i = 0; i < 42; i++) {
+    const currentDate = new Date(startDate)
+    currentDate.setDate(startDate.getDate() + i)
+    
+    const dayEvents = eventStore.events.filter(event => {
+      const eventDate = new Date(event.startTime)
+      return eventDate.toDateString() === currentDate.toDateString()
+    })
+    
+    days.push({
+      date: currentDate.toISOString(),
+      dayNumber: currentDate.getDate(),
+      isCurrentMonth: currentDate.getMonth() === month,
+      isToday: currentDate.toDateString() === now.toDateString(),
+      events: dayEvents
+    })
+  }
+  
+  return days
+})
 
 onMounted(async () => {
   await loadData()
@@ -429,13 +453,21 @@ onMounted(async () => {
 
 watch(filters, () => {
   currentPage.value = 1
+  loadData()
 }, { deep: true })
+
+watch(currentPage, () => {
+  loadData()
+})
 
 const loadData = async () => {
   try {
     loading.value = true
     await Promise.all([
-      eventStore.fetchEvents(),
+      eventStore.fetchEvents({
+        page: currentPage.value,
+        limit: itemsPerPage
+      }),
       teamStore.fetchTeams()
     ])
   } catch (error) {
@@ -445,9 +477,6 @@ const loadData = async () => {
   }
 }
 
-const applyFilters = () => {
-  currentPage.value = 1
-}
 
 const clearFilters = () => {
   filters.search = ''
@@ -477,61 +506,23 @@ const deleteEvent = async (event: Event) => {
   }
 }
 
-const handleCreateEvent = async () => {
-  try {
-    creating.value = true
-    
-    await eventStore.createEvent({
-      title: newEvent.title,
-      description: newEvent.description,
-      startTime: new Date(newEvent.startTime),
-      endTime: new Date(newEvent.endTime),
-      category: newEvent.category,
-      linkedTeamId: newEvent.linkedTeamId || null,
-      attendanceType: newEvent.attendanceType
-    })
-    
-    // Reset form and close modal
-    Object.assign(newEvent, {
-      title: '',
-      description: '',
-      startTime: '',
-      endTime: '',
-      category: 'meeting',
-      linkedTeamId: '',
-      attendanceType: 'required'
-    })
-    
-    showCreateModal.value = false
-    await loadData()
-  } catch (error) {
-    console.error('Failed to create event:', error)
-  } finally {
-    creating.value = false
-  }
+
+
+const formatDate = (dateString: string) => {
+  return new Date(dateString).toLocaleDateString()
 }
 
-const handleCheckIn = async () => {
-  try {
-    checkingIn.value = true
-    
-    const result = await eventStore.checkInAttendance({
-      qrCode: checkInData.qrCode,
-      eventId: checkInData.eventId
-    })
-    
-    if (result.success) {
-      alert(`Check-in successful for ${result.user?.name}`)
-      showCheckInModal.value = false
-      Object.assign(checkInData, { eventId: '', qrCode: '' })
-    } else {
-      alert(`Check-in failed: ${result.message}`)
-    }
-  } catch (error) {
-    console.error('Failed to check in:', error)
-    alert('Check-in failed. Please try again.')
-  } finally {
-    checkingIn.value = false
+const formatTime = (dateString: string) => {
+  return new Date(dateString).toLocaleTimeString()
+}
+
+const getCategoryColor = (category: string) => {
+  const colors = {
+    meeting: 'bg-blue-100 text-blue-800',
+    social: 'bg-green-100 text-green-800',
+    workshop: 'bg-purple-100 text-purple-800',
+    other: 'bg-gray-100 text-gray-800'
   }
+  return colors[category as keyof typeof colors] || colors.other
 }
 </script>

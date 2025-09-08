@@ -98,7 +98,7 @@
       <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
     </div>
 
-    <div v-else-if="filteredTeams.length === 0" class="text-center py-12">
+    <div v-else-if="paginatedTeams.length === 0" class="text-center py-12">
       <div class="text-gray-400">
         <svg class="mx-auto h-12 w-12 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -175,62 +175,59 @@
     </div>
 
     <!-- Pagination -->
-    <div v-if="totalPages > 1" class="flex items-center justify-between">
-      <div class="flex-1 flex justify-between sm:hidden">
-        <BaseButton
-          @click="currentPage--"
-          :disabled="currentPage === 1"
-          variant="outline"
-          size="sm"
-        >
-          Previous
-        </BaseButton>
-        <BaseButton
-          @click="currentPage++"
-          :disabled="currentPage === totalPages"
-          variant="outline"
-          size="sm"
-        >
-          Next
-        </BaseButton>
-      </div>
-      <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-        <div>
-          <p class="text-sm text-gray-400">
-            Showing <span class="font-medium">{{ startIndex + 1 }}</span> to <span class="font-medium">{{ endIndex }}</span> of <span class="font-medium">{{ filteredTeams.length }}</span> results
-          </p>
+    <div v-if="totalPages > 1" class="bg-gray-800 shadow rounded-lg border border-gray-700 p-4">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center text-sm text-gray-400">
+          <span>
+            Showing {{ startIndex }} to {{ endIndex }} of {{ totalItems }} results
+          </span>
         </div>
-        <div>
-          <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-            <BaseButton
-              @click="currentPage--"
-              :disabled="currentPage === 1"
-              variant="outline"
-              size="sm"
-              class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-600 bg-gray-700 text-sm font-medium text-gray-300 hover:bg-gray-600"
-            >
-              Previous
-            </BaseButton>
-            <BaseButton
+        
+        <div class="flex items-center space-x-2">
+          <!-- Previous Button -->
+          <button
+            @click="currentPage--"
+            :disabled="currentPage <= 1"
+            :class="[
+              'px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200',
+              currentPage <= 1
+                ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white'
+            ]"
+          >
+            Previous
+          </button>
+          
+          <!-- Page Numbers -->
+          <div class="flex items-center space-x-1">
+            <button
               v-for="page in visiblePages"
               :key="page"
               @click="currentPage = page"
-              :variant="currentPage === page ? 'primary' : 'outline'"
-              size="sm"
-              class="relative inline-flex items-center px-4 py-2 border border-gray-600 bg-gray-700 text-sm font-medium text-gray-300 hover:bg-gray-600"
+              :class="[
+                'px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200',
+                page === currentPage
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white'
+              ]"
             >
               {{ page }}
-            </BaseButton>
-            <BaseButton
-              @click="currentPage++"
-              :disabled="currentPage === totalPages"
-              variant="outline"
-              size="sm"
-              class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-600 bg-gray-700 text-sm font-medium text-gray-300 hover:bg-gray-600"
-            >
-              Next
-            </BaseButton>
-          </nav>
+            </button>
+          </div>
+          
+          <!-- Next Button -->
+          <button
+            @click="currentPage++"
+            :disabled="currentPage >= totalPages"
+            :class="[
+              'px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200',
+              currentPage >= totalPages
+                ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white'
+            ]"
+          >
+            Next
+          </button>
         </div>
       </div>
     </div>
@@ -265,41 +262,10 @@ const canCreate = computed(() => can('create', 'Team'))
 const canUpdate = computed(() => can('update', 'Team'))
 const canDelete = computed(() => can('delete', 'Team'))
 
-// Filter teams based on search and filters
-const filteredTeams = computed(() => {
-  let teams = teamStore.teams
-
-  if (filters.search) {
-    teams = teams.filter(team => 
-      team.name.toLowerCase().includes(filters.search.toLowerCase()) ||
-      (team.description && team.description.toLowerCase().includes(filters.search.toLowerCase()))
-    )
-  }
-
-  if (filters.type) {
-    teams = teams.filter(team => team.type === filters.type)
-  }
-
-  if (filters.subtype) {
-    teams = teams.filter(team => team.subtype === filters.subtype)
-  }
-
-  return teams
-})
-
-const isFormValid = computed(() => {
-  return true // No form validation needed for list view
-})
-
-const totalPages = computed(() => {
-  return Math.ceil(filteredTeams.value.length / itemsPerPage.value)
-})
-
-const paginatedTeams = computed(() => {
-  const start = (currentPage.value - 1) * itemsPerPage.value
-  const end = start + itemsPerPage.value
-  return filteredTeams.value.slice(start, end)
-})
+// Use server-side pagination instead of client-side filtering
+const totalPages = computed(() => teamStore.pagination.totalPages)
+const totalItems = computed(() => teamStore.pagination.total)
+const paginatedTeams = computed(() => teamStore.teams)
 
 const visiblePages = computed(() => {
   const pages = []
@@ -314,11 +280,11 @@ const visiblePages = computed(() => {
 })
 
 const startIndex = computed(() => {
-  return (currentPage.value - 1) * itemsPerPage.value
+  return (currentPage.value - 1) * itemsPerPage.value + 1
 })
 
 const endIndex = computed(() => {
-  return Math.min(currentPage.value * itemsPerPage.value, filteredTeams.value.length)
+  return Math.min(currentPage.value * itemsPerPage.value, totalItems.value)
 })
 
 onMounted(async () => {
@@ -327,12 +293,20 @@ onMounted(async () => {
 
 watch(filters, () => {
   currentPage.value = 1
+  loadTeams()
 }, { deep: true })
+
+watch(currentPage, () => {
+  loadTeams()
+})
 
 const loadTeams = async () => {
   try {
     loading.value = true
-    await teamStore.fetchTeams()
+    await teamStore.fetchTeams({
+      page: currentPage.value,
+      limit: itemsPerPage.value
+    })
   } catch (error) {
     console.error('Failed to load teams:', error)
   } finally {

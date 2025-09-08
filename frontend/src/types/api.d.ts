@@ -188,11 +188,18 @@ export interface Event {
   category: 'MEETING' | 'COMPETITION' | 'WORKSHOP' | 'SOCIAL' | 'TRAINING'
   linkedTeamId?: string
   linkedTeam?: Team
+  wiretapWorkshopId?: string
   attendanceType: 'STRICT' | 'SOFT'
+  attendanceCap?: number
+  waitlistEnabled: boolean
+  teamsEnabled: boolean
+  membersPerTeam?: number
+  autoAssignEnabled?: boolean
+  checkInCode: string
   rsvps: Array<{
     id: string
     userId: string
-    status: 'PENDING' | 'CONFIRMED' | 'DECLINED' | 'MAYBE'
+    status: 'PENDING' | 'CONFIRMED' | 'DECLINED' | 'MAYBE' | 'WAITLIST'
     user: User
     createdAt: string
     updatedAt: string
@@ -215,7 +222,11 @@ export interface EventCreate {
   endTime: string
   category: 'MEETING' | 'COMPETITION' | 'WORKSHOP' | 'SOCIAL' | 'TRAINING'
   linkedTeamId?: string
+  wiretapWorkshopId?: string
   attendanceType: 'STRICT' | 'SOFT'
+  attendanceCap?: number
+  waitlistEnabled?: boolean
+  teamsEnabled?: boolean
 }
 
 export interface EventUpdate {
@@ -225,7 +236,13 @@ export interface EventUpdate {
   endTime?: string
   category?: 'MEETING' | 'COMPETITION' | 'WORKSHOP' | 'SOCIAL' | 'TRAINING'
   linkedTeamId?: string
+  wiretapWorkshopId?: string
   attendanceType?: 'STRICT' | 'SOFT'
+  attendanceCap?: number
+  waitlistEnabled?: boolean
+  teamsEnabled?: boolean
+  membersPerTeam?: number
+  autoAssignEnabled?: boolean
 }
 
 // Group types (from Authentik)
@@ -311,6 +328,13 @@ export interface PaginatedResponse<T> {
     limit: number
     total: number
     totalPages: number
+  }
+  statistics?: {
+    total: number
+    pending: number
+    running: number
+    completed: number
+    failed: number
   }
 }
 

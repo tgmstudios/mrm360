@@ -1,6 +1,8 @@
 import { DiscordChannel, DiscordRole, DiscordPermission } from '@/types';
 import { logger } from '@/utils/logger';
 import { addJobToQueue } from '@/tasks/queue';
+import { DiscordBatchTaskManager, DiscordRoleOperation } from '@/managers/discordBatchTaskManager';
+import { prisma } from '@/models/prismaClient';
 
 export class DiscordService {
   constructor(config: {
@@ -154,14 +156,30 @@ export class DiscordService {
     try {
       logger.info(`Assigning Discord role ${roleId} to user ${userId}`);
       
-      // Add job to Discord queue for background processing
-      const job = await addJobToQueue('DISCORD', {
+      // Create batch task for single role assignment
+      const batchTaskManager = new DiscordBatchTaskManager(prisma);
+      const operations: DiscordRoleOperation[] = [{
         action: 'assignRole',
         userId,
         roleId
+      }];
+
+      const batchTask = await batchTaskManager.createUserRoleBatchTask({
+        userId,
+        operations,
+        description: `Assign Discord role ${roleId} to user ${userId}`
+      });
+
+      // Add job to Discord queue for background processing
+      const job = await addJobToQueue('DISCORD', {
+        action: 'batchUpdateRoles',
+        userId,
+        targetRoles: [roleId],
+        rolesToRemove: [],
+        backgroundTaskId: batchTask.id
       });
       
-      logger.info(`Discord role assignment job queued: ${job.id}`);
+      logger.info(`Discord role assignment job queued with batch task: ${job.id}`, { batchTaskId: batchTask.id });
     } catch (error) {
       logger.error(`Error queuing Discord role assignment for user ${userId}:`, error);
       throw new Error(`Failed to queue Discord role assignment: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -172,14 +190,30 @@ export class DiscordService {
     try {
       logger.info(`Removing Discord role ${roleId} from user ${userId}`);
       
-      // Add job to Discord queue for background processing
-      const job = await addJobToQueue('DISCORD', {
+      // Create batch task for single role removal
+      const batchTaskManager = new DiscordBatchTaskManager(prisma);
+      const operations: DiscordRoleOperation[] = [{
         action: 'removeRole',
         userId,
         roleId
+      }];
+
+      const batchTask = await batchTaskManager.createUserRoleBatchTask({
+        userId,
+        operations,
+        description: `Remove Discord role ${roleId} from user ${userId}`
+      });
+
+      // Add job to Discord queue for background processing
+      const job = await addJobToQueue('DISCORD', {
+        action: 'batchUpdateRoles',
+        userId,
+        targetRoles: [],
+        rolesToRemove: [roleId],
+        backgroundTaskId: batchTask.id
       });
       
-      logger.info(`Discord role removal job queued: ${job.id}`);
+      logger.info(`Discord role removal job queued with batch task: ${job.id}`, { batchTaskId: batchTask.id });
     } catch (error) {
       logger.error(`Error queuing Discord role removal for user ${userId}:`, error);
       throw new Error(`Failed to queue Discord role removal: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -208,14 +242,32 @@ export class DiscordService {
     try {
       logger.info(`Assigning role ${roleId} to ${userIds.length} users`);
       
+      // Create batch operations for each user
+      const operations: DiscordRoleOperation[] = userIds.map(userId => ({
+        action: 'assignRole',
+        userId,
+        roleId
+      }));
+
+      // Create batch task for team role assignment
+      const batchTaskManager = new DiscordBatchTaskManager(prisma);
+      const batchTask = await batchTaskManager.createDiscordBatchTask({
+        entityType: 'TEAM',
+        entityId: `role-${roleId}`,
+        operations,
+        description: `Assign Discord role ${roleId} to ${userIds.length} users`
+      });
+
       // Add job to Discord queue for background processing
       const job = await addJobToQueue('DISCORD', {
-        action: 'assignRoleToUsers',
-        roleId,
-        userIds
+        action: 'batchUpdateRoles',
+        userId: userIds[0], // Use first user as primary identifier
+        targetRoles: userIds.map(() => roleId),
+        rolesToRemove: [],
+        backgroundTaskId: batchTask.id
       });
       
-      logger.info(`Discord role assignment to users job queued: ${job.id}`);
+      logger.info(`Discord role assignment to users job queued with batch task: ${job.id}`, { batchTaskId: batchTask.id });
     } catch (error) {
       logger.error(`Error queuing Discord role assignment to users:`, error);
       throw new Error(`Failed to queue Discord role assignment to users: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -226,14 +278,32 @@ export class DiscordService {
     try {
       logger.info(`Removing role ${roleId} from ${userIds.length} users`);
       
+      // Create batch operations for each user
+      const operations: DiscordRoleOperation[] = userIds.map(userId => ({
+        action: 'removeRole',
+        userId,
+        roleId
+      }));
+
+      // Create batch task for team role removal
+      const batchTaskManager = new DiscordBatchTaskManager(prisma);
+      const batchTask = await batchTaskManager.createDiscordBatchTask({
+        entityType: 'TEAM',
+        entityId: `role-${roleId}`,
+        operations,
+        description: `Remove Discord role ${roleId} from ${userIds.length} users`
+      });
+
       // Add job to Discord queue for background processing
       const job = await addJobToQueue('DISCORD', {
-        action: 'removeRoleFromUsers',
-        roleId,
-        userIds
+        action: 'batchUpdateRoles',
+        userId: userIds[0], // Use first user as primary identifier
+        targetRoles: [],
+        rolesToRemove: userIds.map(() => roleId),
+        backgroundTaskId: batchTask.id
       });
       
-      logger.info(`Discord role removal from users job queued: ${job.id}`);
+      logger.info(`Discord role removal from users job queued with batch task: ${job.id}`, { batchTaskId: batchTask.id });
     } catch (error) {
       logger.error(`Error queuing Discord role removal from users:`, error);
       throw new Error(`Failed to queue Discord role removal from users: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -247,15 +317,45 @@ export class DiscordService {
         rolesToRemove
       });
       
+      // Create batch operations
+      const operations: DiscordRoleOperation[] = [];
+      
+      // Add remove operations
+      for (const roleId of rolesToRemove) {
+        operations.push({
+          action: 'removeRole',
+          userId,
+          roleId
+        });
+      }
+      
+      // Add assign operations
+      for (const roleId of targetRoles) {
+        operations.push({
+          action: 'assignRole',
+          userId,
+          roleId
+        });
+      }
+
+      // Create batch task
+      const batchTaskManager = new DiscordBatchTaskManager(prisma);
+      const batchTask = await batchTaskManager.createUserRoleBatchTask({
+        userId,
+        operations,
+        description: `Batch update Discord roles for user ${userId}`
+      });
+      
       // Add job to Discord queue for background processing
       const job = await addJobToQueue('DISCORD', {
         action: 'batchUpdateRoles',
         userId,
         targetRoles,
-        rolesToRemove
+        rolesToRemove,
+        backgroundTaskId: batchTask.id
       });
       
-      logger.info(`Discord batch role update job queued: ${job.id}`);
+      logger.info(`Discord batch role update job queued with batch task: ${job.id}`, { batchTaskId: batchTask.id });
     } catch (error) {
       logger.error(`Error queuing Discord batch role update for user ${userId}:`, error);
       throw new Error(`Failed to queue Discord batch role update: ${error instanceof Error ? error.message : 'Unknown error'}`);

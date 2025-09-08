@@ -161,3 +161,5 @@ Wiretap Configuration Summary:
     return template && template.includes('{event_type}');
   }
 }
+
+

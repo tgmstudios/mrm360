@@ -1,8 +1,8 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { withAuth } from '../../../middleware/authMiddleware';
-import { withPermissions } from '../../../middleware/permissionMiddleware';
-import { updateAllUserRolesFromGroups } from '../../../utils/roleUtils';
-import { logger } from '../../../utils/logger';
+import { withAuth } from '@/middleware/authMiddleware';
+import { withPermissions } from '@/middleware/permissionMiddleware';
+import { updateAllUserRolesFromGroups } from '@/utils/roleUtils';
+import { logger } from '@/utils/logger';
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {

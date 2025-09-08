@@ -1,30 +1,34 @@
 <template>
-  <div class="min-h-screen bg-gray-900">
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <!-- Header -->
-      <div class="mb-8">
-        <div class="flex items-center justify-between">
-          <div>
-            <h1 class="text-3xl font-bold text-gray-100">
-              {{ isEditing ? 'Edit Event' : 'Create New Event' }}
-            </h1>
-            <p class="text-gray-400 mt-2">
-              {{ isEditing ? 'Update event details and settings' : 'Set up a new event for your organization' }}
-            </p>
-          </div>
-          <BaseButton
-            @click="goBack"
-            variant="outline"
-            size="lg"
-          >
-            Cancel
-          </BaseButton>
+  <div class="space-y-6">
+    <!-- Header -->
+    <div class="mb-8">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-100">
+            {{ isEditing ? 'Edit Event' : 'Create New Event' }}
+          </h1>
+          <p class="mt-2 text-sm text-gray-400">
+            {{ isEditing ? 'Update event details and settings' : 'Set up a new event for your organization' }}
+          </p>
         </div>
+        <router-link
+          to="/events"
+          class="inline-flex items-center px-4 py-2 border border-gray-600 rounded-lg text-sm font-medium text-gray-300 bg-gray-800 hover:bg-gray-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900"
+        >
+          <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+          </svg>
+          Back to Events
+        </router-link>
       </div>
+    </div>
 
-      <!-- Event Form -->
-      <div class="bg-gray-800 rounded-lg shadow border border-gray-700">
-        <form @submit.prevent="handleSubmit" class="p-6 space-y-6">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- Main Content -->
+      <div class="lg:col-span-2 space-y-6">
+        <!-- Form -->
+        <div class="bg-gray-800 rounded-lg shadow border border-gray-700">
+          <form @submit.prevent="handleSubmit" class="space-y-6 p-6">
           <!-- Provisioning Progress -->
           <div v-if="provisionTask" class="mb-4 p-4 border border-blue-600 rounded-md bg-blue-900">
             <div class="flex items-center justify-between mb-2">
@@ -52,11 +56,10 @@
               </li>
             </ul>
           </div>
-          <!-- Basic Information -->
-          <div class="space-y-4">
-            <h2 class="text-xl font-semibold text-gray-100">Basic Information</h2>
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Basic Information -->
+            <div>
+              <h3 class="text-lg font-medium text-gray-100 mb-4">Basic Information</h3>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label for="title" class="block text-sm font-medium text-gray-300 mb-2">
                   Event Title *
@@ -66,7 +69,7 @@
                   v-model="form.title"
                   type="text"
                   required
-                  class="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-gray-100"
+                  class="w-full px-3 py-2 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-gray-100"
                   :class="{ 'border-red-500': errors.title }"
                   placeholder="Enter event title"
                 />
@@ -80,13 +83,13 @@
                 <select
                   id="category"
                   v-model="form.category"
-                  class="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-gray-100"
+                  class="w-full px-3 py-2 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-gray-100"
                 >
                   <option value="MEETING">Meeting</option>
                   <option value="COMPETITION">Competition</option>
                   <option value="WORKSHOP">Workshop</option>
                   <option value="SOCIAL">Social</option>
-                  <option value="OTHER">Other</option>
+                  <option value="TRAINING">Training</option>
                 </select>
               </div>
             </div>
@@ -99,17 +102,16 @@
                 id="description"
                 v-model="form.description"
                 rows="3"
-                class="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-gray-100"
+                class="w-full px-3 py-2 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-gray-100"
                 placeholder="Enter event description"
               ></textarea>
             </div>
           </div>
 
-          <!-- Date and Time -->
-          <div class="space-y-4">
-            <h2 class="text-xl font-semibold text-gray-100">Date and Time</h2>
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Date and Time -->
+            <div>
+              <h3 class="text-lg font-medium text-gray-100 mb-4">Date and Time</h3>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label for="startTime" class="block text-sm font-medium text-gray-300 mb-2">
                   Start Time *
@@ -119,7 +121,7 @@
                   v-model="form.startTime"
                   type="datetime-local"
                   required
-                  class="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-gray-100"
+                  class="w-full px-3 py-2 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-gray-100"
                   :class="{ 'border-red-500': errors.startTime }"
                 />
                 <p v-if="errors.startTime" class="mt-1 text-sm text-red-400">{{ errors.startTime }}</p>
@@ -134,7 +136,7 @@
                   v-model="form.endTime"
                   type="datetime-local"
                   required
-                  class="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-gray-100"
+                  class="w-full px-3 py-2 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-gray-100"
                   :class="{ 'border-red-500': errors.endTime }"
                 />
                 <p v-if="errors.endTime" class="mt-1 text-sm text-red-400">{{ errors.endTime }}</p>
@@ -142,11 +144,10 @@
             </div>
           </div>
 
-          <!-- Event Settings -->
-          <div class="space-y-4">
-            <h2 class="text-xl font-semibold text-gray-100">Event Settings</h2>
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Event Settings -->
+            <div>
+              <h3 class="text-lg font-medium text-gray-100 mb-4">Event Settings</h3>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label for="attendanceType" class="block text-sm font-medium text-gray-300 mb-2">
                   Attendance Type
@@ -154,10 +155,10 @@
                 <select
                   id="attendanceType"
                   v-model="form.attendanceType"
-                  class="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-gray-100"
+                  class="w-full px-3 py-2 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-gray-100"
                 >
-                  <option value="SOFT">Soft (Optional)</option>
-                  <option value="STRICT">Strict (Required)</option>
+                  <option value="SOFT">Soft (Link-based attendance)</option>
+                  <option value="STRICT">Strict (QR code scanning)</option>
                 </select>
               </div>
 
@@ -168,7 +169,7 @@
                 <select
                   id="linkedTeam"
                   v-model="form.linkedTeamId"
-                  class="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-gray-100"
+                  class="w-full px-3 py-2 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-gray-100"
                 >
                   <option value="">No team</option>
                   <option v-for="team in availableTeams" :key="team.id" :value="team.id">
@@ -177,25 +178,171 @@
                 </select>
               </div>
             </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label for="wiretapWorkshop" class="block text-sm font-medium text-gray-300 mb-2">
+                  Wiretap Workshop
+                </label>
+                <select
+                  id="wiretapWorkshop"
+                  v-model="form.wiretapWorkshopId"
+                  class="w-full px-3 py-2 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-gray-100"
+                >
+                  <option value="">No workshop</option>
+                  <option v-for="workshop in availableWorkshops" :key="workshop.id" :value="workshop.id">
+                    {{ workshop.name }}
+                  </option>
+                </select>
+                <p class="mt-1 text-sm text-gray-400">
+                  Select a Wiretap workshop for this event
+                </p>
+              </div>
+            </div>
+
+            <!-- Attendance Cap Settings -->
+            <div>
+              <h3 class="text-lg font-medium text-gray-100 mb-4">Attendance Cap Settings</h3>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label for="attendanceCap" class="block text-sm font-medium text-gray-300 mb-2">
+                    Attendance Cap
+                  </label>
+                  <input
+                    id="attendanceCap"
+                    v-model.number="form.attendanceCap"
+                    type="number"
+                    min="1"
+                    class="w-full px-3 py-2 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-gray-100"
+                    placeholder="Leave empty for no limit"
+                  />
+                  <p class="mt-1 text-sm text-gray-400">
+                    Maximum number of attendees (leave empty for unlimited)
+                  </p>
+                </div>
+
+                <div>
+                  <label class="block text-sm font-medium text-gray-300 mb-2">
+                    Waitlist Settings
+                  </label>
+                  <div class="space-y-2">
+                    <label class="flex items-center">
+                      <input
+                        v-model="form.waitlistEnabled"
+                        type="checkbox"
+                        class="rounded border-gray-600 text-blue-600 focus:ring-blue-500 bg-gray-700"
+                        :disabled="!form.attendanceCap"
+                      />
+                      <span class="ml-2 text-sm text-gray-300">Enable waitlist when cap is reached</span>
+                    </label>
+                    <p class="text-xs text-gray-400">
+                      When enabled, users will be added to a waitlist if the event reaches capacity
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <!-- Form Actions -->
-          <div class="flex justify-end space-x-3 pt-6 border-t border-gray-700">
-            <BaseButton
-              @click="goBack"
-              variant="outline"
-            >
-              Cancel
-            </BaseButton>
-            <BaseButton
-              type="submit"
-              :loading="isSubmitting"
-              :disabled="!isFormValid"
-            >
-              {{ isEditing ? 'Update Event' : 'Create Event' }}
-            </BaseButton>
+            <!-- Form Actions -->
+            <div class="flex justify-end space-x-3 pt-6 border-t border-gray-700">
+              <BaseButton
+                @click="goBack"
+                variant="outline"
+              >
+                Cancel
+              </BaseButton>
+              <BaseButton
+                type="submit"
+                :loading="isSubmitting"
+                :disabled="!isFormValid"
+              >
+                {{ isEditing ? 'Update Event' : 'Create Event' }}
+              </BaseButton>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Sidebar -->
+      <div class="space-y-6">
+        <!-- Event Information -->
+        <div class="bg-gray-800 shadow rounded-lg border border-gray-700">
+          <div class="px-4 py-5 sm:p-6">
+            <h3 class="text-lg leading-6 font-medium text-gray-100 mb-4">
+              Event Information
+            </h3>
+            <div class="space-y-4">
+              <div>
+                <h4 class="text-sm font-medium text-gray-300 mb-2">Event Categories</h4>
+                <div class="space-y-2 text-sm text-gray-400">
+                  <div class="flex items-center">
+                    <div class="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
+                    <span>Meeting - Regular club meetings</span>
+                  </div>
+                  <div class="flex items-center">
+                    <div class="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                    <span>Competition - Competitive events</span>
+                  </div>
+                  <div class="flex items-center">
+                    <div class="w-2 h-2 bg-purple-500 rounded-full mr-2"></div>
+                    <span>Workshop - Learning sessions</span>
+                  </div>
+                  <div class="flex items-center">
+                    <div class="w-2 h-2 bg-yellow-500 rounded-full mr-2"></div>
+                    <span>Social - Social gatherings</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <h4 class="text-sm font-medium text-gray-300 mb-2">Attendance Types</h4>
+                <div class="space-y-2 text-sm text-gray-400">
+                  <div class="flex items-center">
+                    <div class="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                    <span>Soft - Members scan a link to mark attendance</span>
+                  </div>
+                  <div class="flex items-center">
+                    <div class="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
+                    <span>Strict - Scan member QR codes for attendance</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-        </form>
+        </div>
+
+        <!-- Help -->
+        <div class="bg-gray-800 shadow rounded-lg border border-gray-700">
+          <div class="px-4 py-5 sm:p-6">
+            <h3 class="text-lg leading-6 font-medium text-gray-100 mb-4">
+              Need Help?
+            </h3>
+            <div class="space-y-3 text-sm text-gray-400">
+              <p>
+                Events will be automatically provisioned across all integrated services including Nextcloud calendar and Discord notifications.
+              </p>
+              <p>
+                If you link a team, all team members will receive automatic notifications about the event.
+              </p>
+              <p>
+                <strong>Soft attendance:</strong> Members can scan a link to mark their attendance remotely.
+              </p>
+              <p>
+                <strong>Strict attendance:</strong> Requires scanning member QR codes at the event location.
+              </p>
+              <p>
+                Wiretap workshops can be linked to provide additional resources for technical events.
+              </p>
+              <p>
+                <strong>Attendance Cap:</strong> Set a maximum number of attendees. When reached, new RSVPs will be added to a waitlist (if enabled) or declined.
+              </p>
+              <p>
+                <strong>Waitlist:</strong> When enabled, users who RSVP after the cap is reached will be placed on a waitlist and automatically promoted when spots become available.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -212,6 +359,7 @@ import { usePermissions } from '@/composables/usePermissions'
 import type { Task } from '@/types/api'
 import BaseButton from '@/components/common/BaseButton.vue'
 import type { Team } from '@/types/api'
+import apiService from '@/services/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -226,7 +374,7 @@ const isEditing = computed(() => !!eventId.value)
 
 const submitting = ref(false)
 const teams = ref<Team[]>([])
-
+const workshops = ref<any[]>([])
 
 const form = ref({
   title: '',
@@ -235,7 +383,10 @@ const form = ref({
   startTime: '',
   endTime: '',
   attendanceType: 'SOFT' as 'SOFT' | 'STRICT',
-  linkedTeamId: '' as string
+  linkedTeamId: '' as string,
+  wiretapWorkshopId: '' as string,
+  attendanceCap: null as number | null,
+  waitlistEnabled: false
 })
 
 const errors = ref<Record<string, string>>({})
@@ -243,7 +394,10 @@ const provisionTask = ref<Task | null>(null)
 let provisionTimer: number | null = null
 
 onMounted(async () => {
-  await loadTeams()
+  await Promise.all([
+    loadTeams(),
+    loadWorkshops()
+  ])
   
   if (isEditing.value) {
     await loadEvent()
@@ -255,6 +409,16 @@ const loadTeams = async () => {
     await teamStore.fetchTeams()
   } catch (error) {
     console.error('Failed to load teams:', error)
+  }
+}
+
+const loadWorkshops = async () => {
+  try {
+    const response = await apiService.getWiretapWorkshops()
+    workshops.value = response.data || []
+  } catch (error) {
+    console.error('Failed to load workshops:', error)
+    workshops.value = []
   }
 }
 
@@ -271,7 +435,10 @@ const loadEvent = async () => {
         startTime: event.startTime ? formatDateTimeLocal(event.startTime) : '',
         endTime: event.endTime ? formatDateTimeLocal(event.endTime) : '',
         attendanceType: event.attendanceType || 'SOFT',
-        linkedTeamId: event.linkedTeamId || ''
+        linkedTeamId: event.linkedTeamId || '',
+        wiretapWorkshopId: (event as any).wiretapWorkshopId || '',
+        attendanceCap: event.attendanceCap || null,
+        waitlistEnabled: event.waitlistEnabled || false
       }
     }
   } catch (error) {
@@ -313,17 +480,25 @@ const handleSubmit = async () => {
     const eventData = {
       ...form.value,
       startTime: new Date(form.value.startTime).toISOString(),
-      endTime: form.value.endTime ? new Date(form.value.endTime).toISOString() : new Date(form.value.startTime).toISOString()
+      endTime: form.value.endTime ? new Date(form.value.endTime).toISOString() : new Date(form.value.startTime).toISOString(),
+      // Convert empty strings to undefined for optional fields
+      description: form.value.description && form.value.description.trim() !== '' ? form.value.description : undefined,
+      linkedTeamId: form.value.linkedTeamId && form.value.linkedTeamId.trim() !== '' ? form.value.linkedTeamId : undefined,
+      wiretapWorkshopId: form.value.wiretapWorkshopId && form.value.wiretapWorkshopId.trim() !== '' ? form.value.wiretapWorkshopId : undefined,
+      // Remove null/0 attendanceCap if not set
+      attendanceCap: form.value.attendanceCap && form.value.attendanceCap > 0 ? form.value.attendanceCap : undefined
     }
+    
+    console.log('Event data being sent:', eventData)
     
     if (isEditing.value) {
       await eventStore.updateEvent(eventId.value, eventData)
+      router.push(`/events/${eventId.value}`)
     } else {
       const created = await eventStore.createEvent(eventData)
       startProvisionPolling('EVENT', created.id)
+      router.push(`/events/${created.id}`)
     }
-    
-    router.push('/tasks')
   } catch (error) {
     console.error('Failed to save event:', error)
   } finally {
@@ -378,4 +553,16 @@ const startProvisionPolling = (entityType: 'EVENT' | 'TEAM', entityId: string) =
 }
 
 const sortedSubtasks = computed(() => (provisionTask.value?.subtasks || []).slice().sort((a, b) => a.stepIndex - b.stepIndex))
+
+// Computed properties
+const availableTeams = computed(() => teamStore.teams)
+const availableWorkshops = computed(() => workshops.value)
+
+const isSubmitting = computed(() => submitting.value)
+
+const isFormValid = computed(() => {
+  return form.value.title.trim() !== '' && 
+         form.value.startTime !== '' &&
+         Object.keys(errors.value).length === 0
+})
 </script>

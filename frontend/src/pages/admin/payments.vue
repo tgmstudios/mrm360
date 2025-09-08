@@ -88,21 +88,21 @@
               <td>
                 <div class="action-buttons">
                   <button 
-                    v-if="payment.status === 'PENDING'"
+                    v-if="payment.status === 'PENDING' && can('update', 'Payment')"
                     @click="completePayment(payment.id)"
                     class="btn btn-sm btn-success"
                   >
                     Complete
                   </button>
                   <button 
-                    v-if="payment.status === 'PENDING'"
+                    v-if="payment.status === 'PENDING' && can('update', 'Payment')"
                     @click="failPayment(payment.id)"
                     class="btn btn-sm btn-danger"
                   >
                     Fail
                   </button>
                   <button 
-                    v-if="payment.status !== 'COMPLETED'"
+                    v-if="payment.status !== 'COMPLETED' && can('delete', 'Payment')"
                     @click="deletePayment(payment.id)"
                     class="btn btn-sm btn-outline-danger"
                   >
@@ -126,9 +126,11 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { PaymentService } from '@/services/paymentService'
+import { usePermissions } from '@/composables/usePermissions'
 import type { Payment, PaymentStats } from '@/types/api'
 
 const paymentService = new PaymentService()
+const { can } = usePermissions()
 
 const loading = ref(false)
 const payments = ref<Payment[]>([])

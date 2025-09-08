@@ -11,7 +11,7 @@
       <!-- Backdrop -->
       <div
         v-if="isOpen"
-        class="fixed inset-0 z-50 bg-gray-500 bg-opacity-75 transition-opacity"
+        class="fixed inset-0 z-50 bg-gray-900 bg-opacity-75 transition-opacity"
         @click="handleBackdropClick"
       />
     </Transition>
@@ -33,7 +33,7 @@
         <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
           <div
             :class="[
-              'relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full',
+              'relative transform overflow-hidden rounded-lg bg-gray-800 text-left shadow-xl transition-all sm:my-8 sm:w-full',
               size === 'sm' && 'sm:max-w-lg',
               size === 'md' && 'sm:max-w-2xl',
               size === 'lg' && 'sm:max-w-4xl',
@@ -42,9 +42,9 @@
             ]"
           >
             <!-- Header -->
-            <div v-if="$slots.header || title" class="bg-gray-50 px-4 py-3 sm:px-6">
+            <div v-if="$slots.header || title" class="bg-gray-700 px-4 py-3 sm:px-6">
               <div class="flex items-center justify-between">
-                <h3 v-if="title" class="text-lg font-medium leading-6 text-gray-900">
+                <h3 v-if="title" class="text-lg font-medium leading-6 text-gray-100">
                   {{ title }}
                 </h3>
                 <slot name="header" />
@@ -52,7 +52,7 @@
                 <button
                   v-if="showCloseButton"
                   @click="$emit('close')"
-                  class="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                  class="rounded-md bg-gray-700 text-gray-400 hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-700"
                 >
                   <span class="sr-only">Close</span>
                   <XMarkIcon class="h-6 w-6" />
@@ -66,7 +66,7 @@
             </div>
 
             <!-- Footer -->
-            <div v-if="$slots.footer" class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
+            <div v-if="$slots.footer" class="bg-gray-700 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
               <slot name="footer" />
             </div>
           </div>

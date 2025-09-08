@@ -8,11 +8,11 @@
           <div class="flex items-center">
             <div class="flex-shrink-0 flex items-center">
               <img src="@/assets/logo.png" alt="CCSO MRM Logo" class="h-8 w-auto mr-2" />
-              <h1 class="text-xl font-bold text-blue-400">CCSO MRM</h1>
+              <h1 class="text-lg sm:text-xl font-bold text-blue-400">CCSO MRM</h1>
             </div>
           </div>
 
-          <!-- Navigation Links -->
+          <!-- Desktop Navigation Links -->
           <div class="hidden md:flex items-center space-x-8">
             <router-link
               v-for="item in navigationItems"
@@ -29,9 +29,39 @@
             </router-link>
           </div>
 
-          <!-- User Menu -->
-          <div class="flex items-center">
-            <div class="ml-3 relative">
+          <!-- Mobile Menu Button and User Menu -->
+          <div class="flex items-center space-x-2">
+            <!-- Mobile Menu Button -->
+            <button
+              @click="isMobileMenuOpen = !isMobileMenuOpen"
+              data-mobile-menu-button
+              class="md:hidden inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-100 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
+            >
+              <span class="sr-only">Open main menu</span>
+              <svg
+                v-if="!isMobileMenuOpen"
+                class="block h-6 w-6"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+              <svg
+                v-else
+                class="block h-6 w-6"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            <!-- User Menu -->
+            <div class="relative" data-user-menu>
               <div>
                 <button
                   @click="isUserMenuOpen = !isUserMenuOpen"
@@ -43,7 +73,7 @@
                       {{ userInitials }}
                     </span>
                   </div>
-                  <span class="ml-2 mr-4 text-gray-200">{{ authStore.user?.displayName }}</span>
+                  <span class="hidden sm:block ml-2 mr-4 text-gray-200">{{ authStore.user?.displayName }}</span>
                 </button>
               </div>
               
@@ -69,15 +99,63 @@
             </div>
           </div>
         </div>
+
+        <!-- Mobile Navigation Menu -->
+        <div v-if="isMobileMenuOpen" class="md:hidden relative z-50" data-mobile-menu>
+          <div class="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-gray-700 rounded-lg mt-2 shadow-lg border border-gray-600">
+            <router-link
+              v-for="item in navigationItems"
+              :key="item.name"
+              :to="item.to"
+              :class="[
+                isNavigationItemActive(item.to)
+                  ? 'text-blue-400 bg-gray-600'
+                  : 'text-gray-300 hover:text-gray-100 hover:bg-gray-600',
+                'block px-3 py-2 text-base font-medium rounded-md transition-all duration-200'
+              ]"
+              @click="isMobileMenuOpen = false"
+            >
+              {{ item.name }}
+            </router-link>
+          </div>
+        </div>
       </div>
     </nav>
 
     <div class="flex">
+      <!-- Mobile Sidebar Overlay -->
+      <div
+        v-if="isSidebarOpen && isMobile"
+        class="fixed inset-0 z-40 bg-gray-900 bg-opacity-50"
+        @click="isSidebarOpen = false"
+      ></div>
+
       <!-- Page-Specific Sidebar -->
-      <div class="w-64 bg-gray-800 shadow-lg border-r border-gray-700 min-h-screen">
+      <div 
+        :class="[
+          'bg-gray-800 shadow-lg border-r border-gray-700 min-h-screen transition-all duration-300 ease-in-out',
+          isMobile 
+            ? (isSidebarOpen ? 'fixed inset-y-0 left-0 z-50 w-64' : 'hidden')
+            : 'w-64'
+        ]"
+      >
         <div class="p-4">
-          <!-- Sidebar Header with Current Section -->
-          <div class="mb-6 pb-4 border-b border-gray-700">
+          <!-- Mobile Sidebar Header -->
+          <div v-if="isMobile" class="flex items-center justify-between mb-4 pb-4 border-b border-gray-700">
+            <h2 class="text-lg font-semibold text-gray-100">
+              {{ currentSectionTitle }}
+            </h2>
+            <button
+              @click="isSidebarOpen = false"
+              class="text-gray-400 hover:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-md p-1"
+            >
+              <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <!-- Sidebar Header with Current Section (Desktop only) -->
+          <div v-if="!isMobile" class="mb-6 pb-4 border-b border-gray-700">
             <h2 class="text-lg font-semibold text-gray-100 transition-all duration-300">
               {{ currentSectionTitle }}
             </h2>
@@ -142,6 +220,7 @@
               </router-link>
               
               <router-link
+                v-if="can('create', 'User')"
                 to="/users/new"
                 :class="[
                   currentPath === '/users/new'
@@ -171,6 +250,7 @@
               </router-link>
               
               <router-link
+                v-if="can('create', 'Team')"
                 to="/teams/new"
                 :class="[
                   currentPath === '/teams/new'
@@ -200,6 +280,7 @@
               </router-link>
               
               <router-link
+                v-if="can('create', 'Event')"
                 to="/events/new"
                 :class="[
                   currentPath === '/events/new'
@@ -247,11 +328,23 @@
       </div>
 
       <!-- Main Content -->
-      <div class="flex-1 p-6">
+      <div class="flex-1 p-4 sm:p-6">
+        <!-- Mobile Sidebar Toggle Button -->
+        <button
+          v-if="isMobile"
+          @click="isSidebarOpen = true"
+          class="mb-4 inline-flex items-center px-3 py-2 border border-gray-600 text-sm font-medium rounded-md text-gray-300 bg-gray-700 hover:bg-gray-600 hover:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <svg class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+          Menu
+        </button>
+
         <!-- Breadcrumb Navigation -->
         <nav v-if="breadcrumbs.length > 0" class="mb-6">
-          <ol class="flex items-center space-x-2 text-sm text-gray-400">
-            <li v-for="(crumb, index) in breadcrumbs" :key="crumb.path" class="flex items-center">
+          <ol class="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm text-gray-400 overflow-x-auto">
+            <li v-for="(crumb, index) in breadcrumbs" :key="crumb.path" class="flex items-center flex-shrink-0">
               <router-link
                 v-if="index < breadcrumbs.length - 1"
                 :to="crumb.path"
@@ -264,7 +357,7 @@
               </span>
               <ChevronRightIcon
                 v-if="index < breadcrumbs.length - 1"
-                class="h-4 w-4 mx-2 text-gray-500"
+                class="h-3 w-3 sm:h-4 sm:w-4 mx-1 sm:mx-2 text-gray-500 flex-shrink-0"
               />
             </li>
           </ol>
@@ -277,14 +370,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import { useTeamStore } from '@/stores/teamStore'
 import { usePermissions } from '@/composables/usePermissions'
 import { initiateOAuthLogin } from '@/utils/oauth'
 import {
-  HomeIcon,
   UsersIcon,
   UserGroupIcon,
   CalendarIcon,
@@ -300,6 +392,9 @@ const teamStore = useTeamStore()
 const { can, canManageUsers, canManageTeams, canManageEvents, canManageTasks } = usePermissions()
 
 const isUserMenuOpen = ref(false)
+const isMobileMenuOpen = ref(false)
+const isSidebarOpen = ref(false)
+const isMobile = ref(false)
 
 // Current path for sidebar logic
 const currentPath = computed(() => route.path)
@@ -493,19 +588,47 @@ const handleLogout = async () => {
   initiateOAuthLogin()
 }
 
-// Close user menu when clicking outside
-const handleClickOutside = (event: Event) => {
-  const target = event.target as HTMLElement
-  if (!target.closest('.relative')) {
+// Mobile detection
+const checkMobile = () => {
+  const wasMobile = isMobile.value
+  isMobile.value = window.innerWidth < 768 // md breakpoint
+  
+  // Reset menu states when switching between mobile/desktop
+  if (wasMobile !== isMobile.value) {
+    isMobileMenuOpen.value = false
+    isSidebarOpen.value = false
     isUserMenuOpen.value = false
   }
 }
 
+// Close menus when clicking outside
+const handleClickOutside = (event: Event) => {
+  const target = event.target as HTMLElement
+  
+  // Close user menu if clicking outside user menu area
+  if (!target.closest('[data-user-menu]')) {
+    isUserMenuOpen.value = false
+  }
+  
+  // Close mobile menu if clicking outside navigation area
+  if (!target.closest('[data-mobile-menu]') && !target.closest('[data-mobile-menu-button]')) {
+    isMobileMenuOpen.value = false
+  }
+}
+
+// Watch for route changes to close mobile menu
+watch(() => route.path, () => {
+  isMobileMenuOpen.value = false
+})
+
 onMounted(() => {
+  checkMobile()
+  window.addEventListener('resize', checkMobile)
   document.addEventListener('click', handleClickOutside)
 })
 
 onUnmounted(() => {
+  window.removeEventListener('resize', checkMobile)
   document.removeEventListener('click', handleClickOutside)
 })
 

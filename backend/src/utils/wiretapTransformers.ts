@@ -13,6 +13,7 @@ export class WiretapTransformers {
       parentProjectId: response.parent,
       users: response.users || [],
       resources: response.resources || [],
+      teams: response.teams || [],
       status: response.status,
       createdAt: new Date(response.created_at),
       updatedAt: new Date(response.updated_at)
@@ -333,3 +334,5 @@ export class WiretapTransformers {
     return this.getResourcesByStatus(resources, 'deleting');
   }
 }
+
+

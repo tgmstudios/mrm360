@@ -59,6 +59,12 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/checkin/:code',
+    name: 'PublicCheckIn',
+    component: () => import('@/pages/checkin/PublicCheckIn.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/',
     component: DefaultLayout,
     meta: { requiresAuth: true },

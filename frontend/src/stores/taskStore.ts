@@ -15,6 +15,13 @@ export const useTaskStore = defineStore('tasks', () => {
     total: 0,
     totalPages: 0
   })
+  const statistics = ref({
+    total: 0,
+    pending: 0,
+    running: 0,
+    completed: 0,
+    failed: 0
+  })
 
   // Getters
   const pendingTasks = computed(() => 
@@ -49,6 +56,9 @@ export const useTaskStore = defineStore('tasks', () => {
       
       tasks.value = response.data
       pagination.value = response.pagination
+      if (response.statistics) {
+        statistics.value = response.statistics
+      }
       
       return response
     } catch (err) {
@@ -102,6 +112,7 @@ export const useTaskStore = defineStore('tasks', () => {
     isLoading,
     error,
     pagination,
+    statistics,
     
     // Getters
     pendingTasks,

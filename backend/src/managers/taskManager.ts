@@ -1,5 +1,5 @@
 import { Queue } from 'bullmq';
-import { logger } from '../utils/logger';
+import { logger } from '@/utils/logger';
 import { emailQueue, qrCodeQueue, syncGroupsQueue, provisionQueue, paymentStatusQueue } from '../tasks/queue';
 import { prisma } from '@/models/prismaClient';
 import { BackgroundTaskManager } from './backgroundTaskManager';

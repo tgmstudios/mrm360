@@ -1,9 +1,9 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import jwt from 'jsonwebtoken';
-import { prisma } from '../../../models/prismaClient';
-import { logger } from '../../../utils/logger';
-import { withCORS } from '../../../middleware/corsMiddleware';
-import { defineAbilitiesFor } from '../../../permissions/abilities';
+import { prisma } from '@/models/prismaClient';
+import { logger } from '@/utils/logger';
+import { withCORS } from '@/middleware/corsMiddleware';
+import { defineAbilitiesFor } from '@/permissions/abilities';
 
 export default withCORS(async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -51,7 +51,9 @@ export default withCORS(async function handler(req: NextApiRequest, res: NextApi
         lastName: true,
         displayName: true,
         role: true,
-        paidStatus: true
+        paidStatus: true,
+        authentikId: true,
+        createdAt: true
       }
     });
 
@@ -103,6 +105,8 @@ export default withCORS(async function handler(req: NextApiRequest, res: NextApi
         displayName: user.displayName || `${user.firstName} ${user.lastName}`.trim(),
         role: user.role,
         paidStatus: user.paidStatus,
+        isActive: !!user.authentikId, // User is active if they have an authentikId
+        createdAt: user.createdAt,
         authentikGroups: userGroups.map((ug: any) => ug.group.name),
         abilities: abilities
       }

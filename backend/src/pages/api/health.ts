@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { prisma } from '../../models/prismaClient';
-import { sessionManager } from '../../utils/sessionManager';
-import { logger } from '../../utils/logger';
+import { prisma } from '@/models/prismaClient';
+import { sessionManager } from '@/utils/sessionManager';
+import { logger } from '@/utils/logger';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {

@@ -3,7 +3,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
 export function withCORS(handler: (req: NextApiRequest, res: NextApiResponse) => Promise<void>) {
   return async (req: NextApiRequest, res: NextApiResponse) => {
     // Set CORS headers
-    const allowedOrigin = process.env.FRONTEND_URL || 'http://localhost:3011';
+    const allowedOrigin = process.env.FRONTEND_URL || 'http://localhost:3010';
     
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Origin', allowedOrigin);

@@ -4,6 +4,7 @@ import { DiscordBotServiceFactory } from '@/services/discordBotServiceFactory';
 import { logger } from '@/utils/logger';
 import { prisma } from '@/models/prismaClient';
 import { BackgroundTaskManager } from '@/managers/backgroundTaskManager';
+import { DiscordBatchTaskManager } from '@/managers/discordBatchTaskManager';
 
 // Create a persistent Discord bot service instance
 let discordBotService: DiscordBotService | null = null;
@@ -133,8 +134,7 @@ export async function processDiscordJob(job: Job) {
         break;
       
       case 'batchUpdateRoles':
-        await discordService.batchUpdateRoles(job.data.userId, job.data.targetRoles, job.data.rolesToRemove);
-        result = { success: true, message: 'Batch role update completed' };
+        result = await processBatchRoleUpdate(job, discordService, backgroundTask);
         break;
       
       case 'createCategory':
@@ -183,6 +183,144 @@ export async function processDiscordJob(job: Job) {
       }
     }
     
+    throw error;
+  }
+}
+
+// Helper function to get role name from Discord
+async function getRoleName(discordService: DiscordBotService, roleId: string): Promise<string | null> {
+  try {
+    const guild = await discordService.getGuild();
+    if (!guild) return null;
+    
+    const role = await guild.roles.fetch(roleId);
+    return role ? role.name : null;
+  } catch (error) {
+    logger.warn(`Failed to fetch role name for ${roleId}:`, error);
+    return null;
+  }
+}
+
+// Process batch role updates with proper subtask management
+async function processBatchRoleUpdate(job: Job, discordService: DiscordBotService, backgroundTask: any): Promise<any> {
+  const batchTaskManager = new DiscordBatchTaskManager(prisma);
+  const { userId, targetRoles, rolesToRemove, backgroundTaskId } = job.data;
+  
+  try {
+    logger.info(`Processing batch role update for user ${userId}`, {
+      targetRoles,
+      rolesToRemove,
+      backgroundTaskId
+    });
+
+    const results = [];
+    let stepIndex = 0;
+
+    // Process role removals first
+    for (const roleId of rolesToRemove || []) {
+      try {
+        await batchTaskManager.markSubtaskRunning(backgroundTaskId, stepIndex);
+        await discordService.removeRole(userId, roleId);
+        
+        // Get role name for better result information
+        const roleName = await getRoleName(discordService, roleId);
+        
+        await batchTaskManager.markSubtaskCompleted(backgroundTaskId, stepIndex, {
+          action: 'removeRole',
+          roleId,
+          roleName: roleName || `Role ${roleId}`,
+          userId,
+          success: true,
+          message: `Successfully removed role ${roleName || roleId} from user ${userId}`
+        });
+        results.push({ 
+          action: 'removeRole', 
+          roleId, 
+          roleName: roleName || `Role ${roleId}`,
+          userId,
+          success: true,
+          message: `Successfully removed role ${roleName || roleId} from user ${userId}`
+        });
+      } catch (error) {
+        const roleName = await getRoleName(discordService, roleId);
+        await batchTaskManager.markSubtaskFailed(backgroundTaskId, stepIndex, 
+          `Failed to remove role ${roleName || roleId} from user ${userId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        results.push({ 
+          action: 'removeRole', 
+          roleId, 
+          roleName: roleName || `Role ${roleId}`,
+          userId,
+          success: false, 
+          error: error instanceof Error ? error.message : 'Unknown error',
+          message: `Failed to remove role ${roleName || roleId} from user ${userId}`
+        });
+      }
+      stepIndex++;
+    }
+
+    // Process role assignments
+    for (const roleId of targetRoles || []) {
+      try {
+        await batchTaskManager.markSubtaskRunning(backgroundTaskId, stepIndex);
+        await discordService.assignRole(userId, roleId);
+        
+        // Get role name for better result information
+        const roleName = await getRoleName(discordService, roleId);
+        
+        await batchTaskManager.markSubtaskCompleted(backgroundTaskId, stepIndex, {
+          action: 'assignRole',
+          roleId,
+          roleName: roleName || `Role ${roleId}`,
+          userId,
+          success: true,
+          message: `Successfully assigned role ${roleName || roleId} to user ${userId}`
+        });
+        results.push({ 
+          action: 'assignRole', 
+          roleId, 
+          roleName: roleName || `Role ${roleId}`,
+          userId,
+          success: true,
+          message: `Successfully assigned role ${roleName || roleId} to user ${userId}`
+        });
+      } catch (error) {
+        const roleName = await getRoleName(discordService, roleId);
+        await batchTaskManager.markSubtaskFailed(backgroundTaskId, stepIndex, 
+          `Failed to assign role ${roleName || roleId} to user ${userId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        results.push({ 
+          action: 'assignRole', 
+          roleId, 
+          roleName: roleName || `Role ${roleId}`,
+          userId,
+          success: false, 
+          error: error instanceof Error ? error.message : 'Unknown error',
+          message: `Failed to assign role ${roleName || roleId} to user ${userId}`
+        });
+      }
+      stepIndex++;
+    }
+
+    // Mark the overall batch task as completed
+    const successCount = results.filter(r => r.success).length;
+    const totalCount = results.length;
+    const success = successCount === totalCount;
+
+    await batchTaskManager.markBatchTaskCompleted(backgroundTaskId, {
+      success,
+      message: `Batch role update completed: ${successCount}/${totalCount} operations successful`,
+      results
+    });
+
+    return {
+      success,
+      message: `Batch role update completed: ${successCount}/${totalCount} operations successful`,
+      results
+    };
+
+  } catch (error) {
+    logger.error(`Batch role update failed for user ${userId}:`, error);
+    await batchTaskManager.markBatchTaskFailed(backgroundTaskId, 
+      `Batch role update failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     throw error;
   }
 }

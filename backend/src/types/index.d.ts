@@ -14,6 +14,31 @@ export interface UserProfile {
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
+  userGroups?: Array<{
+    id: string;
+    userId: string;
+    groupId: string;
+    group: GroupProfile;
+  }>;
+  userTeams?: Array<{
+    id: string;
+    userId: string;
+    teamId: string;
+    role: TeamRole;
+    team: TeamProfile;
+  }>;
+  events?: Array<{
+    id: string;
+    title: string;
+    description?: string;
+    startTime: Date;
+    endTime: Date;
+    category: EventCategory;
+    linkedTeamId?: string;
+    attendanceType: AttendanceType;
+    createdAt: Date;
+    updatedAt: Date;
+  }>;
 }
 
 export interface CreateUserRequest {
@@ -96,6 +121,8 @@ export interface EventProfile {
   category: EventCategory;
   linkedTeamId?: string;
   attendanceType: AttendanceType;
+  attendanceCap?: number;
+  waitlistEnabled: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -108,6 +135,8 @@ export interface CreateEventRequest {
   category: EventCategory;
   linkedTeamId?: string;
   attendanceType?: AttendanceType;
+  attendanceCap?: number;
+  waitlistEnabled?: boolean;
 }
 
 export interface UpdateEventRequest {
@@ -118,6 +147,8 @@ export interface UpdateEventRequest {
   category?: EventCategory;
   linkedTeamId?: string;
   attendanceType?: AttendanceType;
+  attendanceCap?: number;
+  waitlistEnabled?: boolean;
 }
 
 // RSVP types
@@ -335,6 +366,16 @@ export interface WiretapProject {
   parentProjectId?: string;
   users: string[];
   resources: string[];
+  teams?: Array<{
+    id: string;
+    name: string;
+    description?: string;
+    workshop_id: string;
+    team_number: number;
+    enabled: number;
+    created_at: string;
+    updated_at: string;
+  }>;
   status: 'active' | 'inactive' | 'suspended';
   createdAt: Date;
   updatedAt: Date;
@@ -471,6 +512,11 @@ export interface TeamProvisioningConfig {
     botToken: string;
     guildId: string;
     categoryId: string;
+  };
+  wiretap: {
+    baseUrl: string;
+    token: string;
+    projectTemplate: string;
   };
 }
 

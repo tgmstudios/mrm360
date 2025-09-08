@@ -1,7 +1,7 @@
 import { PrismaClient, User, Role } from '@prisma/client';
-import { logger } from '../utils/logger';
-import { MemberPaidStatusService } from '../services/memberPaidStatusService';
-import { hasAdminGroups, determineRoleFromGroups } from '../utils/roleUtils';
+import { logger } from '@/utils/logger';
+import { MemberPaidStatusService } from '@/services/memberPaidStatusService';
+import { hasAdminGroups, determineRoleFromGroups } from '@/utils/roleUtils';
 
 export interface AuthentikUserInfo {
   sub: string;

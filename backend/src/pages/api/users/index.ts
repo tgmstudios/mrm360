@@ -1,12 +1,12 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { z } from 'zod';
-import { prisma } from '../../../models/prismaClient';
+import { prisma } from '@/models/prismaClient';
 import { UserManager } from '../../../managers/userManager';
-import { withCORS } from '../../../middleware/corsMiddleware';
-import { withAuth } from '../../../middleware/authMiddleware';
-import { withPermissions } from '../../../middleware/permissionMiddleware';
-import { logger } from '../../../utils/logger';
-import { handleApiError, ApiError } from '../../../middleware/errorHandler';
+import { withCORS } from '@/middleware/corsMiddleware';
+import { withAuth } from '@/middleware/authMiddleware';
+import { withPermissions } from '@/middleware/permissionMiddleware';
+import { logger } from '@/utils/logger';
+import { handleApiError, ApiError } from '@/middleware/errorHandler';
 
 // Validation schemas
 const createUserSchema = z.object({

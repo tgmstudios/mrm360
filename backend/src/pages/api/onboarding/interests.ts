@@ -1,10 +1,10 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { prisma } from '../../../models/prismaClient';
-import { logger } from '../../../utils/logger';
-import { withCORS } from '../../../middleware/corsMiddleware';
-import { verifyJWT } from '../../../utils/jwt';
-import { DiscordRoleManager } from '../../../utils/discordRoleManager';
-import { ListMonkServiceFactory } from '../../../services/listmonkServiceFactory';
+import { prisma } from '@/models/prismaClient';
+import { logger } from '@/utils/logger';
+import { withCORS } from '@/middleware/corsMiddleware';
+import { verifyJWT } from '@/utils/jwt';
+import { DiscordRoleManager } from '@/utils/discordRoleManager';
+import { ListMonkServiceFactory } from '@/services/listmonkServiceFactory';
 
 export default withCORS(async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {

@@ -1,15 +1,16 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { z } from 'zod';
-import { prisma } from '../../../models/prismaClient';
+import { prisma } from '@/models/prismaClient';
 import { TeamManager } from '../../../managers/teamManager';
 import { BackgroundTaskManager } from '../../../managers/backgroundTaskManager';
-import { withCORS } from '../../../middleware/corsMiddleware';
-import { withAuth } from '../../../middleware/authMiddleware';
-import { withPermissions } from '../../../middleware/permissionMiddleware';
-import { logger } from '../../../utils/logger';
+import { withCORS } from '@/middleware/corsMiddleware';
+import { withAuth } from '@/middleware/authMiddleware';
+import { withPermissions } from '@/middleware/permissionMiddleware';
+import { logger } from '@/utils/logger';
 import { addJobToQueue } from '../../../tasks/queue';
 import { TeamProvisioningTask } from '../../../types';
-import { handleApiError, ApiError } from '../../../middleware/errorHandler';
+import { handleApiError, ApiError } from '@/middleware/errorHandler';
+import { getEffectiveSystemRole } from '@/utils/roleUtils';
 
 // Validation schemas
 const updateTeamSchema = z.object({
@@ -169,6 +170,11 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
           group: true,
           parentTeam: true,
           subteams: true,
+          events: {
+            orderBy: {
+              startTime: 'desc'
+            }
+          },
           userTeams: {
             include: {
               user: {
@@ -188,6 +194,35 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
       if (!team) {
         return res.status(404).json({ error: 'Team not found' });
+      }
+
+      // Check if user can access this team (for regular members)
+      const user = (req as any).user;
+      const effectiveRole = getEffectiveSystemRole(user.role);
+      
+      if (effectiveRole === 'MEMBER') {
+        // Check if user can see this team based on visibility rules
+        const userTeams = await prisma.userTeam.findMany({
+          where: { userId: user.id },
+          include: { team: true },
+        });
+
+        const userTeamIds = userTeams.map(ut => ut.teamId);
+        const userTeamNames = userTeams.map(ut => ut.team.name.toLowerCase());
+        
+        // Define allowed team names
+        const allowedTeamNames = ['blue team', 'red team', 'ctf team'];
+        const isInAllowedTeam = userTeamNames.some(teamName => 
+          allowedTeamNames.includes(teamName)
+        );
+
+        // Check if user can access this team
+        const canAccessTeam = userTeamIds.includes(team.id) || 
+          (isInAllowedTeam && allowedTeamNames.includes(team.name.toLowerCase()));
+        
+        if (!canAccessTeam) {
+          return res.status(403).json({ error: 'Access denied to this team' });
+        }
       }
 
       res.status(200).json(team);

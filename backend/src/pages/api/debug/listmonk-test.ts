@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { logger } from '../../../utils/logger';
-import { withCORS } from '../../../middleware/corsMiddleware';
-import { ListMonkServiceFactory } from '../../../services/listmonkServiceFactory';
+import { logger } from '@/utils/logger';
+import { withCORS } from '@/middleware/corsMiddleware';
+import { ListMonkServiceFactory } from '@/services/listmonkServiceFactory';
 
 export default withCORS(async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {

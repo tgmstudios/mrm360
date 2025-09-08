@@ -37,7 +37,17 @@ export class UserManager {
       
       // Return user with isActive field (false for newly created users)
       return {
-        ...user,
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        displayName: user.displayName || undefined,
+        paidStatus: user.paidStatus,
+        qrCode: user.qrCode || undefined,
+        role: user.role,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+        authentikId: user.authentikId || undefined,
         isActive: false // New users are inactive until they login
       };
     } catch (error) {
@@ -60,6 +70,16 @@ export class UserManager {
             include: {
               team: true
             }
+          },
+          rsvps: {
+            include: {
+              event: true
+            }
+          },
+          checkIns: {
+            include: {
+              event: true
+            }
           }
         }
       });
@@ -70,8 +90,81 @@ export class UserManager {
 
       // Add isActive field based on whether user has authentikId
       return {
-        ...user,
-        isActive: !!user.authentikId // User is active if they have an authentikId
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        displayName: user.displayName || undefined,
+        paidStatus: user.paidStatus,
+        qrCode: user.qrCode || undefined,
+        role: user.role,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+        authentikId: user.authentikId || undefined,
+        isActive: !!user.authentikId, // User is active if they have an authentikId
+        userGroups: user.userGroups.map(ug => ({
+          id: ug.id,
+          userId: ug.userId,
+          groupId: ug.groupId,
+          group: {
+            id: ug.group.id,
+            name: ug.group.name,
+            description: ug.group.description,
+            externalId: ug.group.externalId,
+            createdAt: ug.group.createdAt,
+            updatedAt: ug.group.updatedAt
+          }
+        })),
+        userTeams: user.userTeams.map(ut => ({
+          id: ut.id,
+          userId: ut.userId,
+          teamId: ut.teamId,
+          role: ut.role,
+          team: {
+            id: ut.team.id,
+            name: ut.team.name,
+            description: ut.team.description,
+            type: ut.team.type,
+            subtype: ut.team.subtype,
+            parentTeamId: ut.team.parentTeamId,
+            groupId: ut.team.groupId,
+            createdAt: ut.team.createdAt,
+            updatedAt: ut.team.updatedAt
+          }
+        })),
+        events: [
+          // Events the user has RSVP'd to
+          ...user.rsvps.map(rsvp => ({
+            id: rsvp.event.id,
+            title: rsvp.event.title,
+            description: rsvp.event.description,
+            startTime: rsvp.event.startTime,
+            endTime: rsvp.event.endTime,
+            category: rsvp.event.category,
+            linkedTeamId: rsvp.event.linkedTeamId,
+            attendanceType: rsvp.event.attendanceType,
+            createdAt: rsvp.event.createdAt,
+            updatedAt: rsvp.event.updatedAt,
+            rsvpStatus: rsvp.status
+          })),
+          // Events the user has checked into
+          ...user.checkIns.map(checkIn => ({
+            id: checkIn.event.id,
+            title: checkIn.event.title,
+            description: checkIn.event.description,
+            startTime: checkIn.event.startTime,
+            endTime: checkIn.event.endTime,
+            category: checkIn.event.category,
+            linkedTeamId: checkIn.event.linkedTeamId,
+            attendanceType: checkIn.event.attendanceType,
+            createdAt: checkIn.event.createdAt,
+            updatedAt: checkIn.event.updatedAt,
+            checkedInAt: checkIn.checkedInAt
+          }))
+        ].filter((event, index, array) => 
+          // Remove duplicates based on event ID
+          array.findIndex(e => e.id === event.id) === index
+        )
       };
     } catch (error) {
       logger.error(`Error getting user ${id}:`, error);
@@ -98,7 +191,17 @@ export class UserManager {
 
       // Add isActive field based on whether user has authentikId
       return {
-        ...user,
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        displayName: user.displayName || undefined,
+        paidStatus: user.paidStatus,
+        qrCode: user.qrCode || undefined,
+        role: user.role,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+        authentikId: user.authentikId || undefined,
         isActive: !!user.authentikId // User is active if they have an authentikId
       };
     } catch (error) {
@@ -276,16 +379,99 @@ export class UserManager {
             include: {
               team: true
             }
+          },
+          rsvps: {
+            include: {
+              event: true
+            }
+          },
+          checkIns: {
+            include: {
+              event: true
+            }
           }
         }
       });
 
       const totalPages = Math.ceil(total / limit);
 
-      // Add isActive field to each user
+      // Add isActive field to each user and include related data
       const usersWithActiveStatus = users.map(user => ({
-        ...user,
-        isActive: !!user.authentikId // User is active if they have an authentikId
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        displayName: user.displayName || undefined,
+        paidStatus: user.paidStatus,
+        qrCode: user.qrCode || undefined,
+        role: user.role,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+        authentikId: user.authentikId || undefined,
+        isActive: !!user.authentikId, // User is active if they have an authentikId
+        userGroups: user.userGroups.map(ug => ({
+          id: ug.id,
+          userId: ug.userId,
+          groupId: ug.groupId,
+          group: {
+            id: ug.group.id,
+            name: ug.group.name,
+            description: ug.group.description,
+            externalId: ug.group.externalId,
+            createdAt: ug.group.createdAt,
+            updatedAt: ug.group.updatedAt
+          }
+        })),
+        userTeams: user.userTeams.map(ut => ({
+          id: ut.id,
+          userId: ut.userId,
+          teamId: ut.teamId,
+          role: ut.role,
+          team: {
+            id: ut.team.id,
+            name: ut.team.name,
+            description: ut.team.description,
+            type: ut.team.type,
+            subtype: ut.team.subtype,
+            parentTeamId: ut.team.parentTeamId,
+            groupId: ut.team.groupId,
+            createdAt: ut.team.createdAt,
+            updatedAt: ut.team.updatedAt
+          }
+        })),
+        events: [
+          // Events the user has RSVP'd to
+          ...user.rsvps.map(rsvp => ({
+            id: rsvp.event.id,
+            title: rsvp.event.title,
+            description: rsvp.event.description,
+            startTime: rsvp.event.startTime,
+            endTime: rsvp.event.endTime,
+            category: rsvp.event.category,
+            linkedTeamId: rsvp.event.linkedTeamId,
+            attendanceType: rsvp.event.attendanceType,
+            createdAt: rsvp.event.createdAt,
+            updatedAt: rsvp.event.updatedAt,
+            rsvpStatus: rsvp.status
+          })),
+          // Events the user has checked into
+          ...user.checkIns.map(checkIn => ({
+            id: checkIn.event.id,
+            title: checkIn.event.title,
+            description: checkIn.event.description,
+            startTime: checkIn.event.startTime,
+            endTime: checkIn.event.endTime,
+            category: checkIn.event.category,
+            linkedTeamId: checkIn.event.linkedTeamId,
+            attendanceType: checkIn.event.attendanceType,
+            createdAt: checkIn.event.createdAt,
+            updatedAt: checkIn.event.updatedAt,
+            checkedInAt: checkIn.checkedInAt
+          }))
+        ].filter((event, index, array) => 
+          // Remove duplicates based on event ID
+          array.findIndex(e => e.id === event.id) === index
+        )
       }));
 
       return {

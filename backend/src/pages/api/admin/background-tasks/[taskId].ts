@@ -1,10 +1,10 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { withCORS } from '../../../../middleware/corsMiddleware';
-import { withAuth } from '../../../../middleware/authMiddleware';
-import { withPermissions } from '../../../../middleware/permissionMiddleware';
-import { backgroundTaskService } from '../../../../services/backgroundTaskService';
-import { logger } from '../../../../utils/logger';
-import { handleApiError, ApiError } from '../../../../middleware/errorHandler';
+import { withCORS } from '@/middleware/corsMiddleware';
+import { withAuth } from '@/middleware/authMiddleware';
+import { withPermissions } from '@/middleware/permissionMiddleware';
+import { backgroundTaskService } from '@/services/backgroundTaskService';
+import { logger } from '@/utils/logger';
+import { handleApiError, ApiError } from '@/middleware/errorHandler';
 
 /**
  * @swagger

@@ -1,9 +1,9 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { withAuth } from '../../../middleware/authMiddleware';
-import { PaymentService } from '../../../services/paymentService';
-import { prisma } from '../../../models/prismaClient';
-import { logger } from '../../../utils/logger';
-import { withCORS } from '../../../middleware/corsMiddleware';
+import { withAuth } from '@/middleware/authMiddleware';
+import { PaymentService } from '@/services/paymentService';
+import { prisma } from '@/models/prismaClient';
+import { logger } from '@/utils/logger';
+import { withCORS } from '@/middleware/corsMiddleware';
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {

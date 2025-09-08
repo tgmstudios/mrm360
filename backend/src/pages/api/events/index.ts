@@ -1,12 +1,14 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { z } from 'zod';
-import { prisma } from '../../../models/prismaClient';
+import { prisma } from '@/models/prismaClient';
 import { EventManager } from '../../../managers/eventManager';
 import { TaskManager } from '@/managers/taskManager';
-import { withCORS } from '../../../middleware/corsMiddleware';
-import { withAuth } from '../../../middleware/authMiddleware';
-import { withPermissions } from '../../../middleware/permissionMiddleware';
-import { logger } from '../../../utils/logger';
+import { BackgroundTaskManager } from '@/managers/backgroundTaskManager';
+import { withCORS } from '@/middleware/corsMiddleware';
+import { withAuth } from '@/middleware/authMiddleware';
+import { withPermissions } from '@/middleware/permissionMiddleware';
+import { logger } from '@/utils/logger';
+import { getEffectiveSystemRole } from '@/utils/roleUtils';
 
 // Validation schemas
 const createEventSchema = z.object({
@@ -16,7 +18,10 @@ const createEventSchema = z.object({
   endTime: z.string().transform(val => new Date(val)),
   category: z.enum(['MEETING', 'COMPETITION', 'WORKSHOP', 'SOCIAL', 'TRAINING']),
   linkedTeamId: z.string().optional(),
+  wiretapWorkshopId: z.string().optional(),
   attendanceType: z.enum(['STRICT', 'SOFT']),
+  attendanceCap: z.number().int().positive().optional(),
+  waitlistEnabled: z.boolean().optional(),
 });
 
 const listEventsSchema = z.object({
@@ -145,6 +150,13 @@ const listEventsSchema = z.object({
  *               attendanceType:
  *                 type: string
  *                 enum: [STRICT, SOFT]
+ *               attendanceCap:
+ *                 type: integer
+ *                 minimum: 1
+ *                 description: Maximum number of attendees (optional)
+ *               waitlistEnabled:
+ *                 type: boolean
+ *                 description: Whether to enable waitlist when cap is reached
  *     responses:
  *       201:
  *         description: Event created successfully
@@ -170,12 +182,28 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       // List events
       const queryParams = listEventsSchema.parse(req.query);
       
-      const result = await eventManager.getAllEvents({
-        category: queryParams.category as any,
-        linkedTeamId: queryParams.linkedTeamId,
-        startDate: queryParams.startDate,
-        endDate: queryParams.endDate,
-      });
+      // Get user info from request (set by auth middleware)
+      const user = (req as any).user;
+      const effectiveRole = getEffectiveSystemRole(user.role);
+      
+      let result;
+      
+      // Use filtered method for regular members, full access for admins/exec board
+      if (effectiveRole === 'MEMBER') {
+        result = await eventManager.getEventsForUser(user.id, {
+          category: queryParams.category as any,
+          linkedTeamId: queryParams.linkedTeamId,
+          startDate: queryParams.startDate,
+          endDate: queryParams.endDate,
+        });
+      } else {
+        result = await eventManager.getAllEvents({
+          category: queryParams.category as any,
+          linkedTeamId: queryParams.linkedTeamId,
+          startDate: queryParams.startDate,
+          endDate: queryParams.endDate,
+        });
+      }
 
       // Simple pagination (in production, implement proper pagination)
       const page = queryParams.page;
@@ -203,22 +231,18 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       
       const event = await eventManager.createEvent(body);
       
-      // Enqueue simulated event setup task
-      const subtaskNames = [
-        'Validate event details',
-        'Create internal records',
-        'Create Nextcloud calendar entry (simulated)',
-        'Generate RSVP link (simulated)',
-        'Prepare Wiretap/OpenStack resources (simulated)'
-      ];
+      // Enqueue event setup task (simplified - no placeholder subtasks)
       await taskManager.enqueueProvisionTask({
         provisionType: 'EVENT',
         name: `Provision resources for event ${event.title}`,
-        description: 'Simulated event resource setup',
+        description: 'Event resource setup',
         entityType: 'EVENT',
         entityId: event.id,
-        subtaskNames,
-        payload: { eventId: event.id }
+        subtaskNames: [], // No subtasks needed for event creation
+        payload: { 
+          eventId: event.id,
+          wiretapWorkshopId: body.wiretapWorkshopId 
+        }
       });
 
       res.status(201).json({ success: true, data: event });

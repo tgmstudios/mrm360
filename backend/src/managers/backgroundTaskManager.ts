@@ -125,7 +125,8 @@ export class BackgroundTaskManager {
     const where: any = {};
     if (params.entityType) where.entityType = params.entityType;
     if (params.entityId) where.entityId = params.entityId;
-    const [total, tasks] = await Promise.all([
+    
+    const [total, tasks, stats] = await Promise.all([
       this.prisma.backgroundTask.count({ where }),
       this.prisma.backgroundTask.findMany({
         where,
@@ -133,8 +134,10 @@ export class BackgroundTaskManager {
         skip,
         take: limit,
         include: { subtasks: true }
-      })
+      }),
+      this.getTaskStatistics(where)
     ]);
+    
     return {
       data: tasks,
       pagination: {
@@ -142,12 +145,36 @@ export class BackgroundTaskManager {
         limit,
         total,
         totalPages: Math.ceil(total / limit)
-      }
+      },
+      statistics: stats
+    };
+  }
+
+  private async getTaskStatistics(where: any = {}) {
+    const [total, pending, running, completed, failed] = await Promise.all([
+      this.prisma.backgroundTask.count({ where }),
+      this.prisma.backgroundTask.count({ where: { ...where, status: TaskStatus.PENDING } }),
+      this.prisma.backgroundTask.count({ where: { ...where, status: TaskStatus.RUNNING } }),
+      this.prisma.backgroundTask.count({ where: { ...where, status: TaskStatus.COMPLETED } }),
+      this.prisma.backgroundTask.count({ where: { ...where, status: TaskStatus.FAILED } })
+    ]);
+
+    return {
+      total,
+      pending,
+      running,
+      completed,
+      failed
     };
   }
 
   private async getSubtaskId(taskId: string, stepIndex: number): Promise<string> {
-    const subtask = await this.prisma.backgroundTask.findFirst({ where: { parentTaskId: taskId, stepIndex } });
+    const subtask = await this.prisma.backgroundTask.findFirst({ 
+      where: { 
+        parentTaskId: taskId, 
+        stepIndex: stepIndex 
+      } 
+    });
     if (!subtask) {
       throw new Error(`Subtask not found for task ${taskId} at step ${stepIndex}`);
     }

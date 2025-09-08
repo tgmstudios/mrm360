@@ -65,7 +65,7 @@
                     <p v-if="errors.type" class="mt-1 text-sm text-red-400">{{ errors.type }}</p>
                   </div>
 
-                  <div>
+                  <div v-if="form.type !== 'DEVELOPMENT'">
                     <label for="subtype" class="block text-sm font-medium text-gray-300 mb-2">
                       Team Subtype
                     </label>
@@ -357,7 +357,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTeamStore } from '@/stores/teamStore'
 import { useUserStore } from '@/stores/userStore'
@@ -413,6 +413,13 @@ const isFormValid = computed(() => {
   return form.name && 
          form.type && 
          form.members.length > 0
+})
+
+// Watch for team type changes to clear subtype when switching to Development
+watch(() => form.type, (newType) => {
+  if (newType === 'DEVELOPMENT') {
+    form.subtype = ''
+  }
 })
 
 // Methods

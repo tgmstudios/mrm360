@@ -172,14 +172,15 @@ export class TeamProvisioningManager {
           const wikiPage = await this.wikijsService.createTeamIndexPage(teamSubtype, data.name);
           results.wikijs = { success: true, message: 'Successfully created Wiki.js page', data: wikiPage, duration: Date.now() - startTime };
         } catch (error) {
+          const startTime = Date.now();
           results.wikijs = { success: false, message: 'Failed to create Wiki.js page', error: error instanceof Error ? error.message : 'Unknown error', duration: Date.now() - startTime };
           warnings.push(`Wiki.js: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
       }
 
       // 3. Nextcloud - Always create group, optionally create other resources
+      const nextcloudStartTime = Date.now();
       try {
-        const startTime = Date.now();
         const nextcloudGroup = await this.nextcloudService.createGroup(`${teamSubtype}-team-${data.name}`, data.description);
         
         // Add members to group
@@ -228,19 +229,19 @@ export class TeamProvisioningManager {
           }
         }
 
-        results.nextcloud = { success: true, message: 'Successfully created Nextcloud group and optional resources', data: nextcloudResults, duration: Date.now() - startTime };
+        results.nextcloud = { success: true, message: 'Successfully created Nextcloud group and optional resources', data: nextcloudResults, duration: Date.now() - nextcloudStartTime };
       } catch (error) {
-        results.nextcloud = { success: false, message: 'Failed to create Nextcloud group', error: error instanceof Error ? error.message : 'Unknown error', duration: Date.now() - startTime };
+        results.nextcloud = { success: false, message: 'Failed to create Nextcloud group', error: error instanceof Error ? error.message : 'Unknown error', duration: Date.now() - nextcloudStartTime };
         errors.push(`Nextcloud: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
 
       // 4. GitHub - Optional
       if (options.github) {
+        const githubStartTime = Date.now();
         try {
-          const startTime = Date.now();
-          const githubTeam = await this.githubService.createTeam(data.name, data.description, data.type);
+          const githubTeam = await this.githubService.createTeam(data.name, data.description);
           const githubRepo = await this.githubService.createRepository(data.name, data.description);
-          await this.githubService.addTeamToRepository(githubTeam.id, githubRepo.id);
+          await this.githubService.addTeamToRepository(githubRepo.name, githubTeam.id);
           
           if (teamMembers.length > 0) {
             const userIds = teamMembers.map(m => m.userId);
@@ -251,21 +252,21 @@ export class TeamProvisioningManager {
             success: true, 
             message: 'Successfully created GitHub team and repository', 
             data: { team: githubTeam, repository: githubRepo }, 
-            duration: Date.now() - startTime 
+            duration: Date.now() - githubStartTime 
           };
         } catch (error) {
-          results.github = { success: false, message: 'Failed to create GitHub resources', error: error instanceof Error ? error.message : 'Unknown error', duration: Date.now() - startTime };
+          results.github = { success: false, message: 'Failed to create GitHub resources', error: error instanceof Error ? error.message : 'Unknown error', duration: Date.now() - githubStartTime };
           warnings.push(`GitHub: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
       }
 
       // 5. Discord - Optional
       if (options.discord) {
+        const discordStartTime = Date.now();
         try {
-          const startTime = Date.now();
-          const discordRole = await this.discordService.createRole(`${teamSubtype}-team-${data.name}`, data.description);
-          const discordChannel = await this.discordService.createChannel(data.name, data.description, data.type);
-          await this.discordService.setChannelPermissions(discordChannel.id, discordRole.id);
+          const discordRole = await this.discordService.createRole(`${teamSubtype}-team-${data.name}`);
+          const discordChannel = await this.discordService.createChannel(data.name);
+          // Note: Channel permissions would need to be set separately if needed
           
           if (teamMembers.length > 0) {
             const userIds = teamMembers.map(m => m.userId);
@@ -276,10 +277,10 @@ export class TeamProvisioningManager {
             success: true, 
             message: 'Successfully created Discord role and channel', 
             data: { role: discordRole, channel: discordChannel }, 
-            duration: Date.now() - startTime 
+            duration: Date.now() - discordStartTime 
           };
         } catch (error) {
-          results.discord = { success: false, message: 'Failed to create Discord resources', error: error instanceof Error ? error.message : 'Unknown error', duration: Date.now() - startTime };
+          results.discord = { success: false, message: 'Failed to create Discord resources', error: error instanceof Error ? error.message : 'Unknown error', duration: Date.now() - discordStartTime };
           warnings.push(`Discord: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
       }
@@ -362,8 +363,8 @@ export class TeamProvisioningManager {
       // 2. Handle member changes
       if (addedMembers.length > 0 || removedMembers.length > 0) {
         // Update Authentik group
+        const authentikUpdateStartTime = Date.now();
         try {
-          const startTime = Date.now();
           
           // Find the Authentik group for this team
           const team = await prisma.team.findUnique({
@@ -381,7 +382,7 @@ export class TeamProvisioningManager {
             }
             
             if (removedMembers.length > 0) {
-              const userIds = removedMembers.map(m => m.userId);
+              const userIds = removedMembers.map(m => m.authentikPk).filter((pk): pk is string => pk !== null);
               logger.info(`Removing ${userIds.length} members from Authentik group ${groupId}`, { userIds });
               await this.authentikService.removeUsersFromGroup(groupId, userIds);
             }
@@ -389,14 +390,14 @@ export class TeamProvisioningManager {
             logger.warn('Team does not have an associated Authentik group', { teamId: task.teamId });
           }
           
-          const duration = Date.now() - startTime;
+          const duration = Date.now() - authentikUpdateStartTime;
           results.authentik = {
             success: true,
             message: 'Successfully updated Authentik group members',
             duration
           };
         } catch (error) {
-          const duration = Date.now() - startTime;
+          const duration = Date.now() - authentikUpdateStartTime;
           results.authentik = {
             success: false,
             message: 'Failed to update Authentik group members',
@@ -458,17 +459,17 @@ export class TeamProvisioningManager {
       // 2. Delete resources in reverse order of creation
       // Discord
       if (integrationResults.discord?.data?.role?.id) {
+        const discordDeleteStartTime = Date.now();
         try {
-          const startTime = Date.now();
           await this.discordService.deleteRole(integrationResults.discord.data.role.id);
-          const duration = Date.now() - startTime;
+          const duration = Date.now() - discordDeleteStartTime;
           results.discord = {
             success: true,
             message: 'Successfully deleted Discord role',
             duration
           };
         } catch (error) {
-          const duration = Date.now() - startTime;
+          const duration = Date.now() - discordDeleteStartTime;
           results.discord = {
             success: false,
             message: 'Failed to delete Discord role',
@@ -480,10 +481,10 @@ export class TeamProvisioningManager {
       }
 
       if (integrationResults.discord?.data?.channel?.id) {
+        const discordChannelDeleteStartTime = Date.now();
         try {
-          const startTime = Date.now();
           await this.discordService.deleteChannel(integrationResults.discord.data.channel.id);
-          const duration = Date.now() - startTime;
+          const duration = Date.now() - discordChannelDeleteStartTime;
           if (!results.discord) {
             results.discord = {
               success: true,
@@ -492,7 +493,7 @@ export class TeamProvisioningManager {
             };
           }
         } catch (error) {
-          const duration = Date.now() - startTime;
+          const duration = Date.now() - discordChannelDeleteStartTime;
           if (results.discord?.success) {
             results.discord.success = false;
             results.discord.message = 'Partially deleted Discord resources';
@@ -556,8 +557,8 @@ export class TeamProvisioningManager {
         }
         
         if (authentikPk) {
-          // Ensure authentikPk is a string for consistency
-          const userId = typeof authentikPk === 'string' ? authentikPk : authentikPk.toString();
+          // authentikPk is already a string
+          const userId = authentikPk;
           
           teamMembers.push({
             userId: userId, // Use Authentik PK instead of database ID

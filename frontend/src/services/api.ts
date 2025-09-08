@@ -167,6 +167,11 @@ class ApiService {
     return response.data.data
   }
 
+  async getEventByCheckInCode(checkInCode: string): Promise<Event> {
+    const response = await this.api.get(`/events/checkin/${checkInCode}`)
+    return response.data.data
+  }
+
   async createEvent(eventData: EventCreate): Promise<Event> {
     const response = await this.api.post('/events', eventData)
     return response.data.data
@@ -181,8 +186,43 @@ class ApiService {
     await this.api.delete(`/events/${id}`)
   }
 
-  async rsvpToEvent(eventId: string, attending: boolean): Promise<void> {
-    await this.api.post(`/events/${eventId}/rsvp`, { attending })
+  async rsvpToEvent(eventId: string, attending: boolean): Promise<{ success: boolean; message: string; status: string }> {
+    const response = await this.api.post(`/events/${eventId}/rsvp`, { attending })
+    return response.data
+  }
+
+  async checkInUser(eventId: string, userId: string): Promise<{ success: boolean; message: string; user?: any }> {
+    try {
+      const response = await this.api.post(`/events/${eventId}/checkin`, { userId })
+      return response.data
+    } catch (error: any) {
+      // If the server returns an error response, extract the message
+      if (error.response?.data) {
+        return {
+          success: false,
+          message: error.response.data.message || error.response.data.error || 'Check-in failed'
+        }
+      }
+      // For network errors or other issues
+      throw error
+    }
+  }
+
+  async checkInWithQR(eventId: string, qrCode: string): Promise<{ success: boolean; message: string; user?: any }> {
+    try {
+      const response = await this.api.post(`/events/${eventId}/checkin`, { qrCode })
+      return response.data
+    } catch (error: any) {
+      // If the server returns an error response, extract the message
+      if (error.response?.data) {
+        return {
+          success: false,
+          message: error.response.data.message || error.response.data.error || 'Check-in failed'
+        }
+      }
+      // For network errors or other issues
+      throw error
+    }
   }
 
   // Group endpoints
@@ -221,6 +261,65 @@ class ApiService {
   // Health check
   async healthCheck(): Promise<{ status: string }> {
     const response = await this.api.get('/health')
+    return response.data
+  }
+
+  // Wiretap endpoints
+  async getWiretapWorkshops(): Promise<{ success: boolean; data: any[] }> {
+    const response = await this.api.get('/wiretap/workshops')
+    return response.data
+  }
+
+  // Event Teams endpoints
+  async getEventTeams(eventId: string): Promise<{ success: boolean; data: any[] }> {
+    const response = await this.api.get(`/events/${eventId}/teams`)
+    return response.data
+  }
+
+  async createEventTeams(eventId: string, membersPerTeam: number = 4, wiretapWorkshopId?: string, assignmentType: string = 'manual'): Promise<{ success: boolean; data: any[]; message: string }> {
+    const response = await this.api.post(`/events/${eventId}/teams`, {
+      wiretapWorkshopId,
+      membersPerTeam,
+      assignmentType
+    })
+    return response.data
+  }
+
+  async enableEventTeams(eventId: string): Promise<{ success: boolean; message: string; data: any }> {
+    const response = await this.api.post(`/events/${eventId}/teams/enable`)
+    return response.data
+  }
+
+  async addTeamMember(eventId: string, teamId: string, email: string): Promise<{ success: boolean; data: any; message: string }> {
+    const response = await this.api.post(`/events/${eventId}/teams/${teamId}/members`, {
+      email
+    })
+    return response.data
+  }
+
+  async removeTeamMember(eventId: string, teamId: string, email: string): Promise<{ success: boolean; message: string }> {
+    const response = await this.api.delete(`/events/${eventId}/teams/${teamId}/members`, {
+      data: { email }
+    })
+    return response.data
+  }
+
+  async deleteEventTeam(eventId: string, teamId: string): Promise<{ success: boolean; message: string }> {
+    const response = await this.api.delete(`/events/${eventId}/teams/${teamId}`)
+    return response.data
+  }
+
+  async syncEventTeams(eventId: string, syncType: string, membersPerTeam: number = 4): Promise<{ success: boolean; message: string; taskId: string }> {
+    const response = await this.api.post(`/events/${eventId}/teams/sync`, {
+      syncType,
+      membersPerTeam
+    })
+    return response.data
+  }
+
+  // User search
+  async searchUsers(query: string, limit: number = 10): Promise<{ success: boolean; data: any[] }> {
+    const response = await this.api.get(`/users/search?q=${encodeURIComponent(query)}&limit=${limit}`)
     return response.data
   }
 }

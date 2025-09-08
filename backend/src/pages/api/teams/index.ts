@@ -1,14 +1,15 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { z } from 'zod';
-import { prisma } from '../../../models/prismaClient';
+import { prisma } from '@/models/prismaClient';
 import { TeamManager } from '../../../managers/teamManager';
 import { BackgroundTaskManager } from '../../../managers/backgroundTaskManager';
-import { withCORS } from '../../../middleware/corsMiddleware';
-import { withAuth } from '../../../middleware/authMiddleware';
-import { withPermissions } from '../../../middleware/permissionMiddleware';
-import { logger } from '../../../utils/logger';
+import { withCORS } from '@/middleware/corsMiddleware';
+import { withAuth } from '@/middleware/authMiddleware';
+import { withPermissions } from '@/middleware/permissionMiddleware';
+import { logger } from '@/utils/logger';
 import { addJobToQueue } from '../../../tasks/queue';
-import { handleApiError, ApiError } from '../../../middleware/errorHandler';
+import { handleApiError, ApiError } from '@/middleware/errorHandler';
+import { getEffectiveSystemRole } from '@/utils/roleUtils';
 
 // Validation schemas
 const createTeamSchema = z.object({
@@ -181,6 +182,10 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       // List teams
       const queryParams = listTeamsSchema.parse(req.query);
       
+      // Get user info from request (set by auth middleware)
+      const user = (req as any).user;
+      const effectiveRole = getEffectiveSystemRole(user.role);
+      
       const { page = 1, limit = 20, search, type, groupId } = queryParams;
       const skip = (page - 1) * limit;
 
@@ -196,35 +201,93 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         where.groupId = groupId;
       }
 
-      // Get total count
-      const total = await prisma.team.count({ where });
+      let teams;
+      let total;
 
-      // Get teams with pagination
-      const teams = await prisma.team.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { name: 'asc' },
-        include: {
-          group: true,
-          parentTeam: true,
-          subteams: true,
-          userTeams: {
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  email: true,
-                  firstName: true,
-                  lastName: true,
-                  displayName: true,
-                  role: true
+      if (effectiveRole === 'MEMBER') {
+        // For regular members, only show teams they belong to or allowed teams
+        const userTeams = await prisma.userTeam.findMany({
+          where: { userId: user.id },
+          include: { team: true },
+        });
+
+        const userTeamIds = userTeams.map(ut => ut.teamId);
+        const userTeamNames = userTeams.map(ut => ut.team.name.toLowerCase());
+        
+        // Define allowed team names
+        const allowedTeamNames = ['blue team', 'red team', 'ctf team'];
+        const isInAllowedTeam = userTeamNames.some(teamName => 
+          allowedTeamNames.includes(teamName)
+        );
+
+        // Build additional where clause for member filtering
+        const memberWhere = {
+          ...where,
+          OR: [
+            { id: { in: userTeamIds } }, // User's teams
+            ...(isInAllowedTeam ? [{ name: { in: allowedTeamNames } }] : []) // Allowed teams if user is in one
+          ]
+        };
+
+        // Get total count for filtered teams
+        total = await prisma.team.count({ where: memberWhere });
+
+        // Get teams with pagination
+        teams = await prisma.team.findMany({
+          where: memberWhere,
+          skip,
+          take: limit,
+          orderBy: { name: 'asc' },
+          include: {
+            group: true,
+            parentTeam: true,
+            subteams: true,
+            userTeams: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    email: true,
+                    firstName: true,
+                    lastName: true,
+                    displayName: true,
+                    role: true
+                  }
                 }
               }
             }
           }
-        }
-      });
+        });
+      } else {
+        // For admins/exec board, show all teams
+        total = await prisma.team.count({ where });
+
+        teams = await prisma.team.findMany({
+          where,
+          skip,
+          take: limit,
+          orderBy: { name: 'asc' },
+          include: {
+            group: true,
+            parentTeam: true,
+            subteams: true,
+            userTeams: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    email: true,
+                    firstName: true,
+                    lastName: true,
+                    displayName: true,
+                    role: true
+                  }
+                }
+              }
+            }
+          }
+        });
+      }
 
       const totalPages = Math.ceil(total / limit);
 

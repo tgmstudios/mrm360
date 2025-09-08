@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { withCORS } from '../../../middleware/corsMiddleware';
-import { logger } from '../../../utils/logger';
+import { withCORS } from '@/middleware/corsMiddleware';
+import { logger } from '@/utils/logger';
 
 /**
  * @swagger
