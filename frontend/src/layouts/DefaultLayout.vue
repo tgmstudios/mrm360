@@ -583,9 +583,8 @@ const userInitials = computed(() => {
 // Handle logout
 const handleLogout = async () => {
   isUserMenuOpen.value = false
+  // The authStore.logout() now handles OIDC provider logout automatically
   await authStore.logout()
-  // Redirect to OAuth after logout
-  initiateOAuthLogin()
 }
 
 // Mobile detection

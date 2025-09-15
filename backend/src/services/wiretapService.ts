@@ -439,4 +439,50 @@ export class WiretapService {
       throw new Error(`Failed to add team member: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
+
+  async listTeamUsers(teamId: string): Promise<Array<{ id: string; username: string; email: string }>> {
+    try {
+      logger.info(`Listing Wiretap team users for team ${teamId}`);
+      const users = await this.apiClient.listTeamUsers(teamId);
+      logger.info(`Retrieved ${users.length} users for Wiretap team ${teamId}`);
+      return users;
+    } catch (error) {
+      logger.error(`Error listing users for Wiretap team ${teamId}:`, error);
+      throw new Error(`Failed to list team users: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  async removeTeamUser(teamId: string, userId: string): Promise<void> {
+    try {
+      logger.info(`Removing user ${userId} from Wiretap team ${teamId}`);
+      await this.apiClient.removeTeamUser(teamId, userId);
+      logger.info(`Successfully removed user ${userId} from Wiretap team ${teamId}`);
+    } catch (error) {
+      logger.error(`Error removing user ${userId} from Wiretap team ${teamId}:`, error);
+      throw new Error(`Failed to remove team user: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  async listTeamPendingAssignments(teamId: string): Promise<Array<{ id: string; email: string; team_id: string; created_at: string }>> {
+    try {
+      logger.info(`Listing pending assignments for Wiretap team ${teamId}`);
+      const pending = await this.apiClient.listTeamPendingAssignments(teamId);
+      logger.info(`Retrieved ${pending.length} pending assignment(s) for Wiretap team ${teamId}`);
+      return pending;
+    } catch (error) {
+      logger.error(`Error listing pending assignments for Wiretap team ${teamId}:`, error);
+      throw new Error(`Failed to list pending assignments: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  async removePendingTeamAssignment(email: string, teamId: string): Promise<void> {
+    try {
+      logger.info(`Removing pending assignment for ${email} from Wiretap team ${teamId}`);
+      await this.apiClient.removePendingTeamAssignment(email, teamId);
+      logger.info(`Successfully removed pending assignment for ${email} from Wiretap team ${teamId}`);
+    } catch (error) {
+      logger.error(`Error removing pending assignment for ${email} from Wiretap team ${teamId}:`, error);
+      throw new Error(`Failed to remove pending assignment: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
 }

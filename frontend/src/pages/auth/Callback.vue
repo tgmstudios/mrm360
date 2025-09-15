@@ -96,10 +96,8 @@ async function handleCallback() {
       // Refresh all stores with new authentication context
       await authStore.refreshStores()
       
-      // Redirect to dashboard after a short delay
-      setTimeout(() => {
-        router.push('/dashboard')
-      }, 1500)
+      // Use the auth store's redirect handler
+      await authStore.handleSuccessfulLogin()
     } else {
       throw new Error('OIDC authentication failed')
     }

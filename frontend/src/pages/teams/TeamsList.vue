@@ -132,9 +132,7 @@
           </p>
           
           <div class="flex items-center text-sm text-gray-500 mb-3">
-            <svg class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-            </svg>
+            <UserGroupIcon class="h-4 w-4 mr-2" />
             {{ team.userTeams?.length || 0 }} members
           </div>
           
@@ -243,6 +241,7 @@ import { useTeamStore } from '@/stores/teamStore'
 import { usePermissions } from '@/composables/usePermissions'
 import BaseButton from '@/components/common/BaseButton.vue'
 import type { Team } from '@/types/api'
+import { UserGroupIcon } from '@heroicons/vue/24/outline'
 
 const router = useRouter()
 const teamStore = useTeamStore()

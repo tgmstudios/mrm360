@@ -176,6 +176,7 @@ model Event {
   teamsEnabled      Boolean        @default(false) // Whether teams are enabled for this event
   membersPerTeam    Int?           @default(4) // Number of members per team for auto-assignment
   autoAssignEnabled Boolean        @default(false) // Whether to auto-assign confirmed RSVPs to teams
+  allowTeamSwitching Boolean       @default(false) // Whether users can switch teams themselves
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
   checkIns          CheckIn[]

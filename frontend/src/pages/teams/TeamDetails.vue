@@ -199,9 +199,7 @@
               </div>
               
               <div v-else class="text-center py-4">
-                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-                </svg>
+                <UserGroupIcon class="mx-auto h-12 w-12 text-gray-400" />
                 <h3 class="mt-2 text-sm font-medium text-gray-100">No members</h3>
                 <p class="mt-1 text-sm text-gray-400">
                   This team doesn't have any members yet.
@@ -276,7 +274,7 @@ import { useTeamStore } from '@/stores/teamStore'
 import { usePermissions } from '@/composables/usePermissions'
 import BaseButton from '@/components/common/BaseButton.vue'
 import type { Team, User } from '@/types/api'
-import { CalendarIcon } from '@heroicons/vue/24/outline'
+import { CalendarIcon, UserGroupIcon } from '@heroicons/vue/24/outline'
 
 const route = useRoute()
 const router = useRouter()

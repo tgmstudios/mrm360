@@ -21,6 +21,7 @@ import EventsList from '@/pages/events/EventsList.vue'
 import EventDetails from '@/pages/events/EventDetails.vue'
 import EventEdit from '@/pages/events/EventEdit.vue'
 import EventCheckIn from '@/pages/events/EventCheckIn.vue'
+import EventRSVP from '@/pages/events/EventRSVP.vue'
 import TasksList from '@/pages/tasks/TasksList.vue'
 import Callback from '@/pages/auth/Callback.vue'
 import Join from '@/pages/join/Join.vue'
@@ -198,6 +199,14 @@ const routes: RouteRecordRaw[] = [
               title: 'Event Check-In',
               requiresExecBoard: true
             }
+          },
+          {
+            path: ':id/rsvp',
+            name: 'EventRSVP',
+            component: EventRSVP,
+            meta: { 
+              title: 'Event RSVP'
+            }
           }
         ]
       },
@@ -242,8 +251,12 @@ router.beforeEach(async (to, from, next) => {
   // Check if route requires authentication
   if (to.meta.requiresAuth) {
     if (!authStore.isAuthenticated) {
+      // Store the target URL for redirect after login
+      const targetUrl = to.fullPath
+      console.log('Authentication required, storing redirect URL:', targetUrl)
+      
       // Redirect to OAuth if not authenticated
-      initiateOAuthLogin()
+      initiateOAuthLogin(targetUrl)
       return
     }
   }

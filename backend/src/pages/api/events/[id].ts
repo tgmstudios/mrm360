@@ -23,6 +23,7 @@ const updateEventSchema = z.object({
   teamsEnabled: z.boolean().optional(),
   membersPerTeam: z.number().int().positive().max(20).optional(),
   autoAssignEnabled: z.boolean().optional(),
+  allowTeamSwitching: z.boolean().optional(),
 });
 
 /**

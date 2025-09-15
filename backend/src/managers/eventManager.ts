@@ -16,6 +16,7 @@ export interface CreateEventData {
   teamsEnabled?: boolean;
   membersPerTeam?: number;
   autoAssignEnabled?: boolean;
+  allowTeamSwitching?: boolean;
 }
 
 export interface UpdateEventData extends Partial<CreateEventData> {}
@@ -60,6 +61,7 @@ export class EventManager {
           teamsEnabled: data.teamsEnabled || (data.wiretapWorkshopId && data.wiretapWorkshopId.trim() !== '' ? true : false), // Use provided value or auto-enable if Wiretap workshop is specified
           membersPerTeam: data.membersPerTeam || 4, // Default to 4 members per team
           autoAssignEnabled: data.autoAssignEnabled || false, // Default to false
+          allowTeamSwitching: data.allowTeamSwitching || false, // Default to false
           checkInCode,
         },
         include: {
@@ -424,15 +426,7 @@ export class EventManager {
         });
       }
 
-      // Trigger auto-assignment if enabled and user is confirmed
-      if (finalStatus === 'CONFIRMED' && event.autoAssignEnabled && event.teamsEnabled && event.membersPerTeam) {
-        try {
-          await this.triggerAutoAssignment(data.eventId, event.membersPerTeam);
-        } catch (error) {
-          logger.warn('Auto-assignment failed after RSVP', { error, eventId: data.eventId, userId: data.userId });
-          // Don't fail the RSVP if auto-assignment fails
-        }
-      }
+      // Note: Auto-assignment is now only triggered during check-in, not RSVP
 
       logger.info('RSVP processed successfully', { userId: data.userId, eventId: data.eventId, finalStatus });
       return { success: true, message, status: finalStatus };
@@ -588,6 +582,17 @@ export class EventManager {
         },
       });
 
+      // Trigger auto-assignment if enabled and user is confirmed
+      if (rsvp.status === 'CONFIRMED' && event.autoAssignEnabled && event.teamsEnabled && event.membersPerTeam) {
+        try {
+          await this.triggerAutoAssignment(data.eventId, event.membersPerTeam);
+          logger.info('Auto-assignment triggered after check-in', { userId: user.id, eventId: data.eventId });
+        } catch (error) {
+          logger.warn('Auto-assignment failed after check-in', { error, eventId: data.eventId, userId: user.id });
+          // Don't fail the check-in if auto-assignment fails
+        }
+      }
+
       logger.info('Attendance check-in successful', { userId: user.id, eventId: data.eventId });
       return { success: true, message: 'Check-in successful', user };
     } catch (error) {
@@ -741,13 +746,13 @@ export class EventManager {
   }
 
   /**
-   * Trigger auto-assignment for confirmed RSVPs
+   * Trigger auto-assignment for confirmed RSVPs who are checked in
    */
-  private async triggerAutoAssignment(eventId: string, membersPerTeam: number): Promise<void> {
+  async triggerAutoAssignment(eventId: string, membersPerTeam: number): Promise<void> {
     try {
       logger.info('Triggering auto-assignment', { eventId, membersPerTeam });
       
-      // Get event with teams and RSVPs
+      // Get event with teams, RSVPs, and check-ins
       const event = await this.prisma.event.findUnique({
         where: { id: eventId },
         include: {
@@ -760,6 +765,9 @@ export class EventManager {
           },
           rsvps: {
             include: { user: true }
+          },
+          checkIns: {
+            include: { user: true }
           }
         }
       });
@@ -768,13 +776,26 @@ export class EventManager {
         throw new Error('Event not found');
       }
 
-      // Get confirmed users who aren't already assigned to teams
+      // Get confirmed users who are also checked in
       const confirmedUsers = event.rsvps
         .filter((rsvp: any) => rsvp.status === 'CONFIRMED')
         .map((rsvp: any) => rsvp.user);
 
-      if (confirmedUsers.length === 0) {
-        logger.info('No confirmed users to assign');
+      // Get checked-in user IDs
+      const checkedInUserIds = new Set(event.checkIns?.map((checkIn: any) => checkIn.userId) || []);
+
+      // Only assign users who are both confirmed AND checked in
+      const eligibleUsers = confirmedUsers.filter((user: any) => checkedInUserIds.has(user.id));
+
+      logger.info('Auto-assignment eligibility check', {
+        eventId,
+        confirmedUsersCount: confirmedUsers.length,
+        checkedInUsersCount: checkedInUserIds.size,
+        eligibleUsersCount: eligibleUsers.length
+      });
+
+      if (eligibleUsers.length === 0) {
+        logger.info('No confirmed and checked-in users to assign');
         return;
       }
 
@@ -787,21 +808,22 @@ export class EventManager {
       });
 
       // Filter out users already assigned to teams
-      const unassignedUsers = confirmedUsers.filter((user: any) => !existingMembers.has(user.id));
+      const unassignedUsers = eligibleUsers.filter((user: any) => !existingMembers.has(user.id));
 
       if (unassignedUsers.length === 0) {
-        logger.info('All confirmed users are already assigned to teams');
+        logger.info('All eligible users are already assigned to teams');
         return;
       }
 
-      // Assign users to teams
+      // Assign users to teams with proper team size limits
       let usersAssigned = 0;
       let currentTeamNumber = event.eventTeams.length > 0 ? Math.max(...event.eventTeams.map((t: any) => t.teamNumber)) + 1 : 1;
 
       for (const user of unassignedUsers) {
-        // Find a team with space
+        // Find a team with space, respecting the membersPerTeam limit
         let targetTeam = null;
         
+        // Look for existing teams with space
         for (const team of event.eventTeams) {
           if (team.members.length < membersPerTeam) {
             targetTeam = team;
@@ -824,6 +846,12 @@ export class EventManager {
           });
         }
 
+        // Double-check team size before assignment
+        if (targetTeam.members.length >= membersPerTeam) {
+          logger.warn(`Team ${targetTeam.teamNumber} is already at capacity (${targetTeam.members.length}/${membersPerTeam}), skipping user ${user.email}`);
+          continue;
+        }
+
         // Add user to team
         await this.prisma.eventTeamMember.create({
           data: {
@@ -834,7 +862,7 @@ export class EventManager {
         });
 
         usersAssigned++;
-        logger.info(`Assigned user ${user.email} to team ${targetTeam.teamNumber}`);
+        logger.info(`Assigned user ${user.email} to team ${targetTeam.teamNumber} (${targetTeam.members.length + 1}/${membersPerTeam})`);
       }
 
       logger.info('Auto-assignment completed', { eventId, usersAssigned });

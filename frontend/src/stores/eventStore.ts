@@ -39,6 +39,16 @@ export const useEventStore = defineStore('events', () => {
     events.value.filter(event => new Date(event.startTime) > new Date())
   )
 
+  const upcomingAndOngoingEvents = computed(() => 
+    events.value.filter(event => {
+      if (!event.startTime || !event.endTime) return false
+      const now = new Date()
+      const endTime = new Date(event.endTime)
+      // Include events that haven't ended yet (upcoming or ongoing)
+      return endTime > now
+    }).sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
+  )
+
   const eventsByTeam = computed(() => (teamId: string) => 
     events.value.filter(event => 
       event.linkedTeamId === teamId
@@ -347,6 +357,7 @@ export const useEventStore = defineStore('events', () => {
     upcomingEvents,
     pastEvents,
     activeEvents,
+    upcomingAndOngoingEvents,
     eventsByTeam,
     
     // Actions

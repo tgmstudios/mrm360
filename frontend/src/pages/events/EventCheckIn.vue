@@ -285,9 +285,7 @@
               </div>
             </div>
             <div v-else class="text-center py-4">
-              <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-              </svg>
+              <UserGroupIcon class="mx-auto h-12 w-12 text-gray-400" />
               <h3 class="mt-2 text-sm font-medium text-gray-100">No attendees</h3>
               <p class="mt-1 text-sm text-gray-400">
                 No one has checked in to this event yet.
@@ -328,6 +326,7 @@ import type { Event, User } from '@/types/api'
 import { BrowserQRCodeReader } from '@zxing/browser'
 import { useToast } from 'vue-toastification'
 import { apiService } from '@/services/api'
+import { UserGroupIcon } from '@heroicons/vue/24/outline'
 
 const route = useRoute()
 const eventStore = useEventStore()

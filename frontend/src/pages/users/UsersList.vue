@@ -341,9 +341,7 @@
 
     <!-- Empty State -->
     <div v-if="users.length === 0 && !userStore.isLoading" class="text-center py-12">
-      <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
-      </svg>
+      <UserGroupIcon class="mx-auto h-12 w-12 text-gray-400" />
       <h3 class="mt-2 text-sm font-medium text-gray-100">No users found</h3>
       <p class="mt-1 text-sm text-gray-400">
         {{ filters.query || filters.isActive !== undefined || filters.isPaid !== undefined || filters.teamId || filters.groupId ? 'Try adjusting your search or filter criteria.' : 'No users have been added yet.' }}
@@ -370,6 +368,7 @@ import { usePermissions } from '@/composables/usePermissions'
 import type { User, UserFilters } from '@/types/api'
 import BaseButton from '@/components/common/BaseButton.vue'
 import PaymentModal from '@/components/payments/PaymentModal.vue'
+import { UserGroupIcon } from '@heroicons/vue/24/outline'
 
 const userStore = useUserStore()
 const teamStore = useTeamStore()

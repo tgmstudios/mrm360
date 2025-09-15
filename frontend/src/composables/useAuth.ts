@@ -47,13 +47,13 @@ export function useAuth() {
 
   async function logout() {
     try {
+      // The authStore.logout() now handles OIDC provider logout automatically
       await authStore.logout()
       toast.success('Logged out successfully')
-      login()
     } catch (error) {
       console.error('Logout error:', error)
-      // Force redirect even if logout fails
-      login()
+      // Force logout even if there's an error
+      await authStore.logout()
     }
   }
 

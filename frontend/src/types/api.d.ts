@@ -195,6 +195,7 @@ export interface Event {
   teamsEnabled: boolean
   membersPerTeam?: number
   autoAssignEnabled?: boolean
+  allowTeamSwitching?: boolean
   checkInCode: string
   rsvps: Array<{
     id: string
@@ -243,6 +244,7 @@ export interface EventUpdate {
   teamsEnabled?: boolean
   membersPerTeam?: number
   autoAssignEnabled?: boolean
+  allowTeamSwitching?: boolean
 }
 
 // Group types (from Authentik)

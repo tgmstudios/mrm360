@@ -231,19 +231,52 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         where: { id: teamMember.id }
       });
 
-      // Sync to wiretap if event has wiretap workshop
-      if (team.event.wiretapWorkshopId) {
+      // Sync to Wiretap: prefer team-level removal if Wiretap team id exists, otherwise fallback to workshop/email
+      if (team.wiretapTeamId) {
+        try {
+          const wiretapService = WiretapServiceFactory.createServiceFromEnv();
+          // Find user's Wiretap id via team user listing
+          const wiretapUsers = await wiretapService.listTeamUsers(team.wiretapTeamId);
+          const match = wiretapUsers.find(u => (u.email || '').toLowerCase() === email.toLowerCase());
+          if (match) {
+            await wiretapService.removeTeamUser(team.wiretapTeamId, match.id);
+            logger.info('Removed user from Wiretap team', { teamId, wiretapTeamId: team.wiretapTeamId, wiretapUserId: match.id, email });
+          } else {
+            // Not found in team users; check pending assignments and remove if present
+            try {
+              const pending = await wiretapService.listTeamPendingAssignments(team.wiretapTeamId);
+              const p = pending.find(pa => (pa.email || '').toLowerCase() === email.toLowerCase());
+              if (p) {
+                await wiretapService.removePendingTeamAssignment(email, team.wiretapTeamId);
+                logger.info('Removed pending assignment from Wiretap team', { teamId, wiretapTeamId: team.wiretapTeamId, email, pendingId: p.id });
+              } else {
+                logger.warn('User not found in team or pending assignments during removal', { teamId, wiretapTeamId: team.wiretapTeamId, email });
+              }
+            } catch (pendErr) {
+              logger.warn('Failed to process pending assignment removal', { teamId, wiretapTeamId: team.wiretapTeamId, email, error: pendErr instanceof Error ? pendErr.message : 'Unknown error' });
+            }
+          }
+        } catch (error) {
+          logger.warn('Failed team-level user removal in Wiretap', { teamId, wiretapTeamId: team.wiretapTeamId, email, error: error instanceof Error ? error.message : 'Unknown error' });
+        }
+      } else if (team.event.wiretapWorkshopId) {
         try {
           const wiretapService = WiretapServiceFactory.createServiceFromEnv();
           // Use optimistic assignment with email
           await wiretapService.removeUsersFromProjectByEmail(team.event.wiretapWorkshopId, [email]);
-          logger.info('Successfully synced user removal to wiretap workshop', { teamId, email });
+          logger.info('Successfully synced user removal to wiretap workshop', { 
+            teamId, 
+            email,
+            wiretapWorkshopId: team.event.wiretapWorkshopId,
+            userId: teamMember.userId
+          });
         } catch (error) {
           logger.warn('Failed to sync user removal to wiretap workshop', { 
             teamId, 
             email, 
             wiretapWorkshopId: team.event.wiretapWorkshopId,
-            error 
+            userId: teamMember.userId,
+            error: error instanceof Error ? error.message : 'Unknown error'
           });
           // Don't fail the request if wiretap sync fails
         }

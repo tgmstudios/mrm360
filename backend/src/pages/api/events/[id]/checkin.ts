@@ -6,6 +6,7 @@ import { withCORS } from '@/middleware/corsMiddleware';
 import { withAuth } from '@/middleware/authMiddleware';
 import { withPermissions } from '@/middleware/permissionMiddleware';
 import { logger } from '@/utils/logger';
+import { getEffectiveSystemRole, hasAdminGroups } from '@/utils/roleUtils';
 
 // Validation schemas
 const checkInSchema = z.object({
@@ -80,12 +81,23 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (req.method === 'POST') {
       // Check if this is a manual check-in request
       if (req.body.userId) {
-        // Manual check-in - RESTRICTED: Only allow users to check themselves in
+        // Manual check-in - Allow admins/executives to check in other users
         const body = manualCheckInSchema.parse(req.body);
         const requestingUser = (req as any).user;
         
-        // Only allow users to check themselves in
-        if (body.userId !== requestingUser.id) {
+        // Check if requesting user is admin or executive board
+        const effectiveRole = getEffectiveSystemRole(requestingUser.role);
+        const hasAdminGroups = requestingUser.authentikGroups && 
+          requestingUser.authentikGroups.some((group: string) => 
+            group === 'tech-team' || group === 'executive-board'
+          );
+        
+        const isAdminOrExec = effectiveRole === 'ADMIN' || 
+          effectiveRole === 'EXEC_BOARD' || 
+          hasAdminGroups;
+        
+        // Only allow users to check themselves in, unless they're admin/executive
+        if (body.userId !== requestingUser.id && !isAdminOrExec) {
           return res.status(403).json({ 
             success: false, 
             message: 'You can only check yourself in to events' 
@@ -264,6 +276,17 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         });
 
         logger.info('Manual check-in successful', { userId: body.userId, eventId });
+
+        // Trigger auto-assignment if enabled and user is confirmed
+        if (rsvp.status === 'CONFIRMED' && event.autoAssignEnabled && event.teamsEnabled && event.membersPerTeam) {
+          try {
+            await eventManager.triggerAutoAssignment(eventId, event.membersPerTeam);
+            logger.info('Auto-assignment triggered after manual check-in', { userId: body.userId, eventId });
+          } catch (error) {
+            logger.warn('Auto-assignment failed after manual check-in', { error, eventId, userId: body.userId });
+            // Don't fail the check-in if auto-assignment fails
+          }
+        }
 
         return res.status(200).json({ 
           success: true, 

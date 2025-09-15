@@ -240,15 +240,43 @@
               <!-- Add Member Section -->
               <div class="space-y-4 mb-6">
                 <div class="space-y-3">
-                  <select
-                    v-model="selectedUser"
-                    class="w-full px-3 py-2 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-gray-100"
-                  >
-                    <option value="">Select a user to add</option>
-                    <option v-for="user in availableUsers" :key="user.id" :value="user.id">
-                      {{ user.displayName || `${user.firstName} ${user.lastName}` }}
-                    </option>
-                  </select>
+                  <div class="relative">
+                    <input
+                      v-model="newMemberEmail"
+                      type="text"
+                      placeholder="Enter email address or name"
+                      class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-gray-100"
+                      @input="searchUsers"
+                      @blur="hideSearchResults"
+                      @focus="searchUsers"
+                    />
+                    
+                    <!-- Search Results Dropdown -->
+                    <div 
+                      v-if="showSearchResults && searchResults.length > 0" 
+                      class="absolute z-10 w-full mt-1 bg-gray-700 border border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto"
+                    >
+                      <div
+                        v-for="user in searchResults"
+                        :key="user.id"
+                        @click="selectUser(user)"
+                        class="px-3 py-2 hover:bg-gray-600 cursor-pointer border-b border-gray-600 last:border-b-0"
+                      >
+                        <div class="text-gray-100 font-medium">
+                          {{ user.displayName || `${user.firstName} ${user.lastName}` }}
+                        </div>
+                        <div class="text-sm text-gray-400">{{ user.email }}</div>
+                      </div>
+                    </div>
+                    
+                    <!-- Loading Indicator -->
+                    <div 
+                      v-if="searchLoading" 
+                      class="absolute right-3 top-2.5"
+                    >
+                      <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                    </div>
+                  </div>
                   
                   <select
                     v-model="selectedRole"
@@ -310,9 +338,7 @@
               </div>
               
               <div v-else class="text-center py-4">
-                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
-                </svg>
+                <UserGroupIcon class="mx-auto h-12 w-12 text-gray-400" />
                 <h3 class="mt-2 text-sm font-medium text-gray-100">No members added</h3>
                 <p class="mt-1 text-sm text-gray-400">
                   Add team members to get started.
@@ -363,7 +389,9 @@ import { useTeamStore } from '@/stores/teamStore'
 import { useUserStore } from '@/stores/userStore'
 import { usePermissions } from '@/composables/usePermissions'
 import BaseButton from '@/components/common/BaseButton.vue'
-import type { TeamCreate } from '@/types/api'
+import type { TeamCreate, User } from '@/types/api'
+import { apiService } from '@/services/api'
+import { UserGroupIcon } from '@heroicons/vue/24/outline'
 
 const router = useRouter()
 const teamStore = useTeamStore()
@@ -375,9 +403,16 @@ const canCreate = computed(() => can('create', 'Team'))
 
 // State
 const isSubmitting = ref(false)
-const selectedUser = ref('')
+const newMemberEmail = ref('')
+const selectedUser = ref<User | null>(null)
 const selectedRole = ref('MEMBER')
 const errors = ref<Record<string, string>>({})
+
+// User search functionality
+const searchResults = ref<User[]>([])
+const showSearchResults = ref(false)
+const searchLoading = ref(false)
+let searchTimeout: NodeJS.Timeout | null = null
 
 // Form data
 const form = reactive({
@@ -435,20 +470,70 @@ const getUserById = (userId: string) => {
 const addMember = () => {
   if (!selectedUser.value) return
   
-  const existingMember = form.members.find(m => m.userId === selectedUser.value)
+  const existingMember = form.members.find(m => m.userId === selectedUser.value!.id)
   if (existingMember) {
     // If user is already a member, update their role
     existingMember.role = selectedRole.value as 'MEMBER' | 'LEADER'
   } else {
     // Otherwise, add a new member
-    form.members.push({ userId: selectedUser.value, role: selectedRole.value as 'MEMBER' | 'LEADER' })
+    form.members.push({ userId: selectedUser.value.id, role: selectedRole.value as 'MEMBER' | 'LEADER' })
   }
-  selectedUser.value = ''
+  
+  // Clear selection
+  selectedUser.value = null
+  newMemberEmail.value = ''
   selectedRole.value = 'MEMBER'
+  searchResults.value = []
+  showSearchResults.value = false
 }
 
 const removeMember = (index: number) => {
   form.members.splice(index, 1)
+}
+
+const searchUsers = async () => {
+  const query = newMemberEmail.value.trim()
+  
+  if (!query || query.length < 2) {
+    searchResults.value = []
+    showSearchResults.value = false
+    return
+  }
+
+  // Clear previous timeout
+  if (searchTimeout) {
+    clearTimeout(searchTimeout)
+  }
+
+  // Debounce search by 300ms
+  searchTimeout = setTimeout(async () => {
+    try {
+      searchLoading.value = true
+      const result = await apiService.searchUsers(query, 10)
+      searchResults.value = result.data || []
+      showSearchResults.value = true
+    } catch (error) {
+      console.error('Failed to search users:', error)
+      searchResults.value = []
+      showSearchResults.value = false
+    } finally {
+      searchLoading.value = false
+    }
+  }, 300)
+}
+
+const selectUser = (user: User) => {
+  selectedUser.value = user
+  newMemberEmail.value = user.email
+  searchResults.value = []
+  showSearchResults.value = false
+}
+
+const hideSearchResults = () => {
+  // Delay hiding to allow for click events
+  setTimeout(() => {
+    showSearchResults.value = false
+  }, 200)
 }
 
 const validateForm = () => {

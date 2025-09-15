@@ -57,7 +57,7 @@
       <div class="bg-gray-800 shadow rounded-lg border border-gray-700 flex flex-col">
         <div class="px-4 py-5 sm:p-6 flex-1">
           <h3 class="text-lg leading-6 font-medium text-gray-100 mb-4">
-            Upcoming Events
+            Upcoming & Ongoing Events
           </h3>
           <div v-if="upcomingEvents.length > 0" class="space-y-3">
             <div
@@ -66,9 +66,17 @@
               class="flex items-center justify-between p-3 bg-gray-700 rounded-md border border-gray-600"
             >
               <div class="flex-1 min-w-0">
-                <p class="text-sm font-medium text-gray-100 truncate">
-                  {{ event.title }}
-                </p>
+                <div class="flex items-center gap-2">
+                  <p class="text-sm font-medium text-gray-100 truncate">
+                    {{ event.title }}
+                  </p>
+                  <span 
+                    v-if="isEventOngoing(event)"
+                    class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-900 text-green-200"
+                  >
+                    Ongoing
+                  </span>
+                </div>
                 <p class="text-sm text-gray-400">
                   {{ formatDate(event.startTime) }}
                 </p>
@@ -83,7 +91,7 @@
           </div>
           <div v-else class="text-center py-4">
             <CalendarIcon class="mx-auto h-12 w-12 text-gray-400" />
-            <h3 class="mt-2 text-sm font-medium text-gray-100">No upcoming events</h3>
+            <h3 class="mt-2 text-sm font-medium text-gray-100">No upcoming or ongoing events</h3>
             <p class="mt-1 text-sm text-gray-400">
               Get started by creating a new event.
             </p>
@@ -456,7 +464,7 @@ const dashboardStats = computed(() => {
     })
     
     stats.push({
-      name: 'Upcoming Events',
+      name: 'Upcoming & Ongoing Events',
       value: dashboardStatsData.value?.upcomingEvents ?? upcomingEvents.value.length,
       icon: CalendarIcon,
       iconColor: 'text-purple-600',
@@ -465,7 +473,7 @@ const dashboardStats = computed(() => {
   } else {
     // Regular member stats - use API data for upcoming events, local data for personal stats
     stats.push({
-      name: 'Upcoming Events',
+      name: 'Upcoming & Ongoing Events',
       value: dashboardStatsData.value?.upcomingEvents ?? upcomingEvents.value.length,
       icon: CalendarIcon,
       iconColor: 'text-purple-600',
@@ -492,13 +500,8 @@ const dashboardStats = computed(() => {
   return stats
 })
 
-// Upcoming events
-const upcomingEvents = computed(() => {
-  const now = new Date()
-  return eventStore.events
-    .filter(event => event.startTime && new Date(event.startTime) > now)
-    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
-})
+// Upcoming and ongoing events
+const upcomingEvents = computed(() => eventStore.upcomingAndOngoingEvents)
 
 // Recent users
 const recentUsers = computed(() => {
@@ -539,6 +542,14 @@ const formatDate = (dateString: string) => {
     day: 'numeric',
     year: 'numeric'
   })
+}
+
+const isEventOngoing = (event: any) => {
+  if (!event.startTime || !event.endTime) return false
+  const now = new Date()
+  const startTime = new Date(event.startTime)
+  const endTime = new Date(event.endTime)
+  return startTime <= now && endTime > now
 }
 
 

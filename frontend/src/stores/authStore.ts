@@ -142,7 +142,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function logout() {
     try {
-      // Call backend logout endpoint
+      // Call backend logout endpoint first
       await fetch(`${window.ENV.VITE_API_BASE_URL}/auth/logout`, {
         method: 'POST',
         headers: {
@@ -150,7 +150,7 @@ export const useAuthStore = defineStore('auth', () => {
         }
       })
     } catch (error) {
-      console.error('Logout error:', error)
+      console.error('Backend logout error:', error)
     } finally {
       // Clear state regardless of backend response
       user.value = null
@@ -159,6 +159,11 @@ export const useAuthStore = defineStore('auth', () => {
       
       // Remove token from localStorage
       localStorage.removeItem('accessToken')
+      localStorage.removeItem('userData')
+      
+      // Use OIDC provider logout
+      const { initiateOAuthLogout } = await import('@/utils/oauth')
+      initiateOAuthLogout()
     }
   }
 
@@ -184,6 +189,13 @@ export const useAuthStore = defineStore('auth', () => {
             }
           }
         } else {
+          // No token found, clear any stale auth state
+          console.log('No authentication token found, clearing auth state')
+          user.value = null
+          accessToken.value = null
+          isAuthenticated.value = false
+          localStorage.removeItem('accessToken')
+          localStorage.removeItem('userData')
           return false
         }
       }
@@ -204,11 +216,18 @@ export const useAuthStore = defineStore('auth', () => {
         return true
       } else {
         // Token is invalid, clear everything
+        console.log('Session validation failed, clearing authentication state')
         await logout()
         return false
       }
     } catch (error) {
       console.error('Auth check failed:', error)
+      // If it's a network error, we might still have a valid token
+      // Only clear auth state if it's definitely an auth error
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        console.log('Network error during auth check, keeping current auth state')
+        return isAuthenticated.value
+      }
       await logout()
       return false
     }
@@ -280,6 +299,62 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  // Helper function to trigger re-login when session expires
+  async function triggerReLogin(redirectUrl?: string) {
+    console.log('Session expired, triggering re-login...')
+    await logout()
+    
+    // Import OAuth utility dynamically to avoid circular dependencies
+    const { initiateOAuthLogin } = await import('@/utils/oauth')
+    initiateOAuthLogin(redirectUrl)
+  }
+
+  // Helper function to handle successful login and redirect
+  async function handleSuccessfulLogin() {
+    // Import router and OAuth utilities dynamically to avoid circular dependencies
+    const { getStoredRedirectUrl, clearStoredRedirectUrl } = await import('@/utils/oauth')
+    
+    // Get the stored redirect URL
+    const redirectUrl = getStoredRedirectUrl()
+    
+    if (redirectUrl) {
+      console.log('Redirecting to stored URL after successful login:', redirectUrl)
+      clearStoredRedirectUrl()
+      
+      // Import router dynamically to avoid circular dependencies
+      const router = (await import('@/router')).default
+      await router.push(redirectUrl)
+    } else {
+      // Default redirect to dashboard
+      const router = (await import('@/router')).default
+      await router.push('/dashboard')
+    }
+  }
+
+  // Helper function to handle cases where no authentication is found
+  async function handleNoAuthentication(redirectUrl?: string) {
+    console.log('No authentication found, redirecting to login...')
+    
+    // Clear any stale auth state
+    await logout()
+    
+    // Import OAuth utility dynamically to avoid circular dependencies
+    const { initiateOAuthLogin } = await import('@/utils/oauth')
+    initiateOAuthLogin(redirectUrl)
+  }
+
+  // Helper function to handle expired tokens
+  async function handleExpiredToken(redirectUrl?: string) {
+    console.log('Token expired, redirecting to login...')
+    
+    // Clear expired auth state
+    await logout()
+    
+    // Import OAuth utility dynamically to avoid circular dependencies
+    const { initiateOAuthLogin } = await import('@/utils/oauth')
+    initiateOAuthLogin(redirectUrl)
+  }
+
   return {
     // State
     user,
@@ -301,6 +376,10 @@ export const useAuthStore = defineStore('auth', () => {
     can,
     init,
     refreshStores,
+    triggerReLogin,
+    handleSuccessfulLogin,
+    handleNoAuthentication,
+    handleExpiredToken,
     setAuthenticated,
     setUser,
     setToken

@@ -187,7 +187,7 @@
                     <div class="text-sm font-medium text-gray-100">
                       {{ event.title }}
                     </div>
-                    <div class="text-sm text-gray-400">
+                    <div class="text-sm text-gray-400 truncate max-w-xs" :title="event.description">
                       {{ event.description }}
                     </div>
                   </div>

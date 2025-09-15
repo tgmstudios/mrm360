@@ -92,9 +92,7 @@ async function handleProvisionEvent(
     };
   } catch (error) {
     logger.error(`Failed to provision Wiretap resources for event ${eventId}`, { error });
-    await taskManager.markTaskFailed(backgroundTaskId, {
-      message: error instanceof Error ? error.message : 'Unknown error during Wiretap resource provisioning'
-    });
+    await taskManager.markTaskFailed(backgroundTaskId, error instanceof Error ? error.message : 'Unknown error during Wiretap resource provisioning');
     throw error;
   }
 }
@@ -175,6 +173,9 @@ async function performTeamSync(eventId: string, syncType: string, membersPerTeam
       },
       rsvps: {
         include: { user: true }
+      },
+      checkIns: {
+        include: { user: true }
       }
     }
   });
@@ -226,18 +227,33 @@ async function performTeamSync(eventId: string, syncType: string, membersPerTeam
 }
 
 async function autoAssignUsers(event: any, membersPerTeam: number, wiretapService: any, results: any) {
+  // Get confirmed users who are also checked in
   const confirmedUsers = event.rsvps
     .filter((rsvp: any) => rsvp.status === 'CONFIRMED')
     .map((rsvp: any) => rsvp.user);
 
+  // Get checked-in user IDs
+  const checkedInUserIds = new Set(event.checkIns?.map((checkIn: any) => checkIn.userId) || []);
+
+  // Only assign users who are both confirmed AND checked in
+  const eligibleUsers = confirmedUsers.filter((user: any) => checkedInUserIds.has(user.id));
+
   logger.info(`Auto-assigning users for event ${event.id}`, {
     confirmedUsersCount: confirmedUsers.length,
+    checkedInUsersCount: checkedInUserIds.size,
+    eligibleUsersCount: eligibleUsers.length,
     wiretapWorkshopId: event.wiretapWorkshopId,
-    hasWiretapService: !!wiretapService
+    hasWiretapService: !!wiretapService,
+    teamCount: event.eventTeams.length,
+    teamDetails: event.eventTeams.map((team: any) => ({
+      teamNumber: team.teamNumber,
+      memberCount: team.members.length,
+      members: team.members.map((m: any) => m.email)
+    }))
   });
 
-  if (confirmedUsers.length === 0) {
-    logger.info('No confirmed users to assign');
+  if (eligibleUsers.length === 0) {
+    logger.info('No confirmed and checked-in users to assign');
     return 0;
   }
 
@@ -250,24 +266,75 @@ async function autoAssignUsers(event: any, membersPerTeam: number, wiretapServic
   });
 
   // Filter out users already assigned to teams
-  const unassignedUsers = confirmedUsers.filter((user: any) => !existingMembers.has(user.id));
+  const unassignedUsers = eligibleUsers.filter((user: any) => !existingMembers.has(user.id));
+
+  logger.info(`Found ${unassignedUsers.length} unassigned users`, {
+    unassignedEmails: unassignedUsers.map((u: any) => u.email),
+    existingMembers: Array.from(existingMembers)
+  });
 
   if (unassignedUsers.length === 0) {
+    logger.info('All eligible users are already assigned to teams');
     return 0;
   }
 
-  // Assign users to teams
+  // If no teams exist, create them first
+  if (event.eventTeams.length === 0) {
+    logger.info('No teams exist, creating teams first');
+    const numberOfTeams = Math.ceil(unassignedUsers.length / membersPerTeam);
+    
+    for (let i = 0; i < numberOfTeams; i++) {
+      const teamNumber = i + 1;
+      const eventTeam = await prisma.eventTeam.create({
+        data: {
+          eventId: event.id,
+          teamNumber
+        }
+      });
+      
+      // Add the team to our local event object for assignment
+      event.eventTeams.push({
+        id: eventTeam.id,
+        teamNumber,
+        members: []
+      });
+      
+      logger.info(`Created team ${teamNumber} with ID ${eventTeam.id}`);
+    }
+  }
+
+  // Assign users to teams with balancing and strict capacity limits
   let usersAssigned = 0;
 
   for (const user of unassignedUsers) {
-    // Find a team with space (only from existing Wiretap teams)
-    let targetTeam = event.eventTeams.find(team => team.members.length < membersPerTeam);
-    
+    // Choose the first team by ascending teamNumber that has capacity (fill teams one by one)
+    const teamWithSpace = event.eventTeams
+      .filter((t: any) => t.members.length < membersPerTeam)
+      .sort((a: any, b: any) => (a.teamNumber || 0) - (b.teamNumber || 0))[0];
+
+    let targetTeam = teamWithSpace || null;
+
     if (!targetTeam) {
-      // No available team slots - skip assignment
-      logger.info(`No available team slots for user ${user.email}, skipping assignment`);
+      // All existing teams are full; create a new team and assign user there
+      const nextTeamNumber = (event.eventTeams.reduce((max: number, t: any) => Math.max(max, t.teamNumber || 0), 0) || 0) + 1;
+      const newTeam = await prisma.eventTeam.create({
+        data: {
+          eventId: event.id,
+          teamNumber: nextTeamNumber
+        }
+      });
+      targetTeam = { id: newTeam.id, teamNumber: nextTeamNumber, members: [] };
+      event.eventTeams.push(targetTeam);
+      logger.info(`Created new team ${nextTeamNumber} to accommodate assignment`);
+    }
+
+    // Guard: enforce capacity
+    if (targetTeam.members.length >= membersPerTeam) {
+      logger.warn(`Selected team ${targetTeam.teamNumber} reached capacity unexpectedly (${targetTeam.members.length}/${membersPerTeam}), re-evaluating`);
       continue;
     }
+
+    logger.info(`Assigning user ${user.email} to team ${targetTeam.teamNumber} (${targetTeam.members.length}/${membersPerTeam})`);
 
     // Add user to team
     await prisma.eventTeamMember.create({
@@ -277,6 +344,9 @@ async function autoAssignUsers(event: any, membersPerTeam: number, wiretapServic
         email: user.email
       }
     });
+
+    // Update the team's member count for next iteration
+    targetTeam.members.push({ userId: user.id, email: user.email });
 
     // Add user to wiretap workshop if available (using optimistic assignment)
     if (event.wiretapWorkshopId && wiretapService) {
@@ -294,13 +364,10 @@ async function autoAssignUsers(event: any, membersPerTeam: number, wiretapServic
     }
 
     usersAssigned++;
-    
-    // Move to next team if current team is full
-    if (targetTeam.members.length + 1 >= membersPerTeam) {
-      currentTeamIndex++;
-    }
+    logger.info(`Successfully assigned user ${user.email} to team ${targetTeam.teamNumber} (${targetTeam.members.length}/${membersPerTeam})`);
   }
 
+  logger.info(`Auto-assignment completed: ${usersAssigned} users assigned to teams`);
   return usersAssigned;
 }
 
@@ -311,7 +378,11 @@ async function removeDeclinedUsers(event: any, wiretapService: any, results: any
 
   logger.info(`Removing declined users for event ${event.id}`, {
     declinedUsersCount: declinedUserIds.length,
-    hasWiretapService: !!wiretapService
+    hasWiretapService: !!wiretapService,
+    wiretapWorkshopId: event.wiretapWorkshopId,
+    declinedUserEmails: event.rsvps
+      .filter((rsvp: any) => rsvp.status === 'DECLINED')
+      .map((rsvp: any) => rsvp.user.email)
   });
 
   if (declinedUserIds.length === 0) {
@@ -320,11 +391,18 @@ async function removeDeclinedUsers(event: any, wiretapService: any, results: any
   }
 
   let usersRemoved = 0;
+  const emailsToRemoveFromWiretap: string[] = [];
 
   for (const team of event.eventTeams) {
     const membersToRemove = team.members.filter((member: any) => 
       declinedUserIds.includes(member.userId)
     );
+
+    logger.info(`Found ${membersToRemove.length} declined users in team ${team.teamNumber}`, {
+      teamId: team.id,
+      teamNumber: team.teamNumber,
+      membersToRemove: membersToRemove.map((m: any) => ({ email: m.email, userId: m.userId }))
+    });
 
     for (const member of membersToRemove) {
       // Remove from database
@@ -332,25 +410,69 @@ async function removeDeclinedUsers(event: any, wiretapService: any, results: any
         where: { id: member.id }
       });
 
-      // Remove from wiretap workshop if available (using email-based removal)
-      if (event.wiretapWorkshopId && wiretapService) {
+      // Team-level Wiretap removal if possible
+      if (team.wiretapTeamId && wiretapService) {
         try {
-          logger.info(`Removing user from Wiretap workshop`, { 
-            email: member.email, 
-            wiretapWorkshopId: event.wiretapWorkshopId 
-          });
-          await wiretapService.removeUsersFromProjectByEmail(event.wiretapWorkshopId, [member.email]);
-          results.wiretapSyncs++;
-          logger.info(`Successfully removed user from Wiretap workshop`, { email: member.email });
+          const wiretapUsers = await wiretapService.listTeamUsers(team.wiretapTeamId);
+          const match = wiretapUsers.find((u: any) => (u.email || '').toLowerCase() === (member.email || '').toLowerCase());
+          if (match) {
+            await wiretapService.removeTeamUser(team.wiretapTeamId, match.id);
+            results.wiretapSyncs++;
+            logger.info('Removed declined user from Wiretap team', { wiretapTeamId: team.wiretapTeamId, userId: match.id, email: member.email });
+          } else {
+            // If not found among team users, check pending assignments and remove
+            try {
+              const pending = await wiretapService.listTeamPendingAssignments(team.wiretapTeamId);
+              const p = pending.find((pa: any) => (pa.email || '').toLowerCase() === (member.email || '').toLowerCase());
+              if (p) {
+                await wiretapService.removePendingTeamAssignment(member.email, team.wiretapTeamId);
+                results.wiretapSyncs++;
+                logger.info('Removed declined user pending assignment from Wiretap team', { wiretapTeamId: team.wiretapTeamId, email: member.email, pendingId: p.id });
+              } else if (event.wiretapWorkshopId) {
+                logger.warn('Declined user not found in team or pending; will fallback to project/email removal if available', { wiretapTeamId: team.wiretapTeamId, email: member.email });
+                emailsToRemoveFromWiretap.push(member.email);
+              }
+            } catch (pendErr) {
+              logger.warn('Failed to check/remove pending assignment for declined user; fallback to project/email removal', { wiretapTeamId: team.wiretapTeamId, email: member.email, error: pendErr instanceof Error ? pendErr.message : 'Unknown error' });
+              if (event.wiretapWorkshopId) emailsToRemoveFromWiretap.push(member.email);
+            }
+          }
         } catch (error) {
-          logger.warn('Failed to remove user from wiretap workshop', { email: member.email, error });
+          logger.warn('Team-level user removal failed in Wiretap for declined user; queueing for project/email removal', { wiretapTeamId: team.wiretapTeamId, email: member.email, error: error instanceof Error ? error.message : 'Unknown error' });
+          if (event.wiretapWorkshopId) emailsToRemoveFromWiretap.push(member.email);
         }
+      } else if (event.wiretapWorkshopId && wiretapService) {
+        // Collect emails for bulk Wiretap removal at workshop level
+        emailsToRemoveFromWiretap.push(member.email);
       }
 
       usersRemoved++;
+      logger.info(`Removed declined user ${member.email} from team ${team.teamNumber}`);
     }
   }
 
+  // Bulk remove from Wiretap workshop if needed
+  if (emailsToRemoveFromWiretap.length > 0 && event.wiretapWorkshopId && wiretapService) {
+    try {
+      logger.info(`Bulk removing ${emailsToRemoveFromWiretap.length} declined users from Wiretap workshop`, {
+        wiretapWorkshopId: event.wiretapWorkshopId,
+        emails: emailsToRemoveFromWiretap
+      });
+      
+      await wiretapService.removeUsersFromProjectByEmail(event.wiretapWorkshopId, emailsToRemoveFromWiretap);
+      results.wiretapSyncs += emailsToRemoveFromWiretap.length;
+      
+      logger.info(`Successfully bulk removed ${emailsToRemoveFromWiretap.length} users from Wiretap workshop`);
+    } catch (error) {
+      logger.warn('Failed to bulk remove declined users from wiretap workshop', { 
+        emails: emailsToRemoveFromWiretap,
+        wiretapWorkshopId: event.wiretapWorkshopId,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  logger.info(`Removed ${usersRemoved} declined users from teams`);
   return usersRemoved;
 }
 
@@ -366,7 +488,7 @@ async function syncExistingWiretapTeams(event: any, wiretapService: any, results
     logger.info(`Retrieved ${workshops.length} workshops from Wiretap`);
     
     // Find the workshop that matches our event's wiretapWorkshopId
-    const workshop = workshops.find(w => w.id === event.wiretapWorkshopId);
+    const workshop = workshops.find((w: any) => w.id === event.wiretapWorkshopId);
     
     if (!workshop) {
       logger.warn(`Workshop ${event.wiretapWorkshopId} not found in Wiretap workshops list`);
@@ -526,5 +648,8 @@ export async function processWiretapJobFailed(job: Job<WiretapJobData>, error: E
     attempts: job.attemptsMade
   });
 }
+
+// Export performTeamSync for direct use
+export { performTeamSync };
 
 

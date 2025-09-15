@@ -61,9 +61,8 @@
         <!-- RSVP Button -->
         <BaseButton
           v-if="authStore.user && !isEventPast"
-          @click="showRSVPModal = true"
+          @click="goToRSVPPage"
           :variant="getRSVPButtonVariant()"
-          :loading="rsvpLoading"
         >
           <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getRSVPButtonIcon()" />
@@ -279,9 +278,7 @@
               </div>
             </div>
             <div v-else class="text-center py-4">
-              <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-              </svg>
+              <UserGroupIcon class="mx-auto h-12 w-12 text-gray-400" />
               <h3 class="mt-2 text-sm font-medium text-gray-100">No RSVPs</h3>
               <p class="mt-1 text-sm text-gray-400">
                 {{ rsvpFilter ? `No ${rsvpFilter.toLowerCase()} RSVPs found.` : 'No one has RSVPed to this event yet.' }}
@@ -323,15 +320,18 @@
               </div>
             </div>
             <div v-else class="text-center py-4">
-              <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-              </svg>
+              <UserGroupIcon class="mx-auto h-12 w-12 text-gray-400" />
               <h3 class="mt-2 text-sm font-medium text-gray-100">No attendees</h3>
               <p class="mt-1 text-sm text-gray-400">
                 No one has checked in to this event yet.
               </p>
             </div>
           </div>
+        </div>
+
+        <!-- User Team Switcher -->
+        <div v-if="event?.teamsEnabled && !authStore.isAdmin && authStore.user">
+          <TeamSwitcher :event-id="event.id" />
         </div>
 
         <!-- Teams Card -->
@@ -534,163 +534,6 @@
       </div>
     </div>
 
-    <!-- RSVP Change Modal -->
-    <BaseModal
-      :is-open="showRSVPModal"
-      title="RSVP to Event"
-      size="md"
-      @close="showRSVPModal = false"
-    >
-      <div class="space-y-4">
-        <div class="text-center">
-          <h3 class="text-lg font-medium text-gray-100 mb-2">{{ event?.title }}</h3>
-          <p class="text-sm text-gray-400 mb-4">
-            {{ formatDate(event?.startTime) }} at {{ formatTime(event?.startTime) }}
-          </p>
-        </div>
-        
-        <div v-if="userRSVP" class="bg-gray-700 rounded-lg p-3 mb-4">
-          <p class="text-sm text-gray-300 mb-2">Current RSVP Status:</p>
-          <span 
-            :class="[
-              'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
-              userRSVP === 'CONFIRMED' ? 'bg-green-900 text-green-200' :
-              userRSVP === 'DECLINED' ? 'bg-red-900 text-red-200' :
-              userRSVP === 'WAITLIST' ? 'bg-yellow-900 text-yellow-200' :
-              'bg-gray-600 text-gray-300'
-            ]"
-          >
-            {{ userRSVP === 'CONFIRMED' ? 'Attending' : 
-               userRSVP === 'DECLINED' ? 'Not Attending' : 
-               userRSVP === 'WAITLIST' ? 'On Waitlist' : 'Pending' }}
-          </span>
-        </div>
-        
-        <!-- Attendance Cap Information -->
-        <div v-if="event?.attendanceCap" 
-             class="rounded-lg p-4 mb-4 border"
-             :class="confirmedRSVPs >= event.attendanceCap 
-               ? 'bg-red-900/20 border-red-700' 
-               : confirmedRSVPs >= event.attendanceCap * 0.8 
-                 ? 'bg-yellow-900/20 border-yellow-700'
-                 : 'bg-blue-900/20 border-blue-700'">
-          <div class="flex items-center justify-between mb-3">
-            <div>
-              <p class="text-sm font-medium" 
-                 :class="confirmedRSVPs >= event.attendanceCap 
-                   ? 'text-red-200' 
-                   : confirmedRSVPs >= event.attendanceCap * 0.8 
-                     ? 'text-yellow-200'
-                     : 'text-blue-200'">
-                Event Capacity
-              </p>
-              <p class="text-lg font-bold mt-1" 
-                 :class="confirmedRSVPs >= event.attendanceCap 
-                   ? 'text-red-100' 
-                   : confirmedRSVPs >= event.attendanceCap * 0.8 
-                     ? 'text-yellow-100'
-                     : 'text-blue-100'">
-                {{ confirmedRSVPs }} / {{ event.attendanceCap }}
-              </p>
-            </div>
-            <div class="text-right">
-              <div class="text-sm font-medium" 
-                   :class="confirmedRSVPs >= event.attendanceCap 
-                     ? 'text-red-300' 
-                     : confirmedRSVPs >= event.attendanceCap * 0.8 
-                       ? 'text-yellow-300'
-                       : 'text-blue-300'">
-                {{ event.attendanceCap - confirmedRSVPs }} spots left
-              </div>
-              <div class="text-xs mt-1" 
-                   :class="confirmedRSVPs >= event.attendanceCap 
-                     ? 'text-red-400' 
-                     : confirmedRSVPs >= event.attendanceCap * 0.8 
-                       ? 'text-yellow-400'
-                       : 'text-blue-400'">
-                {{ Math.round((confirmedRSVPs / event.attendanceCap) * 100) }}% full
-              </div>
-            </div>
-          </div>
-          
-          <div class="w-full bg-gray-700 rounded-full h-3 mb-3">
-            <div 
-              :class="[
-                'h-3 rounded-full transition-all duration-300',
-                confirmedRSVPs >= event.attendanceCap 
-                  ? 'bg-red-600' 
-                  : confirmedRSVPs >= event.attendanceCap * 0.8 
-                    ? 'bg-yellow-600'
-                    : 'bg-blue-600'
-              ]"
-              :style="{ width: `${Math.min((confirmedRSVPs / event.attendanceCap) * 100, 100)}%` }"
-            ></div>
-          </div>
-          
-          <div class="text-xs space-y-1">
-            <p v-if="confirmedRSVPs >= event.attendanceCap && event.waitlistEnabled" 
-               class="text-yellow-300">
-              <strong>Event is full.</strong> New RSVPs will be added to the waitlist.
-              <span v-if="waitlistRSVPs > 0">
-                {{ waitlistRSVPs }} {{ waitlistRSVPs === 1 ? 'person is' : 'people are' }} already waiting.
-              </span>
-            </p>
-            <p v-else-if="confirmedRSVPs >= event.attendanceCap && !event.waitlistEnabled" 
-               class="text-red-300">
-              <strong>Event is full.</strong> No waitlist available. RSVPs will be declined.
-            </p>
-            <p v-else-if="confirmedRSVPs >= event.attendanceCap * 0.8" 
-               class="text-yellow-300">
-              <strong>Event is nearly full.</strong> 
-              <span v-if="event.waitlistEnabled">Waitlist will activate when full.</span>
-            </p>
-            <p v-else class="text-blue-300">
-              <span v-if="event.waitlistEnabled">Waitlist enabled when full.</span>
-              <span v-else>No waitlist available.</span>
-            </p>
-          </div>
-        </div>
-        
-        <p class="text-gray-300 text-sm mb-4">
-          {{ userRSVP ? 'Would you like to change your RSVP?' : 'Will you be attending this event?' }}
-        </p>
-        
-        <div class="flex space-x-3">
-          <BaseButton
-            @click="rsvpToEvent(true)"
-            variant="success"
-            :loading="rsvpLoading"
-            class="flex-1"
-          >
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            Yes, I'll be there
-          </BaseButton>
-          <BaseButton
-            @click="rsvpToEvent(false)"
-            variant="danger"
-            :loading="rsvpLoading"
-            class="flex-1"
-          >
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-            No, I can't make it
-          </BaseButton>
-        </div>
-        
-        <div class="text-center">
-          <BaseButton
-            @click="showRSVPModal = false"
-            variant="outline"
-            size="sm"
-          >
-            Cancel
-          </BaseButton>
-        </div>
-      </div>
-    </BaseModal>
 
     <!-- Teams Assignment Modal -->
     <BaseModal
@@ -702,15 +545,24 @@
       <div class="space-y-6">
         <div class="text-center">
           <h3 class="text-lg font-medium text-gray-100 mb-2">{{ event?.title }}</h3>
-          <div class="text-sm text-gray-400 mb-4">
-            <p>{{ event?.checkIns?.length || 0 }} attendees checked in</p>
-            <p v-if="confirmedRSVPs > 0" class="text-blue-400">
-              {{ confirmedRSVPs }} confirmed RSVPs available for auto-assignment
-            </p>
-            <p v-if="declinedRSVPs > 0" class="text-red-400">
-              {{ declinedRSVPs }} declined RSVPs can be removed from teams
-            </p>
-          </div>
+            <div class="text-sm text-gray-400 mb-4">
+              <p>{{ event?.checkIns?.length || 0 }} attendees checked in</p>
+              <p v-if="confirmedRSVPs > 0" class="text-blue-400">
+                {{ confirmedRSVPs }} confirmed RSVPs (auto-assignment happens when they check in)
+              </p>
+              <p v-if="checkedInConfirmedCount > 0" class="text-green-400">
+                {{ checkedInConfirmedCount }} confirmed and checked-in users eligible for team assignment
+              </p>
+              <p v-if="confirmedRSVPs > checkedInConfirmedCount" class="text-yellow-400">
+                {{ confirmedRSVPs - checkedInConfirmedCount }} confirmed users need to check in first
+              </p>
+              <p v-if="declinedRSVPs > 0" class="text-red-400">
+                {{ declinedRSVPs }} declined RSVPs can be removed from teams
+              </p>
+              <p v-if="autoAssignEnabled" class="text-blue-400 font-medium">
+                ✓ Auto-assignment is enabled - users will be assigned to teams when they check in
+              </p>
+            </div>
         </div>
 
         
@@ -750,20 +602,42 @@
                   @change="saveTeamConfiguration"
                 />
                 <span class="text-xs text-gray-400">
-                  Automatically assign confirmed RSVPs to teams
+                  Automatically assign users to teams when they check in
+                </span>
+              </div>
+              
+              <div class="flex items-center space-x-4">
+                <label for="allowTeamSwitching" class="text-sm font-medium text-gray-300">
+                  Allow team switching:
+                </label>
+                <input
+                  id="allowTeamSwitching"
+                  v-model="allowTeamSwitching"
+                  type="checkbox"
+                  class="w-4 h-4 text-blue-600 bg-gray-600 border-gray-500 rounded focus:ring-blue-500 focus:ring-2"
+                  @change="saveTeamConfiguration"
+                />
+                <span class="text-xs text-gray-400">
+                  Let users switch teams themselves
                 </span>
               </div>
             </div>
             
             <div class="mt-3 text-xs text-gray-400">
-              <span v-if="confirmedRSVPs > 0">
-                With {{ confirmedRSVPs }} confirmed RSVPs, this will create approximately {{ Math.ceil(confirmedRSVPs / membersPerTeam) }} teams
+              <span v-if="checkedInConfirmedCount > 0">
+                With {{ checkedInConfirmedCount }} confirmed and checked-in users, this will create approximately {{ Math.ceil(checkedInConfirmedCount / membersPerTeam) }} teams
+              </span>
+              <span v-else-if="confirmedRSVPs > 0">
+                {{ confirmedRSVPs }} confirmed RSVPs available, but {{ confirmedRSVPs - checkedInConfirmedCount }} need to check in first
               </span>
               <span v-else>
                 No confirmed RSVPs available for team creation
               </span>
               <span v-if="eventTeams.length > 0" class="block mt-1">
                 Currently: {{ eventTeams.length }} teams with {{ eventTeams.reduce((total, team) => total + team.members.length, 0) }} total members
+              </span>
+              <span v-if="autoAssignEnabled" class="block mt-1 text-blue-400">
+                ✓ Auto-assignment will happen when users check in
               </span>
             </div>
           </div>
@@ -780,13 +654,13 @@
                   variant="outline"
                   size="sm"
                   :loading="syncLoading"
-                  :disabled="confirmedRSVPs === 0"
-                  title="Assign users with CONFIRMED RSVP status to teams ({{ membersPerTeam }} members per team)"
+                  :disabled="checkedInConfirmedCount === 0"
+                  :title="checkedInConfirmedCount === 0 ? 'No confirmed and checked-in users available for assignment' : `Manually assign ${checkedInConfirmedCount} confirmed and checked-in users to teams (${membersPerTeam} members per team). Auto-assignment happens during check-in.`"
                 >
                   <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
-                  Auto Assign ({{ confirmedRSVPs }} @ {{ membersPerTeam }}/team)
+                  Manual Assign ({{ checkedInConfirmedCount }} @ {{ membersPerTeam }}/team)
                 </BaseButton>
                 <BaseButton
                   @click="syncTeams('remove_declined')"
@@ -1025,10 +899,12 @@ import { useAuthStore } from '@/stores/authStore'
 import { usePermissions } from '@/composables/usePermissions'
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseModal from '@/components/common/BaseModal.vue'
+import TeamSwitcher from '@/components/events/TeamSwitcher.vue'
 import type { Event } from '@/types/api'
 import QRCodeVue3 from 'qrcode-vue3'
 import { useToast } from 'vue-toastification'
 import { apiService } from '@/services/api'
+import { UserGroupIcon } from '@heroicons/vue/24/outline'
 
 const route = useRoute()
 const router = useRouter()
@@ -1039,8 +915,6 @@ const toast = useToast()
 
 const event = ref<Event | null>(null)
 const loading = ref(false)
-const rsvpLoading = ref(false)
-const showRSVPModal = ref(false)
 const showTeamsModal = ref(false)
 const userRSVP = ref<string | null>(null)
 const rsvpFilter = ref('')
@@ -1048,9 +922,8 @@ const rsvpFilter = ref('')
 // Teams functionality
 const membersPerTeam = ref(4)
 const autoAssignEnabled = ref(false)
-const assignmentLoading = ref(false)
+const allowTeamSwitching = ref(false)
 const syncLoading = ref(false)
-const assignmentType = ref('manual')
 const eventTeams = ref<any[]>([])
 const wiretapWorkshops = ref<any[]>([])
 
@@ -1089,7 +962,8 @@ const saveTeamConfiguration = async () => {
   try {
     await eventStore.updateEvent(event.value.id, {
       membersPerTeam: membersPerTeam.value,
-      autoAssignEnabled: autoAssignEnabled.value
+      autoAssignEnabled: autoAssignEnabled.value,
+      allowTeamSwitching: allowTeamSwitching.value
     })
     
     toast.success('Team configuration saved')
@@ -1190,6 +1064,7 @@ const loadEvent = async () => {
     if (eventData) {
       membersPerTeam.value = eventData.membersPerTeam || 4
       autoAssignEnabled.value = eventData.autoAssignEnabled || false
+      allowTeamSwitching.value = eventData.allowTeamSwitching || false
     }
   } catch (error) {
     console.error('Failed to load event:', error)
@@ -1211,33 +1086,6 @@ const checkUserRSVP = () => {
   }
 }
 
-const rsvpToEvent = async (attending: boolean) => {
-  if (!event.value) return
-  
-  rsvpLoading.value = true
-  try {
-    const result = await eventStore.rsvpToEvent(eventId.value, attending)
-    userRSVP.value = result.status
-    showRSVPModal.value = false
-    
-    // Show appropriate message based on result
-    if (result.status === 'WAITLIST') {
-      toast.warning(result.message)
-    } else if (result.status === 'DECLINED' && attending) {
-      toast.error(result.message)
-    } else {
-      toast.success(result.message)
-    }
-    
-    // Reload all relevant data after RSVP change
-    await reloadEventData()
-  } catch (error) {
-    console.error('Failed to RSVP:', error)
-    toast.error('Failed to update RSVP. Please try again.')
-  } finally {
-    rsvpLoading.value = false
-  }
-}
 
 const editEvent = () => {
   router.push(`/events/${eventId.value}/edit`)
@@ -1249,6 +1097,12 @@ const goToCheckIn = () => {
 
 const goToWiretap = () => {
   window.open('https://tap.psuccso.org', '_blank')
+}
+
+const goToRSVPPage = () => {
+  if (event.value?.id) {
+    router.push(`/events/${event.value.id}/rsvp`)
+  }
 }
 
 const formatDate = (dateString?: string) => {
@@ -1308,6 +1162,30 @@ const waitlistRSVPs = computed(() => {
   return event.value?.rsvps?.filter((rsvp: any) => rsvp.status === 'WAITLIST').length || 0
 })
 
+const checkedInConfirmedCount = computed(() => {
+  if (!event.value?.rsvps || !event.value?.checkIns) return 0
+  
+  const confirmedUserIds = new Set(
+    event.value.rsvps
+      .filter((rsvp: any) => rsvp.status === 'CONFIRMED')
+      .map((rsvp: any) => rsvp.userId)
+  )
+  
+  const checkedInUserIds = new Set(
+    event.value.checkIns.map((checkIn: any) => checkIn.userId)
+  )
+  
+  // Count users who are both confirmed and checked in
+  let count = 0
+  for (const userId of confirmedUserIds) {
+    if (checkedInUserIds.has(userId)) {
+      count++
+    }
+  }
+  
+  return count
+})
+
 const filteredRSVPs = computed(() => {
   if (!event.value?.rsvps) return []
   
@@ -1324,11 +1202,6 @@ const qrCodeValue = computed(() => {
 })
 
 // Teams computed properties
-const numberOfTeams = computed(() => {
-  if (!membersPerTeam.value) return 0
-  const attendeeCount = event.value?.checkIns?.length || 0
-  return attendeeCount > 0 ? Math.ceil(attendeeCount / membersPerTeam.value) : 0
-})
 
 // Teams methods
 const openTeamsModal = async () => {
@@ -1396,32 +1269,6 @@ const loadWiretapWorkshops = async () => {
   }
 }
 
-const createTeams = async () => {
-  if (!event.value?.id) return
-  
-  assignmentLoading.value = true
-  try {
-    const result = await eventStore.createEventTeams(
-      event.value.id,
-      membersPerTeam.value,
-      selectedWiretapWorkshop.value || undefined,
-      assignmentType.value
-    )
-    
-    toast.success(result.message)
-    
-    // Reload all relevant data after creating teams
-    await reloadEventData()
-    
-    showTeamsModal.value = false
-    
-  } catch (error) {
-    console.error('Failed to create teams:', error)
-    toast.error('Failed to create teams. Please try again.')
-  } finally {
-    assignmentLoading.value = false
-  }
-}
 
 const syncTeams = async (syncType: string) => {
   if (!event.value?.id) return
@@ -1434,7 +1281,17 @@ const syncTeams = async (syncType: string) => {
       membersPerTeam.value
     )
     
-    toast.success(result.message)
+    // Show detailed success message for auto_assign
+    if (syncType === 'auto_assign' && result.results) {
+      const { usersAssigned } = result.results
+      if (usersAssigned > 0) {
+        toast.success(`Successfully assigned ${usersAssigned} users to teams!`)
+      } else {
+        toast.info('No users were assigned - all eligible users are already in teams')
+      }
+    } else {
+      toast.success(result.message)
+    }
     
     // Reload all relevant data after sync
     await reloadEventData()
@@ -1570,23 +1427,9 @@ const removeTeamMember = async (teamId: string, email: string) => {
   if (!event.value?.id) return
   
   try {
-    // Remove from MRM team
+    // Remove from MRM team (backend also handles Wiretap/team pending cleanup)
     await eventStore.removeTeamMember(event.value.id, teamId, email)
-    
-    // If team has Wiretap integration, also sync to Wiretap
-    const team = eventTeams.value.find(t => t.id === teamId)
-    if (team?.wiretapTeamId) {
-      try {
-        // Sync to Wiretap team
-        await eventStore.syncEventTeams(event.value.id, 'sync_all')
-        toast.success('Member removed successfully and synced to Wiretap')
-      } catch (wiretapError) {
-        console.warn('Failed to sync to Wiretap, but member was removed from MRM:', wiretapError)
-        toast.success('Member removed from MRM team (Wiretap sync failed)')
-      }
-    } else {
-      toast.success('Member removed successfully')
-    }
+    toast.success('Member removed successfully')
     
     // Reload all relevant data after removing member
     await Promise.all([

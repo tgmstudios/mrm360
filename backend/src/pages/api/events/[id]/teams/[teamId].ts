@@ -71,8 +71,59 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       return res.status(400).json({ error: 'Team does not belong to this event' });
     }
 
-    // Note: We don't delete individual Wiretap projects anymore
-    // Teams are part of the workshop, so we just remove the MRM team
+    // Sync member removals to Wiretap before deleting the team
+    if (team.wiretapTeamId && team.members.length > 0) {
+      try {
+        const wiretapService = WiretapServiceFactory.createServiceFromEnv();
+        // Prefer team-level removal by user id looked up from team
+        const wiretapUsers = await wiretapService.listTeamUsers(team.wiretapTeamId);
+        const idsToRemove = wiretapUsers
+          .filter(wu => team.members.some(m => (m.email || '').toLowerCase() === (wu.email || '').toLowerCase()))
+          .map(wu => wu.id);
+        for (const userId of idsToRemove) {
+          await wiretapService.removeTeamUser(team.wiretapTeamId, userId);
+        }
+        // Also clear pending assignments matching team members
+        try {
+          const pending = await wiretapService.listTeamPendingAssignments(team.wiretapTeamId);
+          const emails = team.members.map(m => (m.email || '').toLowerCase());
+          const pendToRemove = pending.filter(pa => emails.includes((pa.email || '').toLowerCase()));
+          for (const p of pendToRemove) {
+            await wiretapService.removePendingTeamAssignment(p.email, team.wiretapTeamId);
+          }
+          logger.info('Removed users and pending assignments from Wiretap team before deletion', { teamId, wiretapTeamId: team.wiretapTeamId, removedUsers: idsToRemove.length, removedPending: pendToRemove.length });
+        } catch (pendErr) {
+          logger.warn('Failed to clear pending assignments during team deletion', { teamId, wiretapTeamId: team.wiretapTeamId, error: pendErr instanceof Error ? pendErr.message : 'Unknown error' });
+        }
+      } catch (error) {
+        logger.warn('Failed to remove users from Wiretap team during team deletion', { teamId, wiretapTeamId: team.wiretapTeamId, error: error instanceof Error ? error.message : 'Unknown error' });
+      }
+    } else if (event.wiretapWorkshopId && team.members.length > 0) {
+      try {
+        const wiretapService = WiretapServiceFactory.createServiceFromEnv();
+        const memberEmails = team.members.map(member => member.email);
+        
+        logger.info(`Removing ${memberEmails.length} team members from Wiretap workshop before team deletion`, {
+          teamId,
+          wiretapWorkshopId: event.wiretapWorkshopId,
+          memberEmails
+        });
+        
+        await wiretapService.removeUsersFromProjectByEmail(event.wiretapWorkshopId, memberEmails);
+        
+        logger.info(`Successfully removed team members from Wiretap workshop`, {
+          teamId,
+          removedCount: memberEmails.length
+        });
+      } catch (error) {
+        logger.warn('Failed to remove team members from Wiretap workshop during team deletion', {
+          teamId,
+          wiretapWorkshopId: event.wiretapWorkshopId,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+        // Continue with team deletion even if Wiretap sync fails
+      }
+    }
 
     // Delete team (members will be cascade deleted)
     await prisma.eventTeam.delete({

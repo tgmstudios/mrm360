@@ -571,7 +571,7 @@ export class WiretapApiClient {
     try {
       logger.info('Listing Wiretap resources', { projectId, resourceType });
       
-      const params = resourceType ? { type: resourceType } : {};
+      const params: Record<string, string> | undefined = resourceType ? { type: resourceType } : undefined;
       const response = await this.httpClient.get('/api/instances', params);
       logger.info('Successfully retrieved Wiretap resources', { projectId, count: response.data.results?.length || 0 });
       
@@ -616,6 +616,57 @@ export class WiretapApiClient {
     } catch (error) {
       logger.error(`Failed to add user ${email} to Wiretap team ${teamId}`, { error });
       throw new Error(`Failed to add user to Wiretap team: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  async listTeamUsers(teamId: string): Promise<Array<{ id: string; username: string; email: string }>> {
+    try {
+      logger.info('Listing users for Wiretap team', { teamId });
+      const response = await this.httpClient.get(`/api/teams/${teamId}/users`);
+      const users = response.data || [];
+      logger.info('Successfully retrieved Wiretap team users', { teamId, count: users.length });
+      return users;
+    } catch (error) {
+      logger.error('Failed to list users for Wiretap team', { teamId, error });
+      throw new Error(`Failed to list users for Wiretap team ${teamId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  async removeTeamUser(teamId: string, userId: string): Promise<void> {
+    try {
+      logger.info('Removing user from Wiretap team', { teamId, userId });
+      await this.httpClient.delete(`/api/teams/${teamId}/users/${userId}`);
+      logger.info('Successfully removed user from Wiretap team', { teamId, userId });
+    } catch (error) {
+      logger.error('Failed to remove user from Wiretap team', { teamId, userId, error });
+      throw new Error(`Failed to remove user ${userId} from Wiretap team ${teamId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  async listTeamPendingAssignments(teamId: string): Promise<Array<{ id: string; email: string; team_id: string; created_at: string }>> {
+    try {
+      logger.info('Listing pending assignments for Wiretap team', { teamId });
+      const response = await this.httpClient.get(`/api/teams/${teamId}/pending-assignments`);
+      const result = response.data || {};
+      const pending = result.pending_assignments || [];
+      logger.info('Successfully retrieved pending assignments for Wiretap team', { teamId, count: pending.length });
+      return pending;
+    } catch (error) {
+      logger.error('Failed to list pending assignments for Wiretap team', { teamId, error });
+      throw new Error(`Failed to list pending assignments for Wiretap team ${teamId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  async removePendingTeamAssignment(email: string, teamId: string): Promise<void> {
+    try {
+      logger.info('Removing pending team assignment', { teamId, email });
+      const encodedEmail = encodeURIComponent(email);
+      // Wiretap expects team_id as query parameter on the URL
+      await this.httpClient.delete(`/api/users/pending-teams/${encodedEmail}/remove?team_id=${encodeURIComponent(teamId)}`);
+      logger.info('Successfully removed pending team assignment', { teamId, email });
+    } catch (error) {
+      logger.error('Failed to remove pending team assignment', { teamId, email, error });
+      throw new Error(`Failed to remove pending assignment for ${email} on team ${teamId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 

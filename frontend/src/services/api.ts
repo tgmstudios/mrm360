@@ -1,5 +1,4 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios'
-import { useAuthStore } from '@/stores/authStore'
 import type {
   ApiResponse,
   PaginatedResponse,
@@ -40,7 +39,7 @@ class ApiService {
   private setupInterceptors() {
     // Request interceptor - add JWT token to requests
     this.api.interceptors.request.use(
-      (config) => {
+      async (config) => {
         // Get token from localStorage directly to avoid timing issues with Pinia
         const token = localStorage.getItem('accessToken')
         console.log('API request interceptor - token from localStorage:', token ? 'exists' : 'missing')
@@ -52,6 +51,18 @@ class ApiService {
           // If no token and this is not an auth endpoint, this might indicate an auth issue
           if (!config.url?.includes('/auth/')) {
             console.warn('No token found for non-auth request:', config.url)
+            // Store current URL for redirect after login
+            const currentUrl = window.location.pathname + window.location.search
+            
+            // Import auth store dynamically to avoid circular dependencies
+            const { useAuthStore } = await import('@/stores/authStore')
+            const authStore = useAuthStore()
+            
+            // If user is not authenticated, trigger login with redirect
+            if (!authStore.isAuthenticated) {
+              console.log('No authentication found, triggering login...')
+              await authStore.handleNoAuthentication(currentUrl)
+            }
           }
         }
         return config
@@ -71,8 +82,24 @@ class ApiService {
           message: error.message
         });
         
-        // Don't automatically logout on 401 - let the calling code handle it
-        // This prevents the immediate logout issue you're experiencing
+        // Handle authentication errors (401 only - 403 is permission denied, not auth failure)
+        if (error.response?.status === 401) {
+          // Only handle auth errors for non-auth endpoints to avoid infinite loops
+          if (!error.config?.url?.includes('/auth/')) {
+            console.log('Authentication error detected, triggering re-login...')
+            
+            // Store current URL for redirect after login
+            const currentUrl = window.location.pathname + window.location.search
+            
+            // Import auth store dynamically to avoid circular dependencies
+            const { useAuthStore } = await import('@/stores/authStore')
+            const authStore = useAuthStore()
+            
+            // Trigger re-login with current URL for redirect
+            await authStore.triggerReLogin(currentUrl)
+          }
+        }
+        
         return Promise.reject(error)
       }
     )
@@ -309,7 +336,7 @@ class ApiService {
     return response.data
   }
 
-  async syncEventTeams(eventId: string, syncType: string, membersPerTeam: number = 4): Promise<{ success: boolean; message: string; taskId: string }> {
+  async syncEventTeams(eventId: string, syncType: string, membersPerTeam: number = 4): Promise<{ success: boolean; message: string; taskId?: string; results?: { usersAssigned: number; usersRemoved: number; teamsUpdated: number; wiretapSyncs: number } }> {
     const response = await this.api.post(`/events/${eventId}/teams/sync`, {
       syncType,
       membersPerTeam
@@ -320,6 +347,23 @@ class ApiService {
   // User search
   async searchUsers(query: string, limit: number = 10): Promise<{ success: boolean; data: any[] }> {
     const response = await this.api.get(`/users/search?q=${encodeURIComponent(query)}&limit=${limit}`)
+    return response.data
+  }
+
+  // Team switching
+  async getUserTeamInfo(eventId: string): Promise<{ 
+    allowTeamSwitching: boolean
+    currentTeam: any | null
+    availableTeams: any[]
+  }> {
+    const response = await this.api.get(`/events/${eventId}/teams/my-team`)
+    return response.data
+  }
+
+  async switchTeam(eventId: string, targetTeamId: string): Promise<{ success: boolean; message: string; teamNumber: number }> {
+    const response = await this.api.post(`/events/${eventId}/teams/switch`, {
+      targetTeamId
+    })
     return response.data
   }
 }

@@ -83,7 +83,44 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       return res.status(400).json({ error: 'Invalid sync type' });
     }
 
-    // Create background task for sync operation
+    // For auto_assign, run synchronously for immediate feedback
+    if (syncType === 'auto_assign') {
+      try {
+        const { performTeamSync } = require('@/tasks/workers/wiretapWorker');
+        const WiretapServiceFactory = require('@/services/wiretapServiceFactory').WiretapServiceFactory;
+        
+        // Initialize wiretap service if needed
+        let wiretapService = null;
+        if (event.wiretapWorkshopId) {
+          try {
+            wiretapService = WiretapServiceFactory.createServiceFromEnv();
+          } catch (error) {
+            logger.warn('Failed to initialize Wiretap service for immediate assignment', { error });
+          }
+        }
+
+        // Run the assignment synchronously
+        const results = await performTeamSync(eventId, syncType, membersPerTeam, wiretapService);
+        
+        logger.info(`Immediate team assignment completed for event ${eventId}`, results);
+
+        return res.status(200).json({
+          success: true,
+          message: `Successfully assigned ${results.usersAssigned} users to teams`,
+          results: results
+        });
+      } catch (error) {
+        logger.error('Error during immediate team assignment', { 
+          eventId, 
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+        return res.status(500).json({
+          error: error instanceof Error ? error.message : 'Internal server error'
+        });
+      }
+    }
+
+    // For other sync types, use background task
     const taskManager = new BackgroundTaskManager(prisma);
     const task = await taskManager.createTask({
       name: 'WIRETAP_SYNC',
