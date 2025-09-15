@@ -100,6 +100,23 @@
                   />
                 </dd>
               </div>
+
+              <!-- Discord Information -->
+              <div v-if="user.discordAccount">
+                <dt class="text-sm font-medium text-gray-400">Discord Username</dt>
+                <dd class="mt-1 text-sm text-gray-100">
+                  {{ user.discordAccount.username }}
+                  <span v-if="user.discordAccount.discriminator" class="text-gray-400">
+                    #{{ user.discordAccount.discriminator }}
+                  </span>
+                </dd>
+              </div>
+              <div v-if="user.discordAccount">
+                <dt class="text-sm font-medium text-gray-400">Discord ID</dt>
+                <dd class="mt-1 text-sm text-gray-100">
+                  <code class="bg-gray-700 px-2 py-0.5 rounded">{{ user.discordAccount.discordId }}</code>
+                </dd>
+              </div>
             </dl>
           </div>
         </div>

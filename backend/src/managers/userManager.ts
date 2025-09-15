@@ -61,6 +61,7 @@ export class UserManager {
       const user = await prisma.user.findUnique({
         where: { id },
         include: {
+          discordAccount: true,
           userGroups: {
             include: {
               group: true
@@ -102,6 +103,17 @@ export class UserManager {
         updatedAt: user.updatedAt,
         authentikId: user.authentikId || undefined,
         isActive: !!user.authentikId, // User is active if they have an authentikId
+        discordAccount: user.discordAccount
+          ? {
+              id: user.discordAccount.id,
+              userId: user.discordAccount.userId,
+              discordId: user.discordAccount.discordId,
+              username: user.discordAccount.username,
+              discriminator: user.discordAccount.discriminator ?? undefined,
+              avatar: user.discordAccount.avatar ?? undefined,
+              linkedAt: user.discordAccount.linkedAt
+            }
+          : undefined,
         userGroups: user.userGroups.map(ug => ({
           id: ug.id,
           userId: ug.userId,
@@ -370,6 +382,7 @@ export class UserManager {
         take: limit,
         orderBy,
         include: {
+          discordAccount: true,
           userGroups: {
             include: {
               group: true
@@ -409,6 +422,17 @@ export class UserManager {
         updatedAt: user.updatedAt,
         authentikId: user.authentikId || undefined,
         isActive: !!user.authentikId, // User is active if they have an authentikId
+        discordAccount: user.discordAccount
+          ? {
+              id: user.discordAccount.id,
+              userId: user.discordAccount.userId,
+              discordId: user.discordAccount.discordId,
+              username: user.discordAccount.username,
+              discriminator: user.discordAccount.discriminator ?? undefined,
+              avatar: user.discordAccount.avatar ?? undefined,
+              linkedAt: user.discordAccount.linkedAt
+            }
+          : undefined,
         userGroups: user.userGroups.map(ug => ({
           id: ug.id,
           userId: ug.userId,

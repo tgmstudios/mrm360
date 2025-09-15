@@ -65,7 +65,7 @@ export const useUserStore = defineStore('users', () => {
       
       const raw = (response.data ?? []) as any[]
       users.value = raw.map((u: any) => {
-                const user = {
+        const user = {
           id: u.id,
           email: u.email,
           firstName: u.firstName,
@@ -83,7 +83,8 @@ export const useUserStore = defineStore('users', () => {
           teams: Array.isArray(u.userTeams) 
             ? u.userTeams.map((ut: any) => ut.team).filter(Boolean)
             : Array.isArray(u.teams) ? u.teams : [],
-          events: Array.isArray(u.events) ? u.events : []
+          events: Array.isArray(u.events) ? u.events : [],
+          discordAccount: u.discordAccount
         } as unknown as User
         
         return user
@@ -125,7 +126,8 @@ export const useUserStore = defineStore('users', () => {
         teams: Array.isArray(rawUser.userTeams) 
           ? rawUser.userTeams.map((ut: any) => ut.team).filter(Boolean)
           : Array.isArray(rawUser.teams) ? rawUser.teams : [],
-        events: Array.isArray(rawUser.events) ? rawUser.events : []
+        events: Array.isArray(rawUser.events) ? rawUser.events : [],
+        discordAccount: rawUser.discordAccount
       } as unknown as User
       
       currentUser.value = user
