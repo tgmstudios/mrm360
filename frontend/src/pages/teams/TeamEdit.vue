@@ -311,14 +311,14 @@
                   <div class="flex items-center space-x-3">
                     <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
                       <span class="text-sm font-medium text-white">
-                        {{ getUserInitials(getUserById(member.userId)) }}
+                        {{ getUserInitials(member.user || getUserById(member.userId)) }}
                       </span>
                     </div>
                     <div class="flex-1 min-w-0">
                       <p class="text-sm font-medium text-gray-100 truncate">
-                        {{ getUserById(member.userId)?.displayName || `${getUserById(member.userId)?.firstName || ''} ${getUserById(member.userId)?.lastName || ''}`.trim() || `User ${member.userId.slice(0, 8)}...` }}
+                        {{ member.user?.displayName || `${member.user?.firstName || ''} ${member.user?.lastName || ''}`.trim() || getUserById(member.userId)?.displayName || `${getUserById(member.userId)?.firstName || ''} ${getUserById(member.userId)?.lastName || ''}`.trim() || `User ${member.userId.slice(0, 8)}...` }}
                       </p>
-                      <p class="text-xs text-gray-400 truncate">{{ getUserById(member.userId)?.email || 'Email not available' }}</p>
+                      <p class="text-xs text-gray-400 truncate">{{ member.user?.email || getUserById(member.userId)?.email || 'Email not available' }}</p>
                     </div>
                   </div>
                   
@@ -427,7 +427,7 @@ const form = reactive({
   description: '',
   parentTeamId: '',
   groupId: '',
-  members: [] as { userId: string; role: 'MEMBER' | 'LEADER' }[],
+  members: [] as { userId: string; role: 'MEMBER' | 'LEADER'; user?: User }[],
   provisioningOptions: {
     authentik: true, // Always enabled
     nextcloudGroup: true, // Always enabled
@@ -485,8 +485,12 @@ const addMember = () => {
     // If user is already a member, update their role
     existingMember.role = selectedRole.value as 'MEMBER' | 'LEADER'
   } else {
-    // Otherwise, add a new member
-    form.members.push({ userId: selectedUser.value.id, role: selectedRole.value as 'MEMBER' | 'LEADER' })
+    // Otherwise, add a new member with the full user object
+    form.members.push({ 
+      userId: selectedUser.value.id, 
+      role: selectedRole.value as 'MEMBER' | 'LEADER',
+      user: selectedUser.value
+    })
   }
   
   // Clear selection
@@ -577,7 +581,7 @@ const handleSubmit = async () => {
         description: form.description,
         parentTeamId: form.parentTeamId || undefined,
         groupId: form.groupId || undefined,
-        members: form.members
+        members: form.members.map(m => ({ userId: m.userId, role: m.role }))
       }
       
       await teamStore.updateTeam(route.params.id as string, updateData)
@@ -590,7 +594,7 @@ const handleSubmit = async () => {
         description: form.description,
         parentTeamId: form.parentTeamId || undefined,
         groupId: form.groupId || undefined,
-        members: form.members
+        members: form.members.map(m => ({ userId: m.userId, role: m.role }))
       }
       
       const newTeam = await teamStore.createTeam(createData)
@@ -617,16 +621,16 @@ const loadTeam = async () => {
       description: team.description || '',
       parentTeamId: team.parentTeamId || '',
       groupId: team.groupId || '',
-      members: team.userTeams?.map((ut: any) => ({ userId: ut.userId, role: ut.role })) || [],
+      members: team.userTeams?.map((ut: any) => ({ userId: ut.userId, role: ut.role, user: ut.user })) || [],
       provisioningOptions: {
         authentik: true, // Always enabled
         nextcloudGroup: true, // Always enabled
-        wikijs: team.provisioningOptions?.wikijs || false,
-        nextcloudFolder: team.provisioningOptions?.nextcloudFolder || false,
-        nextcloudCalendar: team.provisioningOptions?.nextcloudCalendar || false,
-        nextcloudDeck: team.provisioningOptions?.nextcloudDeck || false,
-        github: team.provisioningOptions?.github || false,
-        discord: team.provisioningOptions?.discord || false,
+        wikijs: (team as any).provisioningOptions?.wikijs || false,
+        nextcloudFolder: (team as any).provisioningOptions?.nextcloudFolder || false,
+        nextcloudCalendar: (team as any).provisioningOptions?.nextcloudCalendar || false,
+        nextcloudDeck: (team as any).provisioningOptions?.nextcloudDeck || false,
+        github: (team as any).provisioningOptions?.github || false,
+        discord: (team as any).provisioningOptions?.discord || false,
       }
     })
     

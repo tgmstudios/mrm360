@@ -309,14 +309,14 @@
                   <div class="flex items-center space-x-3">
                     <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
                       <span class="text-sm font-medium text-white">
-                        {{ getUserInitials(getUserById(member.userId)) }}
+                        {{ getUserInitials(member.user || getUserById(member.userId)) }}
                       </span>
                     </div>
                     <div class="flex-1 min-w-0">
                       <p class="text-sm font-medium text-gray-100 truncate">
-                        {{ getUserById(member.userId)?.displayName || `${getUserById(member.userId)?.firstName || ''} ${getUserById(member.userId)?.lastName || ''}`.trim() || `User ${member.userId.slice(0, 8)}...` }}
+                        {{ member.user?.displayName || `${member.user?.firstName || ''} ${member.user?.lastName || ''}`.trim() || getUserById(member.userId)?.displayName || `${getUserById(member.userId)?.firstName || ''} ${getUserById(member.userId)?.lastName || ''}`.trim() || `User ${member.userId.slice(0, 8)}...` }}
                       </p>
-                      <p class="text-xs text-gray-400 truncate">{{ getUserById(member.userId)?.email || 'Email not available' }}</p>
+                      <p class="text-xs text-gray-400 truncate">{{ member.user?.email || getUserById(member.userId)?.email || 'Email not available' }}</p>
                     </div>
                   </div>
                   
@@ -422,7 +422,7 @@ const form = reactive({
   description: '',
   parentTeamId: '',
   groupId: '',
-  members: [] as { userId: string; role: 'MEMBER' | 'LEADER' }[],
+  members: [] as { userId: string; role: 'MEMBER' | 'LEADER'; user?: User }[],
   provisioningOptions: {
     authentik: true, // Always enabled
     nextcloudGroup: true, // Always enabled
@@ -481,7 +481,11 @@ const addMember = () => {
     existingMember.role = selectedRole.value as 'MEMBER' | 'LEADER'
   } else {
     // Otherwise, add a new member
-    form.members.push({ userId: selectedUser.value.id, role: selectedRole.value as 'MEMBER' | 'LEADER' })
+    form.members.push({ 
+      userId: selectedUser.value.id, 
+      role: selectedRole.value as 'MEMBER' | 'LEADER',
+      user: selectedUser.value
+    })
   }
   
   // Clear selection
@@ -571,7 +575,7 @@ const handleSubmit = async () => {
       description: form.description,
       parentTeamId: form.parentTeamId || undefined,
       groupId: form.groupId || undefined,
-      members: form.members,
+      members: form.members.map(m => ({ userId: m.userId, role: m.role })),
       provisioningOptions: form.provisioningOptions,
     }
     
