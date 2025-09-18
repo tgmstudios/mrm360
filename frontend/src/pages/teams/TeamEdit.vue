@@ -316,9 +316,9 @@
                     </div>
                     <div class="flex-1 min-w-0">
                       <p class="text-sm font-medium text-gray-100 truncate">
-                        {{ getUserById(member.userId)?.displayName || `${getUserById(member.userId)?.firstName} ${getUserById(member.userId)?.lastName}` }}
+                        {{ getUserById(member.userId)?.displayName || `${getUserById(member.userId)?.firstName || ''} ${getUserById(member.userId)?.lastName || ''}`.trim() || 'Loading...' }}
                       </p>
-                      <p class="text-xs text-gray-400 truncate">{{ getUserById(member.userId)?.email }}</p>
+                      <p class="text-xs text-gray-400 truncate">{{ getUserById(member.userId)?.email || 'Loading...' }}</p>
                     </div>
                   </div>
                   
@@ -468,7 +468,8 @@ const getUserById = (userId: string) => {
 }
 
 const getUserInitials = (user: any) => {
-  if (!user?.firstName || !user?.lastName) return '?'
+  if (!user) return 'U'
+  if (!user.firstName || !user.lastName) return '?'
   return `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase()
 }
 
@@ -624,6 +625,17 @@ const loadTeam = async () => {
         discord: team.provisioningOptions?.discord || false,
       }
     })
+    
+    // Fetch individual users for team members to ensure they're available in the store
+    if (team.userTeams && team.userTeams.length > 0) {
+      const memberUserIds = team.userTeams.map((ut: any) => ut.userId)
+      const missingUserIds = memberUserIds.filter(userId => !userStore.getUserById(userId))
+      
+      if (missingUserIds.length > 0) {
+        // Fetch missing users individually
+        await Promise.all(missingUserIds.map(userId => userStore.fetchUser(userId)))
+      }
+    }
   } catch (error) {
     console.error('Failed to load team:', error)
     router.push('/teams')

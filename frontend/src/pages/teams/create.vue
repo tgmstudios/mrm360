@@ -314,9 +314,9 @@
                     </div>
                     <div class="flex-1 min-w-0">
                       <p class="text-sm font-medium text-gray-100 truncate">
-                        {{ getUserById(member.userId)?.displayName || `${getUserById(member.userId)?.firstName} ${getUserById(member.userId)?.lastName}` }}
+                        {{ getUserById(member.userId)?.displayName || `${getUserById(member.userId)?.firstName || ''} ${getUserById(member.userId)?.lastName || ''}`.trim() || 'Loading...' }}
                       </p>
-                      <p class="text-xs text-gray-400 truncate">{{ getUserById(member.userId)?.email }}</p>
+                      <p class="text-xs text-gray-400 truncate">{{ getUserById(member.userId)?.email || 'Loading...' }}</p>
                     </div>
                   </div>
                   
@@ -460,7 +460,8 @@ watch(() => form.type, (newType) => {
 // Methods
 const getUserInitials = (user: any) => {
   if (!user) return 'U'
-  return `${user.firstName?.charAt(0)}${user.lastName?.charAt(0)}`.toUpperCase()
+  if (!user.firstName || !user.lastName) return '?'
+  return `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase()
 }
 
 const getUserById = (userId: string) => {
