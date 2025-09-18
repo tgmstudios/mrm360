@@ -309,14 +309,14 @@
                   <div class="flex items-center space-x-3">
                     <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
                       <span class="text-sm font-medium text-white">
-                        {{ getUserInitials(getUserById.value(member.userId)) }}
+                        {{ getUserInitials(getUserById(member.userId)) }}
                       </span>
                     </div>
                     <div class="flex-1 min-w-0">
                       <p class="text-sm font-medium text-gray-100 truncate">
-                        {{ getUserById.value(member.userId)?.displayName || `${getUserById.value(member.userId)?.firstName || ''} ${getUserById.value(member.userId)?.lastName || ''}`.trim() || `User ${member.userId.slice(0, 8)}...` }}
+                        {{ getUserById(member.userId)?.displayName || `${getUserById(member.userId)?.firstName || ''} ${getUserById(member.userId)?.lastName || ''}`.trim() || `User ${member.userId.slice(0, 8)}...` }}
                       </p>
-                      <p class="text-xs text-gray-400 truncate">{{ getUserById.value(member.userId)?.email || 'Email not available' }}</p>
+                      <p class="text-xs text-gray-400 truncate">{{ getUserById(member.userId)?.email || 'Email not available' }}</p>
                     </div>
                   </div>
                   
@@ -464,9 +464,13 @@ const getUserInitials = (user: any) => {
   return `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase()
 }
 
-const getUserById = computed(() => (userId: string) => {
-  return userStore.users.find(u => u.id === userId)
-})
+// Create a computed property to track users array changes
+const usersArray = computed(() => userStore.users)
+
+const getUserById = (userId: string) => {
+  // Access the computed property to ensure reactivity
+  return usersArray.value.find(u => u.id === userId)
+}
 
 const addMember = () => {
   if (!selectedUser.value) return
