@@ -316,9 +316,9 @@
                     </div>
                     <div class="flex-1 min-w-0">
                       <p class="text-sm font-medium text-gray-100 truncate">
-                        {{ getUserById(member.userId)?.displayName || `${getUserById(member.userId)?.firstName || ''} ${getUserById(member.userId)?.lastName || ''}`.trim() || 'Loading...' }}
+                        {{ getUserById(member.userId)?.displayName || `${getUserById(member.userId)?.firstName || ''} ${getUserById(member.userId)?.lastName || ''}`.trim() || `User ${member.userId.slice(0, 8)}...` }}
                       </p>
-                      <p class="text-xs text-gray-400 truncate">{{ getUserById(member.userId)?.email || 'Loading...' }}</p>
+                      <p class="text-xs text-gray-400 truncate">{{ getUserById(member.userId)?.email || 'Email not available' }}</p>
                     </div>
                   </div>
                   
@@ -631,9 +631,26 @@ const loadTeam = async () => {
       const memberUserIds = team.userTeams.map((ut: any) => ut.userId)
       const missingUserIds = memberUserIds.filter(userId => !userStore.getUserById(userId))
       
+      console.log('Team member user IDs:', memberUserIds)
+      console.log('Missing user IDs:', missingUserIds)
+      console.log('Current users in store:', userStore.users.length)
+      
       if (missingUserIds.length > 0) {
-        // Fetch missing users individually
-        await Promise.all(missingUserIds.map(userId => userStore.fetchUser(userId)))
+        // Fetch missing users individually without replacing existing users
+        try {
+          await Promise.all(missingUserIds.map(async (userId) => {
+            try {
+              console.log(`Fetching user ${userId}...`)
+              await userStore.fetchUser(userId)
+              console.log(`Successfully fetched user ${userId}`)
+            } catch (error) {
+              console.error(`Failed to fetch user ${userId}:`, error)
+            }
+          }))
+          console.log('All user fetches completed')
+        } catch (error) {
+          console.error('Failed to fetch missing users:', error)
+        }
       }
     }
   } catch (error) {

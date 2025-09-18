@@ -314,9 +314,9 @@
                     </div>
                     <div class="flex-1 min-w-0">
                       <p class="text-sm font-medium text-gray-100 truncate">
-                        {{ getUserById(member.userId)?.displayName || `${getUserById(member.userId)?.firstName || ''} ${getUserById(member.userId)?.lastName || ''}`.trim() || 'Loading...' }}
+                        {{ getUserById(member.userId)?.displayName || `${getUserById(member.userId)?.firstName || ''} ${getUserById(member.userId)?.lastName || ''}`.trim() || `User ${member.userId.slice(0, 8)}...` }}
                       </p>
-                      <p class="text-xs text-gray-400 truncate">{{ getUserById(member.userId)?.email || 'Loading...' }}</p>
+                      <p class="text-xs text-gray-400 truncate">{{ getUserById(member.userId)?.email || 'Email not available' }}</p>
                     </div>
                   </div>
                   
