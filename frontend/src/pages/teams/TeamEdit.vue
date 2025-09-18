@@ -311,14 +311,14 @@
                   <div class="flex items-center space-x-3">
                     <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
                       <span class="text-sm font-medium text-white">
-                        {{ getUserInitials(getUserById(member.userId)) }}
+                        {{ getUserInitials(getUserById.value(member.userId)) }}
                       </span>
                     </div>
                     <div class="flex-1 min-w-0">
                       <p class="text-sm font-medium text-gray-100 truncate">
-                        {{ getUserById(member.userId)?.displayName || `${getUserById(member.userId)?.firstName || ''} ${getUserById(member.userId)?.lastName || ''}`.trim() || `User ${member.userId.slice(0, 8)}...` }}
+                        {{ getUserById.value(member.userId)?.displayName || `${getUserById.value(member.userId)?.firstName || ''} ${getUserById.value(member.userId)?.lastName || ''}`.trim() || `User ${member.userId.slice(0, 8)}...` }}
                       </p>
-                      <p class="text-xs text-gray-400 truncate">{{ getUserById(member.userId)?.email || 'Email not available' }}</p>
+                      <p class="text-xs text-gray-400 truncate">{{ getUserById.value(member.userId)?.email || 'Email not available' }}</p>
                     </div>
                   </div>
                   
@@ -463,9 +463,9 @@ const getUserName = (userId: string) => {
   return user ? (user.displayName || `${user.firstName} ${user.lastName}`) : 'Unknown User'
 }
 
-const getUserById = (userId: string) => {
+const getUserById = computed(() => (userId: string) => {
   return userStore.users.find(u => u.id === userId)
-}
+})
 
 const getUserInitials = (user: any) => {
   if (!user) return 'U'
@@ -629,25 +629,18 @@ const loadTeam = async () => {
     // Fetch individual users for team members to ensure they're available in the store
     if (team.userTeams && team.userTeams.length > 0) {
       const memberUserIds = team.userTeams.map((ut: any) => ut.userId)
-      const missingUserIds = memberUserIds.filter(userId => !userStore.getUserById(userId))
-      
-      console.log('Team member user IDs:', memberUserIds)
-      console.log('Missing user IDs:', missingUserIds)
-      console.log('Current users in store:', userStore.users.length)
+      const missingUserIds = memberUserIds.filter(userId => !getUserById.value(userId))
       
       if (missingUserIds.length > 0) {
         // Fetch missing users individually without replacing existing users
         try {
           await Promise.all(missingUserIds.map(async (userId) => {
             try {
-              console.log(`Fetching user ${userId}...`)
               await userStore.fetchUser(userId)
-              console.log(`Successfully fetched user ${userId}`)
             } catch (error) {
               console.error(`Failed to fetch user ${userId}:`, error)
             }
           }))
-          console.log('All user fetches completed')
         } catch (error) {
           console.error('Failed to fetch missing users:', error)
         }
