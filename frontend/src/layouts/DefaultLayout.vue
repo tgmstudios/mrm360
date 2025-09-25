@@ -33,9 +33,10 @@
           <div class="flex items-center space-x-2">
             <!-- Mobile Menu Button -->
             <button
-              @click="isMobileMenuOpen = !isMobileMenuOpen"
+              @click.stop="toggleMobileMenu"
               data-mobile-menu-button
-              class="md:hidden inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-100 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
+              class="md:hidden inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-100 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 touch-manipulation"
+              :class="{ 'bg-gray-700': isMobileMenuOpen }"
             >
               <span class="sr-only">Open main menu</span>
               <svg
@@ -101,19 +102,23 @@
         </div>
 
         <!-- Mobile Navigation Menu -->
-        <div v-if="isMobileMenuOpen" class="md:hidden relative z-50" data-mobile-menu>
-          <div class="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-gray-700 rounded-lg mt-2 shadow-lg border border-gray-600">
+        <div 
+          v-if="isMobileMenuOpen" 
+          class="md:hidden fixed top-16 left-0 right-0 z-[60] bg-gray-800 shadow-xl border-t border-gray-600"
+          data-mobile-menu
+        >
+          <div class="px-4 pt-4 pb-6 space-y-2 bg-gray-800">
             <router-link
               v-for="item in navigationItems"
               :key="item.name"
               :to="item.to"
               :class="[
                 isNavigationItemActive(item.to)
-                  ? 'text-blue-400 bg-gray-600'
-                  : 'text-gray-300 hover:text-gray-100 hover:bg-gray-600',
-                'block px-3 py-2 text-base font-medium rounded-md transition-all duration-200'
+                  ? 'text-white bg-blue-600 border-blue-500'
+                  : 'text-gray-200 hover:text-white hover:bg-gray-700 border-transparent hover:border-gray-600',
+                'block px-4 py-3 text-base font-medium rounded-lg transition-all duration-200 touch-manipulation border-2'
               ]"
-              @click="isMobileMenuOpen = false"
+              @click="closeMobileMenu"
             >
               {{ item.name }}
             </router-link>
@@ -121,6 +126,14 @@
         </div>
       </div>
     </nav>
+
+    <!-- Mobile Menu Overlay -->
+    <div
+      v-if="isMobileMenuOpen && isMobile"
+      class="fixed inset-0 z-[50] bg-gray-900 bg-opacity-75 md:hidden"
+      @click="closeMobileMenu"
+      @touchstart="closeMobileMenu"
+    ></div>
 
     <div class="flex">
       <!-- Mobile Sidebar Overlay -->
@@ -396,6 +409,18 @@ const isMobileMenuOpen = ref(false)
 const isSidebarOpen = ref(false)
 const isMobile = ref(false)
 
+// Initialize mobile state immediately
+const initializeMobileState = () => {
+  isMobile.value = window.innerWidth < 768
+  // Always start with sidebar closed on mobile
+  if (isMobile.value) {
+    isSidebarOpen.value = false
+  }
+}
+
+// Initialize immediately
+initializeMobileState()
+
 // Current path for sidebar logic
 const currentPath = computed(() => route.path)
 
@@ -587,6 +612,33 @@ const handleLogout = async () => {
   await authStore.logout()
 }
 
+// Mobile menu toggle with better touch handling
+const toggleMobileMenu = () => {
+  // Clear the just opened flag first
+  menuJustOpened.value = false
+  
+  isMobileMenuOpen.value = !isMobileMenuOpen.value
+  
+  // Close user menu when opening mobile menu
+  if (isMobileMenuOpen.value) {
+    isUserMenuOpen.value = false
+    // Set flag to prevent immediate closing
+    menuJustOpened.value = true
+    // Clear flag after a short delay
+    setTimeout(() => {
+      menuJustOpened.value = false
+    }, 150)
+  }
+}
+
+// Close mobile menu
+const closeMobileMenu = () => {
+  isMobileMenuOpen.value = false
+}
+
+// Track if menu was just opened to prevent immediate closing
+const menuJustOpened = ref(false)
+
 // Mobile detection
 const checkMobile = () => {
   const wasMobile = isMobile.value
@@ -598,11 +650,26 @@ const checkMobile = () => {
     isSidebarOpen.value = false
     isUserMenuOpen.value = false
   }
+  
+  // Always close sidebar on mobile devices
+  if (isMobile.value) {
+    isSidebarOpen.value = false
+  }
 }
 
 // Close menus when clicking outside
 const handleClickOutside = (event: Event) => {
   const target = event.target as HTMLElement
+  
+  // Don't close if menu was just opened
+  if (menuJustOpened.value) {
+    return
+  }
+  
+  // Don't close if clicking on the mobile menu button
+  if (target.closest('[data-mobile-menu-button]')) {
+    return
+  }
   
   // Close user menu if clicking outside user menu area
   if (!target.closest('[data-user-menu]')) {
@@ -610,7 +677,36 @@ const handleClickOutside = (event: Event) => {
   }
   
   // Close mobile menu if clicking outside navigation area
-  if (!target.closest('[data-mobile-menu]') && !target.closest('[data-mobile-menu-button]')) {
+  if (!target.closest('[data-mobile-menu]') && 
+      !target.closest('[data-mobile-menu-button]') &&
+      !target.closest('nav')) {
+    isMobileMenuOpen.value = false
+  }
+}
+
+// Handle touch events for mobile
+const handleTouchOutside = (event: TouchEvent) => {
+  const target = event.target as HTMLElement
+  
+  // Don't close if menu was just opened
+  if (menuJustOpened.value) {
+    return
+  }
+  
+  // Don't close if touching the mobile menu button
+  if (target.closest('[data-mobile-menu-button]')) {
+    return
+  }
+  
+  // Close user menu if touching outside user menu area
+  if (!target.closest('[data-user-menu]')) {
+    isUserMenuOpen.value = false
+  }
+  
+  // Close mobile menu if touching outside navigation area
+  if (!target.closest('[data-mobile-menu]') && 
+      !target.closest('[data-mobile-menu-button]') &&
+      !target.closest('nav')) {
     isMobileMenuOpen.value = false
   }
 }
@@ -618,17 +714,25 @@ const handleClickOutside = (event: Event) => {
 // Watch for route changes to close mobile menu
 watch(() => route.path, () => {
   isMobileMenuOpen.value = false
+  // Also close sidebar on mobile when navigating
+  if (isMobile.value) {
+    isSidebarOpen.value = false
+  }
 })
 
-onMounted(() => {
+onMounted(async () => {
+  // Wait for DOM to be ready, then run mobile check
+  await nextTick()
   checkMobile()
   window.addEventListener('resize', checkMobile)
   document.addEventListener('click', handleClickOutside)
+  document.addEventListener('touchstart', handleTouchOutside, { passive: true })
 })
 
 onUnmounted(() => {
   window.removeEventListener('resize', checkMobile)
   document.removeEventListener('click', handleClickOutside)
+  document.removeEventListener('touchstart', handleTouchOutside)
 })
 
 // Navigation functions for create buttons

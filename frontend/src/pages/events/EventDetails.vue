@@ -343,6 +343,17 @@
               </h3>
               <div class="flex space-x-2">
                 <BaseButton
+                  @click="createTeam"
+                  variant="primary"
+                  size="sm"
+                  :loading="createTeamLoading"
+                >
+                  <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                  Create Team
+                </BaseButton>
+                <BaseButton
                   v-if="event?.teamsEnabled && event?.wiretapWorkshopId"
                   @click="syncTeams('sync_all')"
                   variant="outline"
@@ -511,15 +522,36 @@
             <div class="text-center">
               <div class="bg-white p-4 rounded-lg border-2 border-gray-600 inline-block">
                 <QRCodeVue3
+                  ref="qrCodeRef"
                   :value="qrCodeValue"
-                  :size="200"
-                  :level="'M'"
-                  :render-as="'svg'"
+                  :width="500"
+                  :height="500"
+                  :qr-options="{ errorCorrectionLevel: 'M' }"
                 />
               </div>
               <p class="mt-3 text-sm text-gray-400">
                 Scan this code to check in at this event
               </p>
+              <div class="mt-3 space-y-2">
+                <div class="flex items-center space-x-2">
+                  <input 
+                    :value="qrCodeValue" 
+                    readonly
+                    class="flex-1 px-3 py-2 text-sm bg-gray-700 border border-gray-600 rounded-lg text-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  <BaseButton
+                    variant="outline"
+                    size="sm"
+                    @click="copyCheckInLink"
+                    class="whitespace-nowrap"
+                  >
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                    </svg>
+                    Copy
+                  </BaseButton>
+                </div>
+              </div>
               <BaseButton
                 variant="outline"
                 size="sm"
@@ -892,7 +924,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useEventStore } from '@/stores/eventStore'
 import { useAuthStore } from '@/stores/authStore'
@@ -924,6 +956,8 @@ const membersPerTeam = ref(4)
 const autoAssignEnabled = ref(false)
 const allowTeamSwitching = ref(false)
 const syncLoading = ref(false)
+const createTeamLoading = ref(false)
+const qrCodeRef = ref<any>(null)
 const eventTeams = ref<any[]>([])
 const wiretapWorkshops = ref<any[]>([])
 
@@ -1309,6 +1343,26 @@ const syncTeams = async (syncType: string) => {
   }
 }
 
+const createTeam = async () => {
+  if (!event.value?.id) return
+  
+  createTeamLoading.value = true
+  try {
+    const result = await eventStore.createEventTeam(event.value.id)
+    
+    toast.success(result.message || 'Team created successfully!')
+    
+    // Reload teams data
+    await loadEventTeams()
+    
+  } catch (error) {
+    console.error('Failed to create team:', error)
+    toast.error('Failed to create team. Please try again.')
+  } finally {
+    createTeamLoading.value = false
+  }
+}
+
 const openTeamManagement = (team: any) => {
   selectedTeam.value = team
   showManualAssignment.value = true
@@ -1453,71 +1507,73 @@ const downloadQRCode = async () => {
   }
 
   try {
-    // Find the QR code SVG element
-    const qrCodeContainer = document.querySelector('.bg-white.p-4.rounded-lg.border-2.border-gray-600.inline-block')
+    // Wait for the QR code component to be rendered
+    await nextTick()
     
-    if (!qrCodeContainer) {
-      console.error('QR code container not found')
+    // Get the image element from the displayed QR code component
+    if (!qrCodeRef.value) {
+      console.error('QR code component not found')
       return
     }
     
-    const svgElement = qrCodeContainer.querySelector('svg')
+    // The QRCodeVue3 component renders an img element
+    const imgElement = qrCodeRef.value.$el?.querySelector('img')
     
-    if (!svgElement) {
-      console.error('QR code SVG not found')
+    if (!imgElement) {
+      console.error('QR code image not found')
       return
     }
 
-    // Create a canvas element
-    const canvas = document.createElement('canvas')
-    const ctx = canvas.getContext('2d')
-    if (!ctx) {
-      console.error('Could not get canvas context')
+    // Get the image source URL from the img src
+    const imageSrc = imgElement.src
+    
+    if (!imageSrc) {
+      console.error('No image source found')
       return
     }
 
-    // Set canvas size (make it larger for better quality)
-    canvas.width = 800
-    canvas.height = 800
-
-    // Convert SVG to data URL
-    const svgData = new XMLSerializer().serializeToString(svgElement)
-    const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' })
-    const url = URL.createObjectURL(svgBlob)
-
-    // Create image from SVG
-    const img = new Image()
-    img.onload = () => {
-      // Draw white background
-      ctx.fillStyle = 'white'
-      ctx.fillRect(0, 0, canvas.width, canvas.height)
-      
-      // Draw the QR code
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-      
-      // Convert to blob and download
-      canvas.toBlob((blob) => {
-        if (blob) {
-          const downloadUrl = URL.createObjectURL(blob)
-          const a = document.createElement('a')
-          a.href = downloadUrl
-          a.download = `qr-code-${event.value?.title || 'event'}-${Date.now()}.png`
-          document.body.appendChild(a)
-          a.click()
-          document.body.removeChild(a)
-          URL.revokeObjectURL(downloadUrl)
-        }
-      }, 'image/png')
-      
-      // Clean up
-      URL.revokeObjectURL(url)
-    }
+    // Create download link directly from the image source
+    const link = document.createElement('a')
+    link.download = `qr-code-${event.value?.title?.replace(/[^a-z0-9]/gi, '-').toLowerCase() || 'event'}.png`
+    link.href = imageSrc
     
-    img.src = url
-
+    // Trigger download
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    
+    toast.success('QR code downloaded successfully!')
+    
   } catch (error) {
-    console.error('Error downloading QR code:', error)
-    alert('Failed to download QR code. Please try again.')
+    console.error('Failed to download QR code:', error)
+    toast.error('Failed to download QR code. Please try again.')
+  }
+}
+
+const copyCheckInLink = async () => {
+  if (!qrCodeValue.value) {
+    console.error('No check-in link available')
+    return
+  }
+
+  try {
+    await navigator.clipboard.writeText(qrCodeValue.value)
+    toast.success('Check-in link copied to clipboard!')
+  } catch (error) {
+    console.error('Failed to copy to clipboard:', error)
+    // Fallback for older browsers
+    const textArea = document.createElement('textarea')
+    textArea.value = qrCodeValue.value
+    document.body.appendChild(textArea)
+    textArea.select()
+    try {
+      document.execCommand('copy')
+      toast.success('Check-in link copied to clipboard!')
+    } catch (fallbackError) {
+      console.error('Fallback copy failed:', fallbackError)
+      toast.error('Failed to copy link. Please copy manually.')
+    }
+    document.body.removeChild(textArea)
   }
 }
 </script>

@@ -262,6 +262,22 @@ export const useEventStore = defineStore('events', () => {
     }
   }
 
+  async function createEventTeam(eventId: string) {
+    try {
+      const result = await apiService.createEventTeam(eventId)
+      
+      // Refresh the current event to get updated teams
+      if (currentEvent.value?.id === eventId) {
+        await fetchEvent(eventId)
+      }
+      
+      return result
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to create event team'
+      throw err
+    }
+  }
+
   async function addTeamMember(eventId: string, teamId: string, email: string) {
     try {
       const result = await apiService.addTeamMember(eventId, teamId, email)
@@ -372,6 +388,7 @@ export const useEventStore = defineStore('events', () => {
     checkInWithQR,
     getEventTeams,
     createEventTeams,
+    createEventTeam,
     addTeamMember,
     removeTeamMember,
     deleteEventTeam,

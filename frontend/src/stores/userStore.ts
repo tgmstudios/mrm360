@@ -84,7 +84,8 @@ export const useUserStore = defineStore('users', () => {
             ? u.userTeams.map((ut: any) => ut.team).filter(Boolean)
             : Array.isArray(u.teams) ? u.teams : [],
           events: Array.isArray(u.events) ? u.events : [],
-          discordAccount: u.discordAccount
+          discordAccount: u.discordAccount,
+          qrCode: u.qrCode
         } as unknown as User
         
         return user
@@ -127,7 +128,8 @@ export const useUserStore = defineStore('users', () => {
           ? rawUser.userTeams.map((ut: any) => ut.team).filter(Boolean)
           : Array.isArray(rawUser.teams) ? rawUser.teams : [],
         events: Array.isArray(rawUser.events) ? rawUser.events : [],
-        discordAccount: rawUser.discordAccount
+        discordAccount: rawUser.discordAccount,
+        qrCode: rawUser.qrCode
       } as unknown as User
       
       currentUser.value = user

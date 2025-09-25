@@ -63,7 +63,7 @@
         </BaseButton>
       </div>
       
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
         <!-- Search -->
         <div class="space-y-2">
           <label for="search" class="flex items-center text-sm font-medium text-gray-300">
@@ -151,72 +151,72 @@
     <!-- Events Table -->
     <div v-if="viewMode === 'table'" class="bg-gray-800 shadow rounded-lg overflow-hidden border border-gray-700">
       <div class="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
-        <table class="w-full divide-y divide-gray-700">
+        <table class="min-w-full divide-y divide-gray-700">
           <thead class="bg-gray-700">
             <tr>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-1/3">
+              <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider min-w-[200px]">
                 Event
               </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-1/5">
+              <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider min-w-[120px]">
                 Date & Time
               </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-20">
+              <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider min-w-[80px]">
                 Category
               </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-1/6">
+              <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider min-w-[100px]">
                 Team
               </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-24">
+              <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider min-w-[90px]">
                 Attendance
               </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-24">
+              <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider min-w-[100px]">
                 Actions
               </th>
             </tr>
           </thead>
           <tbody class="bg-gray-800 divide-y divide-gray-700">
             <tr v-for="event in paginatedEvents" :key="event.id" class="hover:bg-gray-700">
-              <td class="px-6 py-4 whitespace-nowrap">
+              <td class="px-3 sm:px-6 py-4">
                 <div class="flex items-center">
-                  <div class="flex-shrink-0 h-10 w-10">
-                    <div class="h-10 w-10 rounded-full bg-blue-600 flex items-center justify-center">
-                      <CalendarIcon class="h-6 w-6 text-white" />
+                  <div class="flex-shrink-0 h-8 w-8 sm:h-10 sm:w-10">
+                    <div class="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-blue-600 flex items-center justify-center">
+                      <CalendarIcon class="h-4 w-4 sm:h-6 sm:w-6 text-white" />
                     </div>
                   </div>
-                  <div class="ml-4">
-                    <div class="text-sm font-medium text-gray-100">
+                  <div class="ml-2 sm:ml-4 min-w-0 flex-1">
+                    <div class="text-sm font-medium text-gray-100 truncate">
                       {{ event.title }}
                     </div>
-                    <div class="text-sm text-gray-400 truncate max-w-xs" :title="event.description">
+                    <div class="text-xs sm:text-sm text-gray-400 truncate max-w-[150px] sm:max-w-xs" :title="event.description">
                       {{ event.description }}
                     </div>
                   </div>
                 </div>
               </td>
-              <td class="px-6 py-4 whitespace-nowrap">
-                <div class="text-sm text-gray-300">{{ formatDate(event.startTime) }}</div>
-                <div class="text-sm text-gray-400">{{ formatTime(event.startTime) }}</div>
+              <td class="px-3 sm:px-6 py-4 whitespace-nowrap">
+                <div class="text-xs sm:text-sm text-gray-300">{{ formatDate(event.startTime) }}</div>
+                <div class="text-xs sm:text-sm text-gray-400">{{ formatTime(event.startTime) }}</div>
               </td>
-              <td class="px-6 py-4 whitespace-nowrap">
+              <td class="px-3 sm:px-6 py-4 whitespace-nowrap">
                 <span :class="[
-                  'inline-flex px-2 inline-flex text-xs leading-5 font-semibold rounded-full',
+                  'inline-flex px-2 py-1 text-xs leading-5 font-semibold rounded-full',
                   getCategoryColor(event.category)
                 ]">
                   {{ event.category }}
                 </span>
               </td>
-              <td class="px-6 py-4 whitespace-nowrap">
-                <div class="text-sm text-gray-300">
+              <td class="px-3 sm:px-6 py-4 whitespace-nowrap">
+                <div class="text-xs sm:text-sm text-gray-300 truncate max-w-[80px] sm:max-w-none">
                   {{ event.linkedTeam?.name || 'No team' }}
                 </div>
               </td>
-              <td class="px-6 py-4 whitespace-nowrap">
-                <div class="text-sm text-gray-300">
-                  0 attendees
+              <td class="px-3 sm:px-6 py-4 whitespace-nowrap">
+                <div class="text-xs sm:text-sm text-gray-300">
+                  {{ getConfirmedRSVPsCount(event) }} attendees
                 </div>
               </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                <div class="flex space-x-2">
+              <td class="px-3 sm:px-6 py-4 whitespace-nowrap text-xs sm:text-sm font-medium">
+                <div class="flex flex-col sm:flex-row space-y-1 sm:space-y-0 sm:space-x-2">
                   <router-link
                     :to="`/events/${event.id}`"
                     class="text-blue-400 hover:text-blue-300"
@@ -309,13 +309,13 @@
           </button>
           
           <!-- Page Numbers -->
-          <div class="flex items-center space-x-1">
+          <div class="flex items-center space-x-1 overflow-x-auto">
             <button
               v-for="page in visiblePages"
               :key="page"
               @click="currentPage = page"
               :class="[
-                'px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200',
+                'px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-md transition-colors duration-200 whitespace-nowrap',
                 page === currentPage
                   ? 'bg-blue-600 text-white'
                   : 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white'
@@ -524,5 +524,9 @@ const getCategoryColor = (category: string) => {
     other: 'bg-gray-100 text-gray-800'
   }
   return colors[category as keyof typeof colors] || colors.other
+}
+
+const getConfirmedRSVPsCount = (event: Event) => {
+  return event.rsvps?.filter(rsvp => rsvp.status === 'CONFIRMED').length || 0
 }
 </script>

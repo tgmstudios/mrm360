@@ -244,6 +244,83 @@
             </div>
           </div>
 
+            <!-- Team Settings -->
+            <div>
+              <h3 class="text-lg font-medium text-gray-100 mb-4">Team Settings</h3>
+              <div class="space-y-6">
+                <!-- Enable Teams Toggle -->
+                <div>
+                  <label class="flex items-center">
+                    <input
+                      v-model="form.teamsEnabled"
+                      type="checkbox"
+                      class="rounded border-gray-600 text-blue-600 focus:ring-blue-500 bg-gray-700"
+                    />
+                    <span class="ml-2 text-sm font-medium text-gray-300">Enable Teams for this Event</span>
+                  </label>
+                  <p class="mt-1 text-sm text-gray-400">
+                    When enabled, attendees can be organized into teams for collaborative activities
+                  </p>
+                </div>
+
+                <!-- Team Configuration (only shown when teams are enabled) -->
+                <div v-if="form.teamsEnabled" class="space-y-4 pl-6 border-l-2 border-gray-600">
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label for="membersPerTeam" class="block text-sm font-medium text-gray-300 mb-2">
+                        Members per Team
+                      </label>
+                      <input
+                        id="membersPerTeam"
+                        v-model.number="form.membersPerTeam"
+                        type="number"
+                        min="1"
+                        max="20"
+                        class="w-full px-3 py-2 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-gray-100"
+                        placeholder="4"
+                      />
+                      <p class="mt-1 text-sm text-gray-400">
+                        Maximum number of members per team (1-20)
+                      </p>
+                    </div>
+
+                    <div>
+                      <label class="block text-sm font-medium text-gray-300 mb-2">
+                        Team Assignment
+                      </label>
+                      <div class="space-y-2">
+                        <label class="flex items-center">
+                          <input
+                            v-model="form.autoAssignEnabled"
+                            type="checkbox"
+                            class="rounded border-gray-600 text-blue-600 focus:ring-blue-500 bg-gray-700"
+                          />
+                          <span class="ml-2 text-sm text-gray-300">Auto-assign confirmed RSVPs to teams</span>
+                        </label>
+                        <p class="text-xs text-gray-400">
+                          Automatically assign confirmed attendees to teams when they check in
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label class="flex items-center">
+                      <input
+                        v-model="form.allowTeamSwitching"
+                        type="checkbox"
+                        class="rounded border-gray-600 text-blue-600 focus:ring-blue-500 bg-gray-700"
+                      />
+                      <span class="ml-2 text-sm font-medium text-gray-300">Allow Team Switching</span>
+                    </label>
+                    <p class="mt-1 text-sm text-gray-400">
+                      Allow attendees to switch between teams themselves (requires check-in)
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- Form Actions -->
             <div class="flex justify-end space-x-3 pt-6 border-t border-gray-700">
               <BaseButton
@@ -340,6 +417,15 @@
               <p>
                 <strong>Waitlist:</strong> When enabled, users who RSVP after the cap is reached will be placed on a waitlist and automatically promoted when spots become available.
               </p>
+              <p>
+                <strong>Teams:</strong> Enable teams to organize attendees into groups for collaborative activities. You can set the maximum members per team, enable auto-assignment, and allow team switching.
+              </p>
+              <p>
+                <strong>Auto-assignment:</strong> Automatically assigns confirmed attendees to teams when they check in, ensuring balanced team sizes.
+              </p>
+              <p>
+                <strong>Team Switching:</strong> Allows attendees to switch between teams themselves after checking in, giving them flexibility in team selection.
+              </p>
             </div>
           </div>
         </div>
@@ -386,7 +472,11 @@ const form = ref({
   linkedTeamId: '' as string,
   wiretapWorkshopId: '' as string,
   attendanceCap: null as number | null,
-  waitlistEnabled: false
+  waitlistEnabled: false,
+  teamsEnabled: false,
+  membersPerTeam: 4 as number,
+  autoAssignEnabled: false,
+  allowTeamSwitching: false
 })
 
 const errors = ref<Record<string, string>>({})
@@ -438,7 +528,11 @@ const loadEvent = async () => {
         linkedTeamId: event.linkedTeamId || '',
         wiretapWorkshopId: (event as any).wiretapWorkshopId || '',
         attendanceCap: event.attendanceCap || null,
-        waitlistEnabled: event.waitlistEnabled || false
+        waitlistEnabled: event.waitlistEnabled || false,
+        teamsEnabled: event.teamsEnabled || false,
+        membersPerTeam: event.membersPerTeam || 4,
+        autoAssignEnabled: event.autoAssignEnabled || false,
+        allowTeamSwitching: event.allowTeamSwitching || false
       }
     }
   } catch (error) {
@@ -486,7 +580,12 @@ const handleSubmit = async () => {
       linkedTeamId: form.value.linkedTeamId && form.value.linkedTeamId.trim() !== '' ? form.value.linkedTeamId : undefined,
       wiretapWorkshopId: form.value.wiretapWorkshopId && form.value.wiretapWorkshopId.trim() !== '' ? form.value.wiretapWorkshopId : undefined,
       // Remove null/0 attendanceCap if not set
-      attendanceCap: form.value.attendanceCap && form.value.attendanceCap > 0 ? form.value.attendanceCap : undefined
+      attendanceCap: form.value.attendanceCap && form.value.attendanceCap > 0 ? form.value.attendanceCap : undefined,
+      // Team settings
+      teamsEnabled: form.value.teamsEnabled,
+      membersPerTeam: form.value.teamsEnabled ? form.value.membersPerTeam : undefined,
+      autoAssignEnabled: form.value.teamsEnabled ? form.value.autoAssignEnabled : undefined,
+      allowTeamSwitching: form.value.teamsEnabled ? form.value.allowTeamSwitching : undefined
     }
     
     console.log('Event data being sent:', eventData)

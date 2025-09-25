@@ -312,6 +312,11 @@ class ApiService {
     return response.data
   }
 
+  async createEventTeam(eventId: string): Promise<{ success: boolean; data: any; message: string }> {
+    const response = await this.api.post(`/events/${eventId}/teams/create`)
+    return response.data
+  }
+
   async enableEventTeams(eventId: string): Promise<{ success: boolean; message: string; data: any }> {
     const response = await this.api.post(`/events/${eventId}/teams/enable`)
     return response.data

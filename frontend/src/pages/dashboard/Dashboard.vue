@@ -52,7 +52,100 @@
     </div>
 
     <!-- Role-based Content -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+      <!-- Status Overview Widget (Non-Admin Users Only) -->
+      <div v-if="!isAdminOrExecBoard" class="bg-gray-800 shadow rounded-lg border border-gray-700 flex flex-col">
+        <div class="px-4 py-5 sm:p-6 flex-1">
+          <h3 class="text-lg leading-6 font-medium text-gray-100 mb-4">
+            Your Status
+          </h3>
+          <div class="space-y-4">
+            <!-- Account Status -->
+            <div class="flex items-center justify-between p-3 bg-gray-700 rounded-md border border-gray-600">
+              <div class="flex items-center">
+                <div class="flex-shrink-0">
+                  <div class="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
+                    <UserIcon class="w-4 h-4 text-white" />
+                  </div>
+                </div>
+                <div class="ml-3">
+                  <p class="text-sm font-medium text-gray-100">Account Status</p>
+                  <p class="text-sm text-gray-400">
+                    {{ authStore.user?.isActive ? 'Active' : 'Inactive' }}
+                  </p>
+                </div>
+              </div>
+              <div class="flex-shrink-0">
+                <span 
+                  :class="[
+                    'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
+                    authStore.user?.isActive 
+                      ? 'bg-green-100 text-green-800' 
+                      : 'bg-yellow-100 text-yellow-800'
+                  ]"
+                >
+                  {{ authStore.user?.isActive ? 'Active' : 'Inactive' }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Payment Status -->
+            <div class="flex items-center justify-between p-3 bg-gray-700 rounded-md border border-gray-600">
+              <div class="flex items-center">
+                <div class="flex-shrink-0">
+                  <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                    <CurrencyDollarIcon class="w-4 h-4 text-white" />
+                  </div>
+                </div>
+                <div class="ml-3">
+                  <p class="text-sm font-medium text-gray-100">Payment Status</p>
+                  <p class="text-sm text-gray-400">
+                    {{ authStore.user?.paidStatus ? 'Paid' : 'Unpaid' }}
+                  </p>
+                </div>
+              </div>
+              <div class="flex-shrink-0">
+                <span 
+                  :class="[
+                    'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
+                    authStore.user?.paidStatus 
+                      ? 'bg-green-100 text-green-800' 
+                      : 'bg-red-100 text-red-800'
+                  ]"
+                >
+                  {{ authStore.user?.paidStatus ? 'Paid' : 'Unpaid' }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Member Since -->
+            <div class="flex items-center justify-between p-3 bg-gray-700 rounded-md border border-gray-600">
+              <div class="flex items-center">
+                <div class="flex-shrink-0">
+                  <div class="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center">
+                    <CalendarIcon class="w-4 h-4 text-white" />
+                  </div>
+                </div>
+                <div class="ml-3">
+                  <p class="text-sm font-medium text-gray-100">Member Since</p>
+                  <p class="text-sm text-gray-400">
+                    {{ authStore.user?.createdAt ? formatDate(authStore.user.createdAt) : 'Unknown' }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="bg-gray-700 px-4 py-3 border-t border-gray-600 mt-auto">
+          <router-link
+            to="/profile"
+            class="block w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 text-sm text-center"
+          >
+            View Attendance QR
+          </router-link>
+        </div>
+      </div>
+
       <!-- Upcoming Events Widget (All Users) -->
       <div class="bg-gray-800 shadow rounded-lg border border-gray-700 flex flex-col">
         <div class="px-4 py-5 sm:p-6 flex-1">
@@ -259,98 +352,6 @@
           </div>
         </div>
 
-        <!-- My Status Widget (Regular Members) -->
-        <div class="bg-gray-800 shadow rounded-lg border border-gray-700 flex flex-col">
-          <div class="px-4 py-5 sm:p-6 flex-1">
-            <h3 class="text-lg leading-6 font-medium text-gray-100 mb-4">
-              My Status
-            </h3>
-            <div class="space-y-4">
-              <!-- Account Status -->
-              <div class="flex items-center justify-between p-3 bg-gray-700 rounded-md border border-gray-600">
-                <div class="flex items-center">
-                  <div class="flex-shrink-0">
-                    <div class="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
-                      <UserIcon class="w-4 h-4 text-white" />
-                    </div>
-                  </div>
-                  <div class="ml-3">
-                    <p class="text-sm font-medium text-gray-100">Account Status</p>
-                    <p class="text-sm text-gray-400">
-                      {{ authStore.user?.isActive ? 'Active' : 'Inactive' }}
-                    </p>
-                  </div>
-                </div>
-                <div class="flex-shrink-0">
-                  <span 
-                    :class="[
-                      'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
-                      authStore.user?.isActive 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-yellow-100 text-yellow-800'
-                    ]"
-                  >
-                    {{ authStore.user?.isActive ? 'Active' : 'Inactive' }}
-                  </span>
-                </div>
-              </div>
-
-              <!-- Payment Status -->
-              <div class="flex items-center justify-between p-3 bg-gray-700 rounded-md border border-gray-600">
-                <div class="flex items-center">
-                  <div class="flex-shrink-0">
-                    <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                      <CurrencyDollarIcon class="w-4 h-4 text-white" />
-                    </div>
-                  </div>
-                  <div class="ml-3">
-                    <p class="text-sm font-medium text-gray-100">Payment Status</p>
-                    <p class="text-sm text-gray-400">
-                      {{ authStore.user?.paidStatus ? 'Paid' : 'Unpaid' }}
-                    </p>
-                  </div>
-                </div>
-                <div class="flex-shrink-0">
-                  <span 
-                    :class="[
-                      'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
-                      authStore.user?.paidStatus 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-red-100 text-red-800'
-                    ]"
-                  >
-                    {{ authStore.user?.paidStatus ? 'Paid' : 'Unpaid' }}
-                  </span>
-                </div>
-              </div>
-
-              <!-- Member Since -->
-              <div class="flex items-center justify-between p-3 bg-gray-700 rounded-md border border-gray-600">
-                <div class="flex items-center">
-                  <div class="flex-shrink-0">
-                    <div class="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center">
-                      <CalendarIcon class="w-4 h-4 text-white" />
-                    </div>
-                  </div>
-                  <div class="ml-3">
-                    <p class="text-sm font-medium text-gray-100">Member Since</p>
-                    <p class="text-sm text-gray-400">
-                      {{ authStore.user?.createdAt ? formatDate(authStore.user.createdAt) : 'Unknown' }}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="bg-gray-700 px-4 py-3 border-t border-gray-600 mt-auto">
-            <router-link
-              to="/profile"
-              class="text-sm font-medium text-blue-400 hover:text-blue-300"
-            >
-              View full profile
-            </router-link>
-          </div>
-        </div>
 
         <!-- Events Attended Widget (Regular Members) -->
         <div class="bg-gray-800 shadow rounded-lg border border-gray-700 flex flex-col">

@@ -62,15 +62,19 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
     // Check if teams are enabled
     if (!event.teamsEnabled) {
-      return res.status(400).json({ 
-        error: 'Teams are not enabled for this event' 
+      return res.status(200).json({
+        allowTeamSwitching: false,
+        currentTeam: null,
+        availableTeams: []
       });
     }
 
     // Check if user is checked in
     if (event.checkIns.length === 0) {
-      return res.status(400).json({ 
-        error: 'You must be checked in to view team information' 
+      return res.status(200).json({
+        allowTeamSwitching: event.allowTeamSwitching,
+        currentTeam: null,
+        availableTeams: []
       });
     }
 

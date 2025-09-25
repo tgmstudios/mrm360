@@ -241,23 +241,28 @@
             <div class="text-center">
               <div class="bg-white p-4 rounded-lg border-2 border-gray-600 inline-block">
                 <QRCodeVue3
+                  ref="qrCodeRef"
+                  v-if="qrCodeValue"
                   :value="qrCodeValue"
-                  :size="200"
-                  :level="'M'"
-                  :render-as="'svg'"
+                  :width="500"
+                  :height="500"
+                  :qr-options="{ errorCorrectionLevel: 'M' }"
                 />
+                <div v-else class="w-[500px] h-[500px] flex items-center justify-center text-gray-400">
+                  Loading QR code...
+                </div>
               </div>
               <p class="mt-3 text-sm text-gray-400">
                 Scan this code to check in at events
               </p>
-              <BaseButton
-                variant="outline"
-                size="sm"
-                class="mt-3"
-                @click="downloadQRCode"
-              >
-                Download QR Code
-              </BaseButton>
+              <div class="flex space-x-2">
+                <button
+                  @click="downloadQRCode"
+                  class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 text-sm"
+                >
+                  Download
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -308,14 +313,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/userStore'
 import { useGroupStore } from '@/stores/groupStore'
 import { usePermissions } from '@/composables/usePermissions'
 import { UserGroupIcon, CalendarIcon } from '@heroicons/vue/24/outline'
 import QRCodeVue3 from 'qrcode-vue3'
-import BaseButton from '@/components/common/BaseButton.vue'
 import type { User } from '@/types/api'
 
 const route = useRoute()
@@ -327,6 +331,7 @@ const { can } = usePermissions()
 // State
 const isSubmitting = ref(false)
 const isDeleting = ref(false)
+const qrCodeRef = ref<any>(null)
 
 // Form
 const form = ref({
@@ -371,14 +376,17 @@ const qrCodeValue = computed(() => {
   if (!user.value) return ''
   // Use the actual QR code from the database if available
   if (user.value.qrCode) {
+    console.log('Using QR code from database:', user.value.qrCode)
     return user.value.qrCode
   }
   // Fallback to JSON format for backward compatibility
-  return JSON.stringify({
+  const fallbackValue = JSON.stringify({
     userId: user.value.id,
     email: user.value.email,
     timestamp: new Date().toISOString()
   })
+  console.log('Using fallback QR code value:', fallbackValue)
+  return fallbackValue
 })
 
 const daysAsMember = computed(() => {
@@ -410,106 +418,49 @@ const downloadQRCode = async () => {
   }
 
   try {
-    // Find the QR code SVG element - use a more specific selector
-    const qrCodeContainer = document.querySelector('.bg-white.p-4.rounded-lg.border-2.border-gray-600.inline-block')
-    console.log('QR code container found:', qrCodeContainer)
+    // Wait for the QR code component to be rendered
+    await nextTick()
     
-    if (!qrCodeContainer) {
-      console.error('QR code container not found')
+    // Get the image element from the displayed QR code component
+    if (!qrCodeRef.value) {
+      console.error('QR code component not found')
       return
     }
     
-    const svgElement = qrCodeContainer.querySelector('svg')
-    console.log('SVG element found:', svgElement)
+    // The QRCodeVue3 component renders an img element
+    const imgElement = qrCodeRef.value.$el?.querySelector('img')
     
-    if (!svgElement) {
-      console.error('QR code SVG not found')
-      // Try alternative approach - generate QR code directly
-      await generateAndDownloadQRCode()
+    if (!imgElement) {
+      console.error('QR code image not found')
       return
     }
 
-    // Create a canvas element
-    const canvas = document.createElement('canvas')
-    const ctx = canvas.getContext('2d')
-    if (!ctx) {
-      console.error('Could not get canvas context')
+    // Get the image source URL from the img src
+    const imageSrc = imgElement.src
+    
+    if (!imageSrc) {
+      console.error('No image source found')
       return
     }
 
-    // Set canvas size (make it larger for better quality)
-    canvas.width = 800
-    canvas.height = 800
-
-    // Convert SVG to data URL
-    const svgData = new XMLSerializer().serializeToString(svgElement)
-    const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' })
-    const url = URL.createObjectURL(svgBlob)
-
-    // Create image from SVG
-    const img = new Image()
-    img.onload = () => {
-      // Draw white background
-      ctx.fillStyle = 'white'
-      ctx.fillRect(0, 0, canvas.width, canvas.height)
-      
-      // Draw the QR code
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-      
-      // Convert to blob and download
-      canvas.toBlob((blob) => {
-        if (blob) {
-          const downloadUrl = URL.createObjectURL(blob)
-          const a = document.createElement('a')
-          a.href = downloadUrl
-          a.download = `qr-code-${user.value?.firstName || 'user'}-${Date.now()}.png`
-          document.body.appendChild(a)
-          a.click()
-          document.body.removeChild(a)
-          URL.revokeObjectURL(downloadUrl)
-        }
-      }, 'image/png')
-      
-      // Clean up
-      URL.revokeObjectURL(url)
-    }
+    // Create download link directly from the image source
+    const link = document.createElement('a')
+    link.download = `qr-code-${user.value?.firstName || 'user'}.png`
+    link.href = imageSrc
     
-    img.src = url
-
+    // Trigger download
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    
+    console.log('QR code downloaded successfully!')
+    
   } catch (error) {
-    console.error('Error downloading QR code:', error)
+    console.error('Failed to download QR code:', error)
     alert('Failed to download QR code. Please try again.')
   }
 }
 
-const generateAndDownloadQRCode = async () => {
-  try {
-    // Import qrcode library to generate actual QR code
-    const QRCode = await import('qrcode')
-    
-    // Generate QR code as data URL
-    const qrDataUrl = await QRCode.toDataURL(qrCodeValue.value, {
-      width: 800,
-      margin: 2,
-      color: {
-        dark: '#000000',
-        light: '#FFFFFF'
-      }
-    })
-
-    // Create download link
-    const a = document.createElement('a')
-    a.href = qrDataUrl
-    a.download = `qr-code-${user.value?.firstName || 'user'}-${Date.now()}.png`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-
-  } catch (error) {
-    console.error('Error generating QR code:', error)
-    alert('Failed to generate QR code. Please try again.')
-  }
-}
 
 // Modal methods removed - no modals in this app
 

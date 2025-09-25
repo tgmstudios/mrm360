@@ -128,25 +128,21 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       }
     });
 
-    if (!currentMembership) {
-      return res.status(400).json({ 
-        error: 'You are not currently assigned to any team' 
-      });
-    }
-
     // Check if user is already in the target team
-    if (currentMembership.eventTeamId === targetTeamId) {
+    if (currentMembership && currentMembership.eventTeamId === targetTeamId) {
       return res.status(400).json({ 
         error: 'You are already in this team' 
       });
     }
 
-    // Perform the team switch in a transaction
+    // Perform the team switch/join in a transaction
     await prisma.$transaction(async (tx) => {
-      // Remove from current team
-      await tx.eventTeamMember.delete({
-        where: { id: currentMembership.id }
-      });
+      // Remove from current team if user is already on a team
+      if (currentMembership) {
+        await tx.eventTeamMember.delete({
+          where: { id: currentMembership.id }
+        });
+      }
 
       // Add to target team
       await tx.eventTeamMember.create({
@@ -161,13 +157,13 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     logger.info('User switched teams successfully', {
       userId: requestingUser.id,
       eventId,
-      fromTeam: currentMembership.eventTeam.teamNumber,
+      fromTeam: currentMembership ? currentMembership.eventTeam.teamNumber : 'none',
       toTeam: targetTeam.teamNumber
     });
 
     // Wiretap sync: remove from old Wiretap team, add to new Wiretap team
     try {
-      const oldWiretapTeamId = currentMembership.eventTeam.wiretapTeamId;
+      const oldWiretapTeamId = currentMembership?.eventTeam.wiretapTeamId;
       const newWiretapTeamId = targetTeam.wiretapTeamId;
 
       if (oldWiretapTeamId) {
@@ -210,7 +206,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
     return res.status(200).json({
       success: true,
-      message: `Successfully switched to Team ${targetTeam.teamNumber}`,
+      message: currentMembership 
+        ? `Successfully switched to Team ${targetTeam.teamNumber}`
+        : `Successfully joined Team ${targetTeam.teamNumber}`,
       teamNumber: targetTeam.teamNumber
     });
 
