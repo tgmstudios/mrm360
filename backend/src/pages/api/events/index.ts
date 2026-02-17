@@ -28,10 +28,13 @@ const listEventsSchema = z.object({
   page: z.string().optional().transform(val => parseInt(val || '1')),
   limit: z.string().optional().transform(val => parseInt(val || '20')),
   search: z.string().optional(),
+  query: z.string().optional(), // Alias for search
   category: z.enum(['MEETING', 'COMPETITION', 'WORKSHOP', 'SOCIAL', 'TRAINING']).optional(),
   linkedTeamId: z.string().optional(),
   startDate: z.string().optional().transform(val => val ? new Date(val) : undefined),
   endDate: z.string().optional().transform(val => val ? new Date(val) : undefined),
+  sortBy: z.string().optional().default('startTime'),
+  sortOrder: z.enum(['asc', 'desc']).optional().default('desc'),
 });
 
 /**
@@ -186,6 +189,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       const user = (req as any).user;
       const effectiveRole = getEffectiveSystemRole(user.role);
       
+      // Support both 'search' and 'query' parameters
+      const searchTerm = queryParams.search || queryParams.query;
+      
       let result;
       
       // Use filtered method for regular members, full access for admins/exec board
@@ -195,6 +201,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
           linkedTeamId: queryParams.linkedTeamId,
           startDate: queryParams.startDate,
           endDate: queryParams.endDate,
+          search: searchTerm,
+          sortBy: queryParams.sortBy,
+          sortOrder: queryParams.sortOrder,
         });
       } else {
         result = await eventManager.getAllEvents({
@@ -202,6 +211,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
           linkedTeamId: queryParams.linkedTeamId,
           startDate: queryParams.startDate,
           endDate: queryParams.endDate,
+          search: searchTerm,
+          sortBy: queryParams.sortBy,
+          sortOrder: queryParams.sortOrder,
         });
       }
 
