@@ -56,10 +56,11 @@ export async function discoverAndSaveDiscordRoles() {
     for (const [roleId, role] of roles) {
       const roleName = role.name;
       
-      // Check if this role name matches any of our config keys
+      // Check if this role name exactly matches any of our config keys
+      // Use exact match to avoid false positives (e.g., "wicked6-ctf-team" matching "CTF")
       for (const [searchName, configKey] of Object.entries(roleNameToConfigMap)) {
-        if (roleName.toLowerCase().includes(searchName.toLowerCase())) {
-          console.log(`🎯 Found role: "${roleName}" (${roleId}) -> ${configKey}`);
+        if (roleName.toLowerCase() === searchName.toLowerCase()) {
+          console.log(`🎯 Found role (exact match): "${roleName}" (${roleId}) -> ${configKey}`);
           
           // Save to database
           await prisma.discordConfig.upsert({

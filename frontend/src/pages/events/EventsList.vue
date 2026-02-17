@@ -124,6 +124,12 @@
               {{ team.name }}
             </option>
           </select>
+          <p class="text-xs text-amber-400/80 mt-1">
+            <svg class="w-3 h-3 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+            </svg>
+            Events linked to a team are only visible to that team's members
+          </p>
         </div>
         
         <!-- Status -->
@@ -154,14 +160,32 @@
         <table class="min-w-full divide-y divide-gray-700">
           <thead class="bg-gray-700">
             <tr>
-              <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider min-w-[200px]">
-                Event
+              <th 
+                @click="toggleSort('title')"
+                class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider min-w-[200px] cursor-pointer hover:bg-gray-600 select-none"
+              >
+                <span class="flex items-center gap-1">
+                  Event
+                  <span class="text-gray-400">{{ getSortIcon('title') }}</span>
+                </span>
               </th>
-              <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider min-w-[120px]">
-                Date & Time
+              <th 
+                @click="toggleSort('startTime')"
+                class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider min-w-[120px] cursor-pointer hover:bg-gray-600 select-none"
+              >
+                <span class="flex items-center gap-1">
+                  Date & Time
+                  <span class="text-gray-400">{{ getSortIcon('startTime') }}</span>
+                </span>
               </th>
-              <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider min-w-[80px]">
-                Category
+              <th 
+                @click="toggleSort('category')"
+                class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider min-w-[80px] cursor-pointer hover:bg-gray-600 select-none"
+              >
+                <span class="flex items-center gap-1">
+                  Category
+                  <span class="text-gray-400">{{ getSortIcon('category') }}</span>
+                </span>
               </th>
               <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider min-w-[100px]">
                 Team
@@ -282,8 +306,8 @@
       </div>
     </div>
 
-    <!-- Pagination -->
-    <div v-if="totalPages > 1" class="bg-gray-800 shadow rounded-lg border border-gray-700 p-4">
+    <!-- Pagination - Only show in table view -->
+    <div v-if="viewMode === 'table' && totalPages > 1" class="bg-gray-800 shadow rounded-lg border border-gray-700 p-4">
       <div class="flex items-center justify-between">
         <div class="flex items-center text-sm text-gray-400">
           <span>
@@ -377,6 +401,10 @@ const viewMode = ref<'table' | 'calendar'>('table')
 const currentPage = ref(1)
 const itemsPerPage = 10
 
+// Sorting state
+const sortBy = ref<string>('startTime')
+const sortOrder = ref<'asc' | 'desc'>('desc') // Default to most recent first
+
 const filters = reactive({
   search: '',
   category: '',
@@ -466,7 +494,12 @@ const loadData = async () => {
     await Promise.all([
       eventStore.fetchEvents({
         page: currentPage.value,
-        limit: itemsPerPage
+        limit: itemsPerPage,
+        query: filters.search || undefined,
+        category: filters.category ? filters.category.toUpperCase() as any : undefined,
+        linkedTeamId: filters.linkedTeamId || undefined,
+        sortBy: sortBy.value,
+        sortOrder: sortOrder.value
       }),
       teamStore.fetchTeams()
     ])
@@ -482,7 +515,30 @@ const clearFilters = () => {
   filters.search = ''
   filters.category = ''
   filters.linkedTeamId = ''
+  filters.status = '' as 'upcoming' | 'ongoing' | 'past'
+  sortBy.value = 'startTime'
+  sortOrder.value = 'desc'
   currentPage.value = 1
+}
+
+// Toggle sort order when clicking column headers
+const toggleSort = (column: string) => {
+  if (sortBy.value === column) {
+    // Toggle order if same column
+    sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    // New column, default to desc (most recent first for dates)
+    sortBy.value = column
+    sortOrder.value = 'desc'
+  }
+  currentPage.value = 1
+  loadData()
+}
+
+// Get sort icon for column headers
+const getSortIcon = (column: string) => {
+  if (sortBy.value !== column) return '↕'
+  return sortOrder.value === 'asc' ? '↑' : '↓'
 }
 
 const viewEvent = (event: Event) => {

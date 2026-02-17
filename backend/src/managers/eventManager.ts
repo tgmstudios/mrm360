@@ -120,6 +120,9 @@ export class EventManager {
     linkedTeamId?: string;
     startDate?: Date;
     endDate?: Date;
+    search?: string;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
   }): Promise<Event[]> {
     try {
       logger.info('Fetching all events', { filters });
@@ -144,6 +147,26 @@ export class EventManager {
         }
       }
 
+      // Add search filter for title and description
+      if (filters?.search) {
+        where.OR = [
+          { title: { contains: filters.search, mode: 'insensitive' } },
+          { description: { contains: filters.search, mode: 'insensitive' } },
+        ];
+      }
+
+      // Determine sort order - default to most recent first
+      const sortBy = filters?.sortBy || 'startTime';
+      const sortOrder = filters?.sortOrder || 'desc';
+      
+      // Build orderBy based on sortBy field
+      const orderBy: any = {};
+      if (sortBy === 'title' || sortBy === 'category' || sortBy === 'startTime') {
+        orderBy[sortBy] = sortOrder;
+      } else {
+        orderBy.startTime = sortOrder;
+      }
+
       const events = await this.prisma.event.findMany({
         where,
         include: {
@@ -159,7 +182,7 @@ export class EventManager {
             },
           },
         },
-        orderBy: { startTime: 'asc' },
+        orderBy,
       });
 
       return events;
@@ -174,6 +197,9 @@ export class EventManager {
     linkedTeamId?: string;
     startDate?: Date;
     endDate?: Date;
+    search?: string;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
   }): Promise<Event[]> {
     try {
       logger.info('Fetching events for user', { userId, filters });
@@ -218,6 +244,26 @@ export class EventManager {
         }
       }
 
+      // Add search filter for title and description
+      if (filters?.search) {
+        where.OR = [
+          { title: { contains: filters.search, mode: 'insensitive' } },
+          { description: { contains: filters.search, mode: 'insensitive' } },
+        ];
+      }
+
+      // Determine sort order - default to most recent first
+      const sortBy = filters?.sortBy || 'startTime';
+      const sortOrder = filters?.sortOrder || 'desc';
+      
+      // Build orderBy based on sortBy field
+      const orderBy: any = {};
+      if (sortBy === 'title' || sortBy === 'category' || sortBy === 'startTime') {
+        orderBy[sortBy] = sortOrder;
+      } else {
+        orderBy.startTime = sortOrder;
+      }
+
       // Get all events first
       const allEvents = await this.prisma.event.findMany({
         where,
@@ -234,7 +280,7 @@ export class EventManager {
             },
           },
         },
-        orderBy: { startTime: 'asc' },
+        orderBy,
       });
 
       // Filter events based on visibility rules

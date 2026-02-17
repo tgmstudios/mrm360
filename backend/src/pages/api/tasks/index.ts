@@ -11,7 +11,9 @@ const listSchema = z.object({
   page: z.string().optional().transform(v => parseInt(v || '1')),
   limit: z.string().optional().transform(v => parseInt(v || '20')),
   entityType: z.string().optional(),
-  entityId: z.string().optional()
+  entityId: z.string().optional(),
+  status: z.enum(['PENDING', 'RUNNING', 'COMPLETED', 'FAILED']).optional(),
+  search: z.string().optional()
 });
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -20,7 +22,14 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     if (req.method === 'GET') {
       const query = listSchema.parse(req.query);
-      const result = await manager.listTasks({ page: query.page, limit: query.limit, entityType: query.entityType, entityId: query.entityId });
+      const result = await manager.listTasks({ 
+        page: query.page, 
+        limit: query.limit, 
+        entityType: query.entityType, 
+        entityId: query.entityId,
+        status: query.status,
+        search: query.search
+      });
       return res.status(200).json(result);
     }
 

@@ -441,7 +441,9 @@ const refreshTasks = async () => {
   try {
     await taskStore.fetchTasks({
       page: currentPage.value,
-      limit: pageSize
+      limit: pageSize,
+      status: statusFilter.value || undefined,
+      search: searchQuery.value || undefined
     })
     toast.success('Tasks refreshed successfully')
   } catch (error) {
