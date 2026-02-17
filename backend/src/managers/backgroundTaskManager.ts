@@ -118,13 +118,20 @@ export class BackgroundTaskManager {
     return this.prisma.backgroundTask.findUnique({ where: { id: taskId }, include: { subtasks: true } });
   }
 
-  async listTasks(params: { page?: number; limit?: number; entityType?: string; entityId?: string } = {}) {
+  async listTasks(params: { page?: number; limit?: number; entityType?: string; entityId?: string; status?: string; search?: string } = {}) {
     const page = params.page || 1;
     const limit = params.limit || 20;
     const skip = (page - 1) * limit;
-    const where: any = {};
+    const where: any = { parentTaskId: null }; // Only get parent tasks
     if (params.entityType) where.entityType = params.entityType;
     if (params.entityId) where.entityId = params.entityId;
+    if (params.status) where.status = params.status;
+    if (params.search) {
+      where.OR = [
+        { name: { contains: params.search, mode: 'insensitive' } },
+        { description: { contains: params.search, mode: 'insensitive' } },
+      ];
+    }
     
     const [total, tasks, stats] = await Promise.all([
       this.prisma.backgroundTask.count({ where }),
@@ -135,7 +142,7 @@ export class BackgroundTaskManager {
         take: limit,
         include: { subtasks: true }
       }),
-      this.getTaskStatistics(where)
+      this.getTaskStatistics({ parentTaskId: null }) // Get stats for parent tasks only
     ]);
     
     return {
