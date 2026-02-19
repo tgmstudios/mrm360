@@ -308,7 +308,7 @@
                       Copy
                     </button>
                   </div>
-                  <p class="text-xs text-gray-400">Click the URL to download your VPN configuration file. Also sent to your email.</p>
+                  <p class="text-xs text-gray-400">Click the URL to download your VPN configuration file.</p>
                 </div>
               </div>
             </div>
@@ -349,7 +349,7 @@
                       Copy
                     </button>
                   </div>
-                  <p class="text-xs text-gray-400">Click the URL to download your admin VPN configuration file. Also sent to your email.</p>
+                  <p class="text-xs text-gray-400">Click the URL to download your admin VPN configuration file.</p>
                 </div>
               </div>
             </div>
@@ -668,7 +668,7 @@ const requestVPNProfile = async (organization: string) => {
       urlRef.value = data.profileUrl
       const message = data.isExisting 
         ? 'VPN profile ready! Download URL generated.'
-        : 'VPN profile created! Download URL generated and email sent.'
+        : 'VPN profile created! Download URL ready.'
       toast.success(message)
     } else {
       const errorMessage = data.error || 'Failed to request VPN profile'

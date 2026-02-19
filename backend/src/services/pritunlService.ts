@@ -282,13 +282,13 @@ export class PritunlService {
         };
       }
 
-      // Send profile email with download link
-      try {
-        await this.sendProfileEmail(organization.id, userId);
-      } catch (emailError) {
-        console.error('Failed to send profile email:', emailError);
-        // Don't fail - user still has the URL
-      }
+      // Email sending moved to admin-only endpoint
+      // Regular users just get the URL
+      // try {
+      //   await this.sendProfileEmail(organization.id, userId);
+      // } catch (emailError) {
+      //   console.error('Failed to send profile email:', emailError);
+      // }
 
       return {
         success: true,
