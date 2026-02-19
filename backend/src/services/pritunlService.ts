@@ -145,10 +145,15 @@ export class PritunlService {
     return this.request<void>('DELETE', `/user/${organizationId}/${userId}`);
   }
 
-  // Send profile email
-  async sendProfileEmail(organizationId: string, userId: string, serverId: string): Promise<void> {
-    return this.request<void>('POST', `/user/${organizationId}/${userId}/send_email`, {
-      server_id: serverId,
+  // Send profile email by updating user with send_key_email flag
+  async sendProfileEmail(organizationId: string, userId: string): Promise<PritunlUser> {
+    // Get current user data
+    const user = await this.getUser(organizationId, userId);
+    
+    // PUT to user endpoint with send_key_email: true
+    return this.request<PritunlUser>('PUT', `/user/${organizationId}/${userId}`, {
+      ...user,
+      send_key_email: true,
     });
   }
 
@@ -255,6 +260,14 @@ export class PritunlService {
           userId,
           error: 'User exists but could not generate download URL',
         };
+      }
+
+      // Send profile email
+      try {
+        await this.sendProfileEmail(organization.id, userId);
+      } catch (emailError) {
+        // Email sending failed, but user has download URL
+        console.log('Could not send profile email, but profile URL available:', emailError);
       }
 
       return {
