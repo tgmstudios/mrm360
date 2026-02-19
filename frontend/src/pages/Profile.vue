@@ -265,6 +265,30 @@
               </div>
             </div>
           </div>
+
+          <!-- VPN Access -->
+          <div class="bg-gray-800 rounded-2xl shadow-xl p-6 border border-gray-700">
+            <h3 class="text-lg font-semibold text-gray-100 mb-4">
+              🔐 VPN Access
+            </h3>
+            <p class="text-sm text-gray-400 mb-6">
+              Request a VPN profile to securely access CCSO internal resources. Your profile will be created and sent to your email address.
+            </p>
+            
+            <div class="flex justify-center">
+              <button
+                @click="requestVPNProfile"
+                :disabled="isRequestingVPN"
+                class="bg-purple-600 hover:bg-purple-700 disabled:bg-purple-800 text-white font-medium py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center"
+              >
+                <svg v-if="isRequestingVPN" class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>{{ isRequestingVPN ? 'Processing...' : 'Request VPN Profile' }}</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -295,6 +319,7 @@ const isLinkingDiscord = ref(false)
 const isUnlinkingDiscord = ref(false)
 const isUpdatingInterests = ref(false)
 const isUpdatingNewsletter = ref(false)
+const isRequestingVPN = ref(false)
 
 // Data
 const classRanks = [
@@ -535,13 +560,47 @@ const updateNewsletterPreference = async () => {
     
     if (response.ok) {
       originalNewsletter.value = subscribeNewsletter.value
+      toast.success('Newsletter preference updated successfully')
     } else {
       console.error('Failed to update newsletter preference')
+      toast.error('Failed to update newsletter preference')
     }
   } catch (error) {
     console.error('Error updating newsletter preference:', error)
+    toast.error('Error updating newsletter preference')
   } finally {
     isUpdatingNewsletter.value = false
+  }
+}
+
+const requestVPNProfile = async () => {
+  if (!user.value) return
+  
+  isRequestingVPN.value = true
+  
+  try {
+    const response = await fetch(`${window.ENV.VITE_API_BASE_URL}/user/vpn-request`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authStore.accessToken}`
+      }
+    })
+    
+    const data = await response.json()
+    
+    if (response.ok && data.success) {
+      toast.success('VPN profile created and sent to your email! Check your inbox.')
+    } else {
+      const errorMessage = data.error || 'Failed to request VPN profile'
+      console.error('VPN request failed:', errorMessage)
+      toast.error(errorMessage)
+    }
+  } catch (error) {
+    console.error('Error requesting VPN profile:', error)
+    toast.error('An error occurred while requesting VPN profile')
+  } finally {
+    isRequestingVPN.value = false
   }
 }
 
