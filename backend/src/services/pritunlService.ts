@@ -127,7 +127,10 @@ export class PritunlService {
   }
 
   async createUser(user: PritunlUser): Promise<PritunlUser> {
-    return this.request<PritunlUser>('POST', `/user/${user.organization_id}`, user);
+    // Pritunl returns an array with the created user
+    const response = await this.request<PritunlUser[]>('POST', `/user/${user.organization_id}`, user);
+    // Return the first user from the array
+    return response[0];
   }
 
   async getUser(organizationId: string, userId: string): Promise<PritunlUser> {
@@ -225,8 +228,14 @@ export class PritunlService {
         };
       }
 
-      // Send the VPN profile via email
-      await this.sendProfileEmail(organization.id, createdUser.id, server.id);
+      // Note: Pritunl's send_email endpoint may not exist or require email configuration
+      // Attempt to send profile email, but don't fail if it doesn't work
+      try {
+        await this.sendProfileEmail(organization.id, createdUser.id, server.id);
+      } catch (emailError) {
+        // Email sending failed, but user was created successfully
+        console.log('Could not send profile email, but user created:', emailError);
+      }
 
       return {
         success: true,
