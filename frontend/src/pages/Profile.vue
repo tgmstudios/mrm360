@@ -269,7 +269,7 @@
           <!-- VPN Access -->
           <div class="bg-gray-800 rounded-2xl shadow-xl p-6 border border-gray-700">
             <h3 class="text-lg font-semibold text-gray-100 mb-4">
-              🔐 VPN Access
+              VPN Access
             </h3>
             
             <!-- Member VPN -->
@@ -292,13 +292,23 @@
                   <span>{{ isRequestingMemberVPN ? 'Processing...' : 'Get Member VPN Profile' }}</span>
                 </button>
                 
-                <div v-if="memberVPNRequested" class="mt-4 p-4 bg-green-900/30 border border-green-600 rounded-lg">
-                  <p class="text-sm text-green-300">
-                    ✅ VPN profile email sent to <strong>{{ user?.email }}</strong>
-                  </p>
-                  <p class="text-xs text-gray-400 mt-2">
-                    Check your inbox for the download link. The email may take a few moments to arrive.
-                  </p>
+                <div v-if="memberVPNUrl" class="space-y-2">
+                  <label class="block text-sm font-medium text-gray-300">Profile Download URL:</label>
+                  <div class="flex gap-2">
+                    <input
+                      type="text"
+                      :value="memberVPNUrl"
+                      readonly
+                      class="flex-1 px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-gray-200 text-sm"
+                    />
+                    <button
+                      @click="copyToClipboard(memberVPNUrl)"
+                      class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                  <p class="text-xs text-gray-400">Click the URL to download your VPN configuration file. Also sent to your email.</p>
                 </div>
               </div>
             </div>
@@ -323,13 +333,23 @@
                   <span>{{ isRequestingAdminVPN ? 'Processing...' : 'Get Admin VPN Profile' }}</span>
                 </button>
                 
-                <div v-if="adminVPNRequested" class="mt-4 p-4 bg-green-900/30 border border-green-600 rounded-lg">
-                  <p class="text-sm text-green-300">
-                    ✅ Admin VPN profile email sent to <strong>{{ user?.email }}</strong>
-                  </p>
-                  <p class="text-xs text-gray-400 mt-2">
-                    Check your inbox for the admin download link. The email may take a few moments to arrive.
-                  </p>
+                <div v-if="adminVPNUrl" class="space-y-2">
+                  <label class="block text-sm font-medium text-gray-300">Admin Profile Download URL:</label>
+                  <div class="flex gap-2">
+                    <input
+                      type="text"
+                      :value="adminVPNUrl"
+                      readonly
+                      class="flex-1 px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-gray-200 text-sm"
+                    />
+                    <button
+                      @click="copyToClipboard(adminVPNUrl)"
+                      class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                  <p class="text-xs text-gray-400">Click the URL to download your admin VPN configuration file. Also sent to your email.</p>
                 </div>
               </div>
             </div>
@@ -368,8 +388,8 @@ const isRequestingMemberVPN = ref(false)
 const isRequestingAdminVPN = ref(false)
 
 // VPN state
-const memberVPNRequested = ref<boolean>(false)
-const adminVPNRequested = ref<boolean>(false)
+const memberVPNUrl = ref<string>('')
+const adminVPNUrl = ref<string>('')
 
 // Data
 const classRanks = [
@@ -628,7 +648,7 @@ const requestVPNProfile = async (organization: string) => {
   
   const isAdmin = organization === 'CCSOAdmins'
   const loadingRef = isAdmin ? isRequestingAdminVPN : isRequestingMemberVPN
-  const requestedRef = isAdmin ? adminVPNRequested : memberVPNRequested
+  const urlRef = isAdmin ? adminVPNUrl : memberVPNUrl
   
   loadingRef.value = true
   
@@ -645,10 +665,10 @@ const requestVPNProfile = async (organization: string) => {
     const data = await response.json()
     
     if (response.ok && data.success) {
-      requestedRef.value = true
-      const message = data.message || (data.isExisting 
-        ? 'VPN profile email sent! Check your inbox.'
-        : 'VPN profile created and email sent! Check your inbox.')
+      urlRef.value = data.profileUrl
+      const message = data.isExisting 
+        ? 'VPN profile ready! Download URL generated.'
+        : 'VPN profile created! Download URL generated and email sent.'
       toast.success(message)
     } else {
       const errorMessage = data.error || 'Failed to request VPN profile'
@@ -660,6 +680,16 @@ const requestVPNProfile = async (organization: string) => {
     toast.error('An error occurred while requesting VPN profile')
   } finally {
     loadingRef.value = false
+  }
+}
+
+const copyToClipboard = async (text: string) => {
+  try {
+    await navigator.clipboard.writeText(text)
+    toast.success('Copied to clipboard!')
+  } catch (error) {
+    console.error('Failed to copy:', error)
+    toast.error('Failed to copy to clipboard')
   }
 }
 

@@ -185,14 +185,21 @@ export class PritunlService {
   }
 
   /**
-   * Generate web UI link for user to download profile
-   * Note: Pritunl API doesn't expose temporary download URLs
-   * Users must either:
-   * 1. Use the link sent via email (when send_key_email: true)
-   * 2. Log into Pritunl web UI to download
+   * Get temporary profile download URL
    */
-  getWebUIDownloadUrl(baseUrl: string): string {
-    return `${baseUrl}/#users`;
+  async getProfileUrl(organizationId: string, userId: string): Promise<string> {
+    interface KeyResponse {
+      id: string;
+      key_url: string;
+      key_zip_url: string;
+      view_url: string;
+      uri_url: string;
+    }
+    
+    const response = await this.request<KeyResponse>('GET', `/key/${organizationId}/${userId}`);
+    // Return full URL (view_url is relative like /k/ABC123)
+    const baseUrl = process.env.PRITUNL_BASE_URL || 'https://pritunl.psuccso.org';
+    return `${baseUrl}${response.view_url}`;
   }
 
   /**
@@ -262,29 +269,31 @@ export class PritunlService {
         };
       }
 
+      // Get temporary download URL
+      let profileUrl: string;
+      try {
+        profileUrl = await this.getProfileUrl(organization.id, userId);
+      } catch (error) {
+        console.error('Failed to get profile URL:', error);
+        return {
+          success: false,
+          userId,
+          error: 'User exists but could not generate download URL',
+        };
+      }
+
       // Send profile email with download link
       try {
         await this.sendProfileEmail(organization.id, userId);
       } catch (emailError) {
         console.error('Failed to send profile email:', emailError);
-        return {
-          success: false,
-          userId,
-          error: 'User created but failed to send email. Please contact support.',
-        };
+        // Don't fail - user still has the URL
       }
-
-      // Pritunl API doesn't expose temporary download URLs via API
-      // The download link is sent via email
-      const message = isExisting 
-        ? 'VPN profile email sent! Check your inbox for the download link.'
-        : 'VPN profile created and email sent! Check your inbox for the download link.';
 
       return {
         success: true,
         userId,
-        profileUrl: undefined, // Email contains the actual download link
-        message,
+        profileUrl,
         isExisting,
       };
     } catch (error: any) {
