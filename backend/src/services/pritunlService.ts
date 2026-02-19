@@ -166,6 +166,24 @@ export class PritunlService {
     return this.request<PritunlServer>('GET', `/server/${serverId}`);
   }
 
+  async getServerOrganizations(serverId: string): Promise<Array<{id: string; name: string; server: string}>> {
+    return this.request('GET', `/server/${serverId}/organization`);
+  }
+
+  // Find server for organization by checking all servers
+  async findServerForOrganization(organizationId: string): Promise<string | null> {
+    const servers = await this.listServers();
+    
+    for (const server of servers) {
+      const orgs = await this.getServerOrganizations(server.id);
+      if (orgs.some(org => org.id === organizationId)) {
+        return server.id;
+      }
+    }
+    
+    return null;
+  }
+
   /**
    * Get temporary profile download URL
    */
@@ -236,24 +254,21 @@ export class PritunlService {
         userId = createdUser.id;
       }
 
-      // Get the first server associated with this organization
-      const servers = await this.listServers();
-      const server = servers.find((srv) =>
-        srv.organizations && srv.organizations.includes(organization.id)
-      );
-
-      if (!server) {
+      // Find server for this organization
+      const serverId = await this.findServerForOrganization(organization.id);
+      
+      if (!serverId) {
         return {
           success: false,
           userId,
-          error: 'No server found for this organization',
+          error: 'No server found for this organization. Please attach organization to a server in Pritunl.',
         };
       }
 
       // Get profile download URL
       let profileUrl: string;
       try {
-        profileUrl = await this.getProfileUrl(organization.id, userId, server.id);
+        profileUrl = await this.getProfileUrl(organization.id, userId, serverId);
       } catch (error) {
         return {
           success: false,
