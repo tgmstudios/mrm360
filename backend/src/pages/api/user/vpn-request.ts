@@ -29,6 +29,9 @@ export default withCORS(async function handler(req: NextApiRequest, res: NextApi
 
     logger.info('JWT verified successfully for VPN request', { userId: decoded.id });
 
+    // Get organization from request body (default to CCSOMembers)
+    const { organization = 'CCSOMembers' } = req.body || {};
+
     // Get user from database
     const user = await prisma.user.findUnique({
       where: { id: decoded.id },
@@ -38,6 +41,7 @@ export default withCORS(async function handler(req: NextApiRequest, res: NextApi
         firstName: true,
         lastName: true,
         displayName: true,
+        role: true,
       }
     });
 
@@ -46,18 +50,25 @@ export default withCORS(async function handler(req: NextApiRequest, res: NextApi
       return res.status(404).json({ error: 'User not found or email not configured' });
     }
 
+    // Check permissions for admin VPN
+    if (organization === 'CCSOAdmins' && user.role !== 'ADMIN') {
+      logger.warn('Non-admin user attempted to request admin VPN', { userId: user.id, role: user.role });
+      return res.status(403).json({ error: 'Admin access required for CCSOAdmins VPN' });
+    }
+
     // Generate username from display name or name
     const username = user.displayName || `${user.firstName}.${user.lastName}`.toLowerCase().replace(/\s+/g, '.');
 
     logger.info('Requesting VPN profile via Pritunl', { 
       userId: user.id, 
       username,
-      email: user.email 
+      email: user.email,
+      organization
     });
 
     // Request VPN profile using Pritunl service
     const pritunlService = getPritunlService();
-    const result = await pritunlService.requestVPNProfile(username, user.email, 'CCSOMembers');
+    const result = await pritunlService.requestVPNProfile(username, user.email, organization);
 
     if (!result.success) {
       logger.error('Pritunl VPN profile request failed', { 
@@ -69,15 +80,22 @@ export default withCORS(async function handler(req: NextApiRequest, res: NextApi
       });
     }
 
-    logger.info('VPN profile created successfully', { 
+    const message = result.isExisting 
+      ? 'VPN profile already exists' 
+      : 'VPN profile created successfully';
+
+    logger.info(message, { 
       userId: user.id,
-      pritunlUserId: result.userId 
+      pritunlUserId: result.userId,
+      isExisting: result.isExisting
     });
 
     return res.status(200).json({
       success: true,
-      message: 'VPN profile has been created and sent to your email',
-      pritunlUserId: result.userId
+      message,
+      pritunlUserId: result.userId,
+      profileUrl: result.profileUrl,
+      isExisting: result.isExisting
     });
 
   } catch (error) {

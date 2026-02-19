@@ -162,13 +162,27 @@ export class PritunlService {
   }
 
   /**
-   * Create a new VPN user and send their profile via email
+   * Get temporary profile download URL
+   */
+  async getProfileUrl(organizationId: string, userId: string, serverId: string): Promise<string> {
+    interface KeyResponse {
+      id: string;
+      key_url: string;
+      view_url: string;
+    }
+    
+    const response = await this.request<KeyResponse>('GET', `/key/${organizationId}/${userId}/${serverId}`);
+    return response.view_url || response.key_url;
+  }
+
+  /**
+   * Create a new VPN user or get existing user's profile URL
    */
   async requestVPNProfile(
     username: string,
     email: string,
     organizationName: string = 'CCSOMembers'
-  ): Promise<{ success: boolean; userId?: string; error?: string }> {
+  ): Promise<{ success: boolean; userId?: string; profileUrl?: string; error?: string; isExisting?: boolean }> {
     try {
       // Find the organization by name
       const organizations = await this.listOrganizations();
@@ -189,57 +203,65 @@ export class PritunlService {
         (user) => user.email === email || user.name === username
       );
 
-      if (existingUser) {
-        return {
-          success: false,
-          error: 'User with this email or username already exists',
+      let userId: string;
+      let isExisting = false;
+
+      if (existingUser && existingUser.id) {
+        // User already exists, get their profile URL
+        userId = existingUser.id;
+        isExisting = true;
+      } else {
+        // Create new user
+        const newUser: PritunlUser = {
+          organization_id: organization.id,
+          name: username,
+          email: email,
+          disabled: false,
         };
-      }
 
-      // Create the new user
-      const newUser: PritunlUser = {
-        organization_id: organization.id,
-        name: username,
-        email: email,
-        disabled: false,
-      };
+        const createdUser = await this.createUser(newUser);
 
-      const createdUser = await this.createUser(newUser);
+        if (!createdUser.id) {
+          return {
+            success: false,
+            error: 'Failed to create user - no user ID returned',
+          };
+        }
 
-      if (!createdUser.id) {
-        return {
-          success: false,
-          error: 'Failed to create user - no user ID returned',
-        };
+        userId = createdUser.id;
       }
 
       // Get the first server associated with this organization
       const servers = await this.listServers();
       const server = servers.find((srv) =>
-        srv.organizations.includes(organization.id)
+        srv.organizations && srv.organizations.includes(organization.id)
       );
 
       if (!server) {
-        // User created but no server found
         return {
-          success: true,
-          userId: createdUser.id,
-          error: 'User created but no server found to send profile from',
+          success: false,
+          userId,
+          error: 'No server found for this organization',
         };
       }
 
-      // Note: Pritunl's send_email endpoint may not exist or require email configuration
-      // Attempt to send profile email, but don't fail if it doesn't work
+      // Get profile download URL
+      let profileUrl: string;
       try {
-        await this.sendProfileEmail(organization.id, createdUser.id, server.id);
-      } catch (emailError) {
-        // Email sending failed, but user was created successfully
-        console.log('Could not send profile email, but user created:', emailError);
+        profileUrl = await this.getProfileUrl(organization.id, userId, server.id);
+      } catch (error) {
+        return {
+          success: false,
+          userId,
+          error: 'User exists but could not generate download URL',
+        };
       }
 
       return {
         success: true,
-        userId: createdUser.id,
+        userId,
+        profileUrl,
+        isExisting,
       };
     } catch (error: any) {
       return {

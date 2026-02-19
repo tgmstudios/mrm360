@@ -271,22 +271,87 @@
             <h3 class="text-lg font-semibold text-gray-100 mb-4">
               🔐 VPN Access
             </h3>
-            <p class="text-sm text-gray-400 mb-6">
-              Request a VPN profile to securely access CCSO internal resources. Your profile will be created and sent to your email address.
-            </p>
             
-            <div class="flex justify-center">
-              <button
-                @click="requestVPNProfile"
-                :disabled="isRequestingVPN"
-                class="bg-purple-600 hover:bg-purple-700 disabled:bg-purple-800 text-white font-medium py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center"
-              >
-                <svg v-if="isRequestingVPN" class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <span>{{ isRequestingVPN ? 'Processing...' : 'Request VPN Profile' }}</span>
-              </button>
+            <!-- Member VPN -->
+            <div class="mb-6">
+              <h4 class="text-md font-medium text-gray-200 mb-2">Member VPN</h4>
+              <p class="text-sm text-gray-400 mb-4">
+                Access to CCSO internal resources and network.
+              </p>
+              
+              <div class="space-y-3">
+                <button
+                  @click="requestVPNProfile('CCSOMembers')"
+                  :disabled="isRequestingMemberVPN"
+                  class="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-purple-800 text-white font-medium py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center"
+                >
+                  <svg v-if="isRequestingMemberVPN" class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span>{{ isRequestingMemberVPN ? 'Processing...' : 'Get Member VPN Profile' }}</span>
+                </button>
+                
+                <div v-if="memberVPNUrl" class="space-y-2">
+                  <label class="block text-sm font-medium text-gray-300">Profile Download URL:</label>
+                  <div class="flex gap-2">
+                    <input
+                      type="text"
+                      :value="memberVPNUrl"
+                      readonly
+                      class="flex-1 px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-gray-200 text-sm"
+                    />
+                    <button
+                      @click="copyToClipboard(memberVPNUrl)"
+                      class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200"
+                    >
+                      📋 Copy
+                    </button>
+                  </div>
+                  <p class="text-xs text-gray-400">Click the URL to download your VPN configuration file.</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Admin VPN (only for admins) -->
+            <div v-if="user?.role === 'ADMIN'" class="pt-6 border-t border-gray-700">
+              <h4 class="text-md font-medium text-gray-200 mb-2">Admin VPN</h4>
+              <p class="text-sm text-gray-400 mb-4">
+                Full access to OpenStack and infrastructure management components. <span class="text-yellow-400 font-semibold">Admin only.</span>
+              </p>
+              
+              <div class="space-y-3">
+                <button
+                  @click="requestVPNProfile('CCSOAdmins')"
+                  :disabled="isRequestingAdminVPN"
+                  class="w-full bg-red-600 hover:bg-red-700 disabled:bg-red-800 text-white font-medium py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center"
+                >
+                  <svg v-if="isRequestingAdminVPN" class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span>{{ isRequestingAdminVPN ? 'Processing...' : 'Get Admin VPN Profile' }}</span>
+                </button>
+                
+                <div v-if="adminVPNUrl" class="space-y-2">
+                  <label class="block text-sm font-medium text-gray-300">Admin Profile Download URL:</label>
+                  <div class="flex gap-2">
+                    <input
+                      type="text"
+                      :value="adminVPNUrl"
+                      readonly
+                      class="flex-1 px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-gray-200 text-sm"
+                    />
+                    <button
+                      @click="copyToClipboard(adminVPNUrl)"
+                      class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200"
+                    >
+                      📋 Copy
+                    </button>
+                  </div>
+                  <p class="text-xs text-gray-400">Click the URL to download your admin VPN configuration file.</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -319,7 +384,12 @@ const isLinkingDiscord = ref(false)
 const isUnlinkingDiscord = ref(false)
 const isUpdatingInterests = ref(false)
 const isUpdatingNewsletter = ref(false)
-const isRequestingVPN = ref(false)
+const isRequestingMemberVPN = ref(false)
+const isRequestingAdminVPN = ref(false)
+
+// VPN state
+const memberVPNUrl = ref<string>('')
+const adminVPNUrl = ref<string>('')
 
 // Data
 const classRanks = [
@@ -573,10 +643,14 @@ const updateNewsletterPreference = async () => {
   }
 }
 
-const requestVPNProfile = async () => {
+const requestVPNProfile = async (organization: string) => {
   if (!user.value) return
   
-  isRequestingVPN.value = true
+  const isAdmin = organization === 'CCSOAdmins'
+  const loadingRef = isAdmin ? isRequestingAdminVPN : isRequestingMemberVPN
+  const urlRef = isAdmin ? adminVPNUrl : memberVPNUrl
+  
+  loadingRef.value = true
   
   try {
     const response = await fetch(`${window.ENV.VITE_API_BASE_URL}/user/vpn-request`, {
@@ -584,13 +658,18 @@ const requestVPNProfile = async () => {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${authStore.accessToken}`
-      }
+      },
+      body: JSON.stringify({ organization })
     })
     
     const data = await response.json()
     
     if (response.ok && data.success) {
-      toast.success('VPN profile created and sent to your email! Check your inbox.')
+      urlRef.value = data.profileUrl
+      const message = data.isExisting 
+        ? 'VPN profile already exists! Download URL ready.'
+        : 'VPN profile created successfully! Download URL ready.'
+      toast.success(message)
     } else {
       const errorMessage = data.error || 'Failed to request VPN profile'
       console.error('VPN request failed:', errorMessage)
@@ -600,7 +679,17 @@ const requestVPNProfile = async () => {
     console.error('Error requesting VPN profile:', error)
     toast.error('An error occurred while requesting VPN profile')
   } finally {
-    isRequestingVPN.value = false
+    loadingRef.value = false
+  }
+}
+
+const copyToClipboard = async (text: string) => {
+  try {
+    await navigator.clipboard.writeText(text)
+    toast.success('Copied to clipboard!')
+  } catch (error) {
+    console.error('Failed to copy:', error)
+    toast.error('Failed to copy to clipboard')
   }
 }
 
