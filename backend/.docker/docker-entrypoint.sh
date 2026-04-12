@@ -13,22 +13,22 @@ if [ "$CONTAINER_TYPE" = "backend" ]; then
   
   # Generate Prisma client
   echo "Generating Prisma client..."
-  npm run db:generate
-  
+  pnpm run db:generate
+
   # Run database migrations
   echo "Running database migrations..."
-  npm run db:migrate
-  
+  pnpm run db:migrate
+
   echo "Prisma setup completed."
 fi
 
 # Wait for backend service and run Prisma setup for worker containers
 if [ "$CONTAINER_TYPE" = "worker" ]; then
   echo "Running Prisma setup for worker container..."
-  
+
   # Generate Prisma client for workers
   echo "Generating Prisma client..."
-  npm run db:generate
+  pnpm run db:generate
   
   echo "Waiting for backend service to be available..."
   

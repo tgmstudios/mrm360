@@ -4,7 +4,7 @@
   "description": "MRM360 Backend API with Next.js, TypeScript, and Prisma",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "prisma generate && (next dev -p 3011 & tsx src/tasks/worker.ts & wait)",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",

@@ -1,33 +1,27 @@
-# Use the official Node.js 14 image as the base image
-FROM node:22.1-bullseye
+FROM node:22-bookworm-slim
 
-# Set the working directory inside the container
+# Install pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
 WORKDIR /usr/src/app
 
-# Copy package.json and package-lock.json to the working directory
-COPY package*.json ./
+# Copy package files
+COPY package.json pnpm-lock.yaml* ./
 
 # Copy entrypoint script and ensure proper line endings
 COPY .docker/docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh && \
-    sed -i 's/\r$//' /docker-entrypoint.sh && \
-    cat /docker-entrypoint.sh
+    sed -i 's/\r$//' /docker-entrypoint.sh
 
-# Install project dependencies
-RUN npm install
+# Install dependencies
+RUN pnpm install --frozen-lockfile
 
-# Copy the rest of the project files to the working directory
+# Copy source code
 COPY . .
 
-# Build the project
-#RUN npm run build
-
-# Expose a port (if your application needs it)
 EXPOSE 3000
 
-# Specify the environment variable
 ENV CONTAINER_TYPE=backend
 
-# Use custom entrypoint script
 ENTRYPOINT ["/docker-entrypoint.sh"]
-CMD ["npm", "run", "dev", "--", "-H", "0.0.0.0"]
+CMD ["pnpm", "run", "dev", "--", "-H", "0.0.0.0"]

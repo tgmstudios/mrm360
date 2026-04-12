@@ -1,18 +1,45 @@
 {
   "name": "MRM360 Dev Environment",
   "dockerComposeFile": "docker-compose.yml",
-  "service": "backend",
+  "service": "workspace",
   "workspaceFolder": "/workspace",
   "shutdownAction": "stopCompose",
-  "remoteUser": "root",
+  "remoteUser": "node",
   "overrideCommand": true,
   "forwardPorts": [3010, 3011, 3012, 3013, 3014],
-  "mounts": [
-    "source=${localWorkspaceFolder},target=/workspace,type=bind",
-    "source=${localEnv:HOME}${localEnv:USERPROFILE}/.gitconfig,target=/root/.gitconfig,type=bind"
-  ],
-  "settings": {
-    "terminal.integrated.defaultProfile.linux": "bash"
+  "portsAttributes": {
+    "3010": { "label": "Frontend (Vite)", "onAutoForward": "notify" },
+    "3011": { "label": "Backend (Next.js)", "onAutoForward": "notify" },
+    "3012": { "label": "PostgreSQL", "onAutoForward": "silent" },
+    "3013": { "label": "Redis", "onAutoForward": "silent" },
+    "3014": { "label": "Adminer (DB UI)", "onAutoForward": "notify" }
   },
-  "postCreateCommand": "ls /workspace && npm install --prefix /workspace/backend && npm install --prefix /workspace/frontend"
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/node:1": {
+      "nodeGypDependencies": true,
+      "installYarnUsingApt": false,
+      "pnpmVersion": "latest"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "typescript.tsdk": "node_modules/typescript/lib"
+      },
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "Vue.volar",
+        "Prisma.prisma",
+        "bradlc.vscode-tailwindcss",
+        "ms-azuretools.vscode-docker"
+      ]
+    }
+  },
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "postStartCommand": "bash .devcontainer/post-start.sh"
 }

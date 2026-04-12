@@ -1,0 +1,10 @@
+{
+  "name": "mrm360",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --parallel -r run dev",
+    "build": "pnpm --parallel -r run build",
+    "lint": "pnpm --parallel -r run lint",
+    "install:all": "pnpm -r install"
+  }
+}
