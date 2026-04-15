@@ -5,19 +5,22 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 
 WORKDIR /usr/src/app
 
-# Copy package files
-COPY package.json pnpm-lock.yaml* ./
+# Copy workspace root files needed for pnpm install
+COPY pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY backend/package.json ./backend/
 
 # Copy entrypoint script and ensure proper line endings
-COPY .docker/docker-entrypoint.sh /docker-entrypoint.sh
+COPY backend/.docker/docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh && \
     sed -i 's/\r$//' /docker-entrypoint.sh
 
-# Install dependencies
-RUN pnpm install --frozen-lockfile
+# Install dependencies (only backend workspace)
+RUN pnpm install --frozen-lockfile --filter mrm360-backend
 
-# Copy source code
-COPY . .
+# Copy backend source code
+COPY backend/ ./backend/
+
+WORKDIR /usr/src/app/backend
 
 EXPOSE 3000
 

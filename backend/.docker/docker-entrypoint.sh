@@ -40,7 +40,7 @@ if [ "$CONTAINER_TYPE" = "worker" ]; then
   echo "Waiting for $BACKEND_HOST:$BACKEND_PORT with timeout ${WAIT_TIMEOUT}s..."
   
   # Use wait-for-it script to wait for backend
-  /usr/src/app/.docker/wait-for-it.sh "$BACKEND_HOST:$BACKEND_PORT" -t "$WAIT_TIMEOUT" -- echo "Backend service is available!"
+  /usr/src/app/backend/.docker/wait-for-it.sh "$BACKEND_HOST:$BACKEND_PORT" -t "$WAIT_TIMEOUT" -- echo "Backend service is available!"
   
   echo "Backend service is ready, starting worker..."
 fi
