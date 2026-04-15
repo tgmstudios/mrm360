@@ -30,4 +30,4 @@ EXPOSE 3000
 ENV CONTAINER_TYPE=backend
 
 ENTRYPOINT ["/docker-entrypoint.sh"]
-CMD ["pnpm", "run", "dev", "--", "-H", "0.0.0.0"]
+CMD ["pnpm", "run", "dev"]
