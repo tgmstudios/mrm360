@@ -44,7 +44,7 @@ jobs:
     - name: Build and push Backend
       uses: docker/build-push-action@v6
       with:
-        context: ./backend
+        context: .
         platforms: linux/amd64,linux/arm64
         file: ./backend/.docker/Dockerfile
         push: true
@@ -93,7 +93,7 @@ jobs:
     - name: Build and push Worker
       uses: docker/build-push-action@v6
       with:
-        context: ./backend
+        context: .
         platforms: linux/amd64,linux/arm64
         file: ./backend/.docker/Dockerfile-worker
         push: true
@@ -142,7 +142,7 @@ jobs:
     - name: Build and push Frontend
       uses: docker/build-push-action@v6
       with:
-        context: ./frontend
+        context: .
         platforms: linux/amd64,linux/arm64
         file: ./frontend/.docker/Dockerfile
         push: true
