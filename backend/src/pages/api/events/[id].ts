@@ -17,6 +17,7 @@ const updateEventSchema = z.object({
   category: z.enum(['MEETING', 'COMPETITION', 'WORKSHOP', 'SOCIAL', 'TRAINING']).optional(),
   linkedTeamId: z.string().optional(),
   wiretapWorkshopId: z.string().optional(),
+  seriesId: z.string().optional(),
   attendanceType: z.enum(['STRICT', 'SOFT']).optional(),
   attendanceCap: z.number().int().positive().optional(),
   waitlistEnabled: z.boolean().optional(),

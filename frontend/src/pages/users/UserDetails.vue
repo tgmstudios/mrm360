@@ -194,6 +194,109 @@
           </div>
         </div>
 
+        <!-- Badges Card -->
+        <div class="bg-gray-800 shadow rounded-lg border border-gray-700">
+          <div class="px-4 py-5 sm:p-6">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg leading-6 font-medium text-gray-100">
+                Badges
+              </h3>
+              <button
+                v-if="can('update', 'User')"
+                @click="showBadgeInvite = !showBadgeInvite"
+                class="text-sm text-blue-400 hover:text-blue-300"
+              >
+                {{ showBadgeInvite ? 'Cancel' : 'Send Badge Invite' }}
+              </button>
+            </div>
+
+            <!-- Badge Invite Form -->
+            <div v-if="showBadgeInvite" class="mb-4 p-4 bg-gray-750 rounded-lg border border-gray-600">
+              <div v-if="loadingBadgeClasses" class="flex items-center text-sm text-gray-400">
+                <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2"></div>
+                Loading badge classes...
+              </div>
+              <template v-else>
+                <label class="block text-sm font-medium text-gray-300 mb-2">Select Badge Class</label>
+                <select
+                  v-model="selectedBadgeClassId"
+                  class="w-full px-3 py-2 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-gray-100 mb-3"
+                >
+                  <option value="">Choose a badge...</option>
+                  <option v-for="bc in badgeClasses" :key="bc.id" :value="bc.id">
+                    {{ bc.name }}
+                  </option>
+                </select>
+                <div v-if="selectedBadgeClass" class="flex items-start space-x-3 mb-3 p-2 bg-gray-700 rounded">
+                  <img
+                    v-if="selectedBadgeClass.imageUrl"
+                    :src="selectedBadgeClass.imageUrl"
+                    :alt="selectedBadgeClass.name"
+                    class="w-10 h-10 rounded object-cover"
+                  />
+                  <div class="text-xs text-gray-400">{{ selectedBadgeClass.description }}</div>
+                </div>
+                <button
+                  @click="sendBadgeInvite"
+                  :disabled="!selectedBadgeClassId || sendingInvite"
+                  class="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-purple-800 disabled:cursor-not-allowed text-white font-medium py-2 px-4 rounded-lg transition-colors text-sm flex items-center justify-center"
+                >
+                  <svg v-if="sendingInvite" class="animate-spin h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  {{ sendingInvite ? 'Sending Invite...' : 'Send Badge Invite' }}
+                </button>
+              </template>
+            </div>
+
+            <!-- Existing Badges -->
+            <div v-if="loadingUserBadges" class="text-center py-4">
+              <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400 mx-auto"></div>
+              <p class="mt-2 text-sm text-gray-400">Loading badges...</p>
+            </div>
+            <div v-else-if="userBadges.length > 0" class="space-y-3">
+              <div
+                v-for="badge in userBadges"
+                :key="badge.id"
+                class="flex items-center p-3 bg-gray-700 rounded-lg"
+              >
+                <img
+                  v-if="badge.badgeClass?.imageUrl"
+                  :src="badge.badgeClass.imageUrl"
+                  :alt="badge.badgeClass?.name"
+                  class="w-10 h-10 rounded-lg object-cover mr-3"
+                />
+                <div class="flex-1 min-w-0">
+                  <h4 class="text-sm font-medium text-gray-100">{{ badge.badgeClass?.name || 'Unknown Badge' }}</h4>
+                  <p class="text-xs text-gray-400">Invited {{ formatDate(badge.createdAt) }}</p>
+                </div>
+                <span
+                  :class="[
+                    'px-2 py-0.5 text-xs rounded-full',
+                    badge.status === 'claimed'
+                      ? 'bg-green-900 text-green-200'
+                      : badge.status === 'pending'
+                        ? 'bg-yellow-900 text-yellow-200'
+                        : 'bg-gray-700 text-gray-300'
+                  ]"
+                >
+                  {{ badge.status === 'claimed' ? 'Issued' : badge.status === 'pending' ? 'Invited' : badge.status }}
+                </span>
+              </div>
+            </div>
+            <div v-else class="text-center py-4">
+              <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
+              </svg>
+              <h3 class="mt-2 text-sm font-medium text-gray-100">No badges</h3>
+              <p class="mt-1 text-sm text-gray-400">
+                This member hasn't earned any badges yet.
+              </p>
+            </div>
+          </div>
+        </div>
+
         <!-- Authentik Groups Card -->
         <div class="bg-gray-800 shadow rounded-lg border border-gray-700">
           <div class="px-4 py-5 sm:p-6">
@@ -344,8 +447,9 @@ import { useAuthStore } from '@/stores/authStore'
 import { usePermissions } from '@/composables/usePermissions'
 import { UserGroupIcon, CalendarIcon } from '@heroicons/vue/24/outline'
 import QRCodeVue3 from 'qrcode-vue3'
-import type { User } from '@/types/api'
+import type { User, BadgeClass } from '@/types/api'
 import { useToast } from 'vue-toastification'
+import apiService from '@/services/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -360,6 +464,19 @@ const isSubmitting = ref(false)
 const isDeleting = ref(false)
 const isSendingVPN = ref(false)
 const qrCodeRef = ref<any>(null)
+
+// Badge state
+const showBadgeInvite = ref(false)
+const loadingBadgeClasses = ref(false)
+const loadingUserBadges = ref(false)
+const sendingInvite = ref(false)
+const badgeClasses = ref<BadgeClass[]>([])
+const userBadges = ref<any[]>([])
+const selectedBadgeClassId = ref('')
+
+const selectedBadgeClass = computed(() =>
+  badgeClasses.value.find(bc => bc.id === selectedBadgeClassId.value) || null
+)
 
 // Form
 const form = ref({
@@ -526,6 +643,49 @@ const sendVPNEmail = async () => {
   }
 }
 
+// Badge methods
+const loadBadgeClasses = async () => {
+  loadingBadgeClasses.value = true
+  try {
+    const response = await apiService.getBadgeClasses()
+    badgeClasses.value = response.data ?? []
+  } catch (err) {
+    console.error('Failed to load badge classes:', err)
+  } finally {
+    loadingBadgeClasses.value = false
+  }
+}
+
+const loadUserBadges = async () => {
+  if (!userId.value) return
+  loadingUserBadges.value = true
+  try {
+    const response = await apiService.getUserBadges(userId.value)
+    userBadges.value = response.data ?? []
+  } catch (err) {
+    console.error('Failed to load user badges:', err)
+  } finally {
+    loadingUserBadges.value = false
+  }
+}
+
+const sendBadgeInvite = async () => {
+  if (!selectedBadgeClassId.value || !userId.value) return
+  sendingInvite.value = true
+  try {
+    await apiService.sendBadgeInviteToUser(userId.value, selectedBadgeClassId.value)
+    toast.success('Badge invite sent successfully')
+    selectedBadgeClassId.value = ''
+    showBadgeInvite.value = false
+    await loadUserBadges()
+  } catch (err) {
+    console.error('Failed to send badge invite:', err)
+    toast.error('Failed to send badge invite')
+  } finally {
+    sendingInvite.value = false
+  }
+}
+
 // Modal methods removed - no modals in this app
 
 const confirmDelete = async () => {
@@ -573,6 +733,9 @@ onMounted(async () => {
         isPaid: user.value.isPaid
       }
     }
+
+    // Load badge data
+    await Promise.all([loadBadgeClasses(), loadUserBadges()])
   } catch (error) {
     console.error('Error loading data:', error)
   }

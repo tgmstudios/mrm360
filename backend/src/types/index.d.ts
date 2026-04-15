@@ -261,10 +261,11 @@ export interface TaskJob {
 }
 
 export interface EmailTask {
-  to: string;
+  to: string | string[];
   subject: string;
   body: string;
   template?: string;
+  templateData?: Record<string, any>;
 }
 
 export interface ListMonkTask {

@@ -1,15 +1,15 @@
 import { Queue } from 'bullmq';
 import { logger } from '@/utils/logger';
-import { emailQueue, qrCodeQueue, syncGroupsQueue, provisionQueue, paymentStatusQueue } from '../tasks/queue';
+import { emailQueue, qrCodeQueue, syncGroupsQueue, provisionQueue, paymentStatusQueue, badgeCheckQueue } from '../tasks/queue';
 import { prisma } from '@/models/prismaClient';
 import { BackgroundTaskManager } from './backgroundTaskManager';
 
 export interface EmailJobData {
-  to: string;
+  to: string | string[];
   subject: string;
   body: string;
   template?: string;
-  variables?: Record<string, any>;
+  templateData?: Record<string, any>;
 }
 
 export interface QRCodeJobData {
@@ -34,6 +34,7 @@ export class TaskManager {
   private syncGroupsQueue: Queue;
   private provisionQueue: Queue;
   private paymentStatusQueue: Queue;
+  private badgeCheckQueue: Queue;
 
   constructor() {
     this.emailQueue = emailQueue;
@@ -41,6 +42,7 @@ export class TaskManager {
     this.syncGroupsQueue = syncGroupsQueue;
     this.provisionQueue = provisionQueue;
     this.paymentStatusQueue = paymentStatusQueue;
+    this.badgeCheckQueue = badgeCheckQueue;
   }
 
   async enqueueEmailJob(data: EmailJobData, options?: {
@@ -170,6 +172,26 @@ export class TaskManager {
       return job.id as string;
     } catch (error) {
       logger.error('Failed to enqueue payment status job', { error, data });
+      throw error;
+    }
+  }
+
+  async enqueueBadgeCheckJob(data: { userId: string; eventId: string }): Promise<string> {
+    try {
+      logger.info('Enqueueing badge check job', { userId: data.userId, eventId: data.eventId });
+
+      const job = await this.badgeCheckQueue.add('badge-check', data, {
+        attempts: 3,
+        backoff: {
+          type: 'exponential',
+          delay: 3000,
+        },
+      });
+
+      logger.info('Badge check job enqueued', { jobId: job.id });
+      return job.id as string;
+    } catch (error) {
+      logger.error('Failed to enqueue badge check job', { error, data });
       throw error;
     }
   }

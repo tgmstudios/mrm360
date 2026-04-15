@@ -198,6 +198,25 @@
                   Select a Wiretap workshop for this event
                 </p>
               </div>
+
+              <div>
+                <label for="series" class="block text-sm font-medium text-gray-300 mb-2">
+                  Workshop Series
+                </label>
+                <select
+                  id="series"
+                  v-model="form.seriesId"
+                  class="w-full px-3 py-2 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-gray-100"
+                >
+                  <option value="">No series</option>
+                  <option v-for="s in availableSeries" :key="s.id" :value="s.id">
+                    {{ s.name }} ({{ s.requiredCheckIns }} check-ins for badge)
+                  </option>
+                </select>
+                <p class="mt-1 text-sm text-gray-400">
+                  Assign to a series to track attendance toward a badge
+                </p>
+              </div>
             </div>
 
             <!-- Attendance Cap Settings -->
@@ -442,6 +461,7 @@ import { useTaskStore } from '@/stores/taskStore'
 import { useTeamStore } from '@/stores/teamStore'
 
 import { usePermissions } from '@/composables/usePermissions'
+import { useSeriesStore } from '@/stores/seriesStore'
 import type { Task } from '@/types/api'
 import BaseButton from '@/components/common/BaseButton.vue'
 import type { Team } from '@/types/api'
@@ -452,6 +472,7 @@ const router = useRouter()
 const eventStore = useEventStore()
 const taskStore = useTaskStore()
 const teamStore = useTeamStore()
+const seriesStore = useSeriesStore()
 
 usePermissions()
 
@@ -476,7 +497,8 @@ const form = ref({
   teamsEnabled: false,
   membersPerTeam: 4 as number,
   autoAssignEnabled: false,
-  allowTeamSwitching: false
+  allowTeamSwitching: false,
+  seriesId: '' as string
 })
 
 const errors = ref<Record<string, string>>({})
@@ -486,7 +508,8 @@ let provisionTimer: number | null = null
 onMounted(async () => {
   await Promise.all([
     loadTeams(),
-    loadWorkshops()
+    loadWorkshops(),
+    seriesStore.fetchAllSeries()
   ])
   
   if (isEditing.value) {
@@ -532,7 +555,8 @@ const loadEvent = async () => {
         teamsEnabled: event.teamsEnabled || false,
         membersPerTeam: event.membersPerTeam || 4,
         autoAssignEnabled: event.autoAssignEnabled || false,
-        allowTeamSwitching: event.allowTeamSwitching || false
+        allowTeamSwitching: event.allowTeamSwitching || false,
+        seriesId: (event as any).seriesId || ''
       }
     }
   } catch (error) {
@@ -579,6 +603,7 @@ const handleSubmit = async () => {
       description: form.value.description && form.value.description.trim() !== '' ? form.value.description : undefined,
       linkedTeamId: form.value.linkedTeamId && form.value.linkedTeamId.trim() !== '' ? form.value.linkedTeamId : undefined,
       wiretapWorkshopId: form.value.wiretapWorkshopId && form.value.wiretapWorkshopId.trim() !== '' ? form.value.wiretapWorkshopId : undefined,
+      seriesId: form.value.seriesId && form.value.seriesId.trim() !== '' ? form.value.seriesId : undefined,
       // Remove null/0 attendanceCap if not set
       attendanceCap: form.value.attendanceCap && form.value.attendanceCap > 0 ? form.value.attendanceCap : undefined,
       // Team settings
@@ -656,6 +681,7 @@ const sortedSubtasks = computed(() => (provisionTask.value?.subtasks || []).slic
 // Computed properties
 const availableTeams = computed(() => teamStore.teams)
 const availableWorkshops = computed(() => workshops.value)
+const availableSeries = computed(() => seriesStore.seriesList)
 
 const isSubmitting = computed(() => submitting.value)
 

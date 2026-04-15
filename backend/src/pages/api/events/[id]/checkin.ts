@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { z } from 'zod';
 import { prisma } from '@/models/prismaClient';
 import { EventManager } from '../../../../managers/eventManager';
+import { TaskManager } from '@/managers/taskManager';
 import { withCORS } from '@/middleware/corsMiddleware';
 import { withAuth } from '@/middleware/authMiddleware';
 import { withPermissions } from '@/middleware/permissionMiddleware';
@@ -277,6 +278,14 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
         logger.info('Manual check-in successful', { userId: body.userId, eventId });
 
+        // Enqueue background badge check + check-in email
+        try {
+          const taskManager = new TaskManager();
+          await taskManager.enqueueBadgeCheckJob({ userId: body.userId, eventId });
+        } catch (enqueueErr) {
+          logger.error('Failed to enqueue badge check job after manual check-in', { enqueueErr, userId: body.userId, eventId });
+        }
+
         // Trigger auto-assignment if enabled and user is confirmed
         if (rsvp.status === 'CONFIRMED' && event.autoAssignEnabled && event.teamsEnabled && event.membersPerTeam) {
           try {
@@ -334,6 +343,35 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
         res.status(200).json(result);
       }
+    } else if (req.method === 'DELETE') {
+      // Delete a check-in - admin/exec only
+      const { userId } = req.body || {};
+      if (!userId) {
+        return res.status(400).json({ error: 'userId is required' });
+      }
+
+      const requestingUser = (req as any).user;
+      const effectiveRole = getEffectiveSystemRole(requestingUser.role);
+      const isAdminOrExec = effectiveRole === 'ADMIN' || effectiveRole === 'EXEC_BOARD';
+
+      if (!isAdminOrExec) {
+        return res.status(403).json({ error: 'Only admins can delete check-ins' });
+      }
+
+      const existing = await prisma.checkIn.findUnique({
+        where: { userId_eventId: { userId, eventId } },
+      });
+
+      if (!existing) {
+        return res.status(404).json({ error: 'Check-in not found' });
+      }
+
+      await prisma.checkIn.delete({
+        where: { userId_eventId: { userId, eventId } },
+      });
+
+      logger.info('Check-in deleted', { userId, eventId, deletedBy: requestingUser.id });
+      res.status(200).json({ success: true, message: 'Check-in deleted' });
     } else {
       res.status(405).json({ error: 'Method not allowed' });
     }

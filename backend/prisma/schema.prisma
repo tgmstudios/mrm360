@@ -160,6 +160,20 @@ model UserClassRank {
   @@map("user_class_ranks")
 }
 
+model WorkshopSeries {
+  id                String   @id @default(cuid())
+  name              String
+  description       String?
+  badgeClassId      String   // OpenBadge badge class ID to issue
+  requiredCheckIns  Int      // Number of check-ins needed to earn badge
+  autoIssue         Boolean  @default(true) // Auto-issue badge on check-in threshold, or manual
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  events            Event[]
+
+  @@map("workshop_series")
+}
+
 model Event {
   id                String         @id @default(cuid())
   title             String
@@ -169,6 +183,7 @@ model Event {
   category          EventCategory
   linkedTeamId      String?
   wiretapWorkshopId String?
+  seriesId          String?
   attendanceType    AttendanceType @default(SOFT)
   checkInCode       String         @unique
   attendanceCap     Int?           // Maximum number of attendees (null = no cap)
@@ -181,6 +196,7 @@ model Event {
   updatedAt         DateTime       @updatedAt
   checkIns          CheckIn[]
   linkedTeam        Team?          @relation(fields: [linkedTeamId], references: [id])
+  series            WorkshopSeries? @relation(fields: [seriesId], references: [id])
   rsvps             RSVP[]
   eventTeams        EventTeam[]
 

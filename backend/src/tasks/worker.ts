@@ -21,6 +21,7 @@ import { processListMonkJob, processListMonkJobFailed } from './workers/listmonk
 import { processAuthentikJob, processAuthentikJobFailed } from './workers/authentikWorker';
 import { processPaymentStatusJob, processPaymentStatusJobFailed } from './workers/paymentStatusWorker';
 import { processWiretapJob, processWiretapJobFailed } from './workers/wiretapWorker';
+import { processBadgeCheckJob, processBadgeCheckJobFailed } from './workers/badgeCheckWorker';
 
 // Import Redis connection from queue file
 import Redis from 'ioredis';
@@ -110,7 +111,14 @@ const paymentStatusWorker = new Worker(QUEUE_NAMES.PAYMENT_STATUS, processPaymen
 
 const wiretapWorker = new Worker(QUEUE_NAMES.WIRETAP, processWiretapJob, {
   connection: redis,
-  concurrency: 1, // Process one Wiretap job at a time to avoid conflicts
+  concurrency: 1,
+  removeOnComplete: { count: 100 },
+  removeOnFail: { count: 50 }
+});
+
+const badgeCheckWorker = new Worker(QUEUE_NAMES.BADGE_CHECK, processBadgeCheckJob, {
+  connection: redis,
+  concurrency: 3,
   removeOnComplete: { count: 100 },
   removeOnFail: { count: 50 }
 });
@@ -246,6 +254,19 @@ wiretapWorker.on('failed', (job, err) => {
   }
 });
 
+badgeCheckWorker.on('completed', (job) => {
+  if (job) {
+    logger.info(`Badge check worker completed job ${job.id}`);
+  }
+});
+
+badgeCheckWorker.on('failed', (job, err) => {
+  if (job) {
+    logger.error(`Badge check worker failed job ${job.id}:`, err);
+    processBadgeCheckJobFailed(job, err);
+  }
+});
+
 // Graceful shutdown
 async function gracefulShutdown() {
   logger.info('Shutting down workers gracefully...');
@@ -260,7 +281,8 @@ async function gracefulShutdown() {
   await authentikWorker.close();
   await paymentStatusWorker.close();
   await wiretapWorker.close();
-  
+  await badgeCheckWorker.close();
+
   // Shutdown Discord bot
   await shutdownDiscordBot();
   
@@ -303,6 +325,7 @@ async function initializeWorkers() {
     logger.info(`Authentik worker: ${QUEUE_NAMES.AUTHENTIK}`);
     logger.info(`Payment Status worker: ${QUEUE_NAMES.PAYMENT_STATUS}`);
     logger.info(`Wiretap worker: ${QUEUE_NAMES.WIRETAP}`);
+    logger.info(`Badge Check worker: ${QUEUE_NAMES.BADGE_CHECK}`);
   } catch (error) {
     logger.error('Failed to initialize workers:', error);
     process.exit(1);

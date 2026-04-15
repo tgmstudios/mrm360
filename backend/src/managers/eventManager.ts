@@ -1,6 +1,13 @@
 import { PrismaClient, Event, EventCategory, AttendanceType, User, Team } from '@prisma/client';
 import { logger } from '@/utils/logger';
 import { randomBytes } from 'crypto';
+import {
+  sendRsvpConfirmedEmail,
+  sendRsvpDeclinedEmail,
+  sendRsvpWaitlistedEmail,
+  sendWaitlistPromotedEmail,
+} from '@/services/eventEmailService';
+import { TaskManager } from '@/managers/taskManager';
 
 export interface CreateEventData {
   title: string;
@@ -10,6 +17,7 @@ export interface CreateEventData {
   category: EventCategory;
   linkedTeamId?: string;
   wiretapWorkshopId?: string;
+  seriesId?: string;
   attendanceType: AttendanceType;
   attendanceCap?: number;
   waitlistEnabled?: boolean;
@@ -55,6 +63,7 @@ export class EventManager {
           category: data.category,
           linkedTeamId: data.linkedTeamId && data.linkedTeamId.trim() !== '' ? data.linkedTeamId : null,
           wiretapWorkshopId: data.wiretapWorkshopId && data.wiretapWorkshopId.trim() !== '' ? data.wiretapWorkshopId : null,
+          seriesId: data.seriesId && data.seriesId.trim() !== '' ? data.seriesId : null,
           attendanceType: data.attendanceType,
           attendanceCap: data.attendanceCap,
           waitlistEnabled: data.waitlistEnabled || false,
@@ -66,6 +75,7 @@ export class EventManager {
         },
         include: {
           linkedTeam: true,
+          series: true,
           rsvps: {
             include: {
               user: true,
@@ -95,6 +105,7 @@ export class EventManager {
         where: { id },
         include: {
           linkedTeam: true,
+          series: true,
           rsvps: {
             include: {
               user: true,
@@ -118,6 +129,7 @@ export class EventManager {
   async getAllEvents(filters?: {
     category?: EventCategory;
     linkedTeamId?: string;
+    seriesId?: string;
     startDate?: Date;
     endDate?: Date;
     search?: string;
@@ -136,7 +148,11 @@ export class EventManager {
       if (filters?.linkedTeamId) {
         where.linkedTeamId = filters.linkedTeamId;
       }
-      
+
+      if (filters?.seriesId) {
+        where.seriesId = filters.seriesId;
+      }
+
       if (filters?.startDate || filters?.endDate) {
         where.startTime = {};
         if (filters.startDate) {
@@ -158,7 +174,7 @@ export class EventManager {
       // Determine sort order - default to most recent first
       const sortBy = filters?.sortBy || 'startTime';
       const sortOrder = filters?.sortOrder || 'desc';
-      
+
       // Build orderBy based on sortBy field
       const orderBy: any = {};
       if (sortBy === 'title' || sortBy === 'category' || sortBy === 'startTime') {
@@ -171,6 +187,7 @@ export class EventManager {
         where,
         include: {
           linkedTeam: true,
+          series: true,
           rsvps: {
             include: {
               user: true,
@@ -195,6 +212,7 @@ export class EventManager {
   async getEventsForUser(userId: string, filters?: {
     category?: EventCategory;
     linkedTeamId?: string;
+    seriesId?: string;
     startDate?: Date;
     endDate?: Date;
     search?: string;
@@ -233,7 +251,11 @@ export class EventManager {
       if (filters?.linkedTeamId) {
         where.linkedTeamId = filters.linkedTeamId;
       }
-      
+
+      if (filters?.seriesId) {
+        where.seriesId = filters.seriesId;
+      }
+
       if (filters?.startDate || filters?.endDate) {
         where.startTime = {};
         if (filters.startDate) {
@@ -269,6 +291,7 @@ export class EventManager {
         where,
         include: {
           linkedTeam: true,
+          series: true,
           rsvps: {
             include: {
               user: true,
@@ -324,15 +347,23 @@ export class EventManager {
     try {
       logger.info('Updating event', { eventId: id, updates: data });
       
+      const updateData: any = { ...data };
+      if (data.linkedTeamId !== undefined) {
+        updateData.linkedTeamId = data.linkedTeamId && data.linkedTeamId.trim() !== '' ? data.linkedTeamId : null;
+      }
+      if (data.wiretapWorkshopId !== undefined) {
+        updateData.wiretapWorkshopId = data.wiretapWorkshopId && data.wiretapWorkshopId.trim() !== '' ? data.wiretapWorkshopId : null;
+      }
+      if ((data as any).seriesId !== undefined) {
+        updateData.seriesId = (data as any).seriesId && (data as any).seriesId.trim() !== '' ? (data as any).seriesId : null;
+      }
+
       const event = await this.prisma.event.update({
         where: { id },
-        data: {
-          ...data,
-          linkedTeamId: data.linkedTeamId && data.linkedTeamId.trim() !== '' ? data.linkedTeamId : null,
-          wiretapWorkshopId: data.wiretapWorkshopId && data.wiretapWorkshopId.trim() !== '' ? data.wiretapWorkshopId : null,
-        },
+        data: updateData,
         include: {
           linkedTeam: true,
+          series: true,
           rsvps: {
             include: {
               user: true,
@@ -473,6 +504,22 @@ export class EventManager {
       }
 
       // Note: Auto-assignment is now only triggered during check-in, not RSVP
+
+      // Send RSVP status email
+      try {
+        const user = await this.prisma.user.findUnique({ where: { id: data.userId } });
+        if (user) {
+          if (finalStatus === 'CONFIRMED') {
+            await sendRsvpConfirmedEmail(user, event);
+          } else if (finalStatus === 'DECLINED') {
+            await sendRsvpDeclinedEmail(user, event);
+          } else if (finalStatus === 'WAITLIST') {
+            await sendRsvpWaitlistedEmail(user, event);
+          }
+        }
+      } catch (emailError) {
+        logger.error('Failed to send RSVP email', { emailError, userId: data.userId, eventId: data.eventId });
+      }
 
       logger.info('RSVP processed successfully', { userId: data.userId, eventId: data.eventId, finalStatus });
       return { success: true, message, status: finalStatus };
@@ -639,6 +686,14 @@ export class EventManager {
         }
       }
 
+      // Enqueue background job for check-in email + series badge check
+      try {
+        const taskManager = new TaskManager();
+        await taskManager.enqueueBadgeCheckJob({ userId: user.id, eventId: data.eventId });
+      } catch (enqueueErr) {
+        logger.error('Failed to enqueue badge check job', { enqueueErr, userId: user.id, eventId: data.eventId });
+      }
+
       logger.info('Attendance check-in successful', { userId: user.id, eventId: data.eventId });
       return { success: true, message: 'Check-in successful', user };
     } catch (error) {
@@ -775,10 +830,19 @@ export class EventManager {
 
       await Promise.all(promotionPromises);
 
-      logger.info('Waitlist promotion completed', { 
-        eventId, 
+      // Send promotion emails
+      for (const rsvp of waitlistedUsers) {
+        try {
+          await sendWaitlistPromotedEmail(rsvp.user, event);
+        } catch (emailError) {
+          logger.error('Failed to send waitlist promotion email', { emailError, userId: rsvp.userId, eventId });
+        }
+      }
+
+      logger.info('Waitlist promotion completed', {
+        eventId,
         promoted: waitlistedUsers.length,
-        availableSlots 
+        availableSlots
       });
 
       return { 
