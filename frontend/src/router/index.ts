@@ -22,6 +22,9 @@ import EventDetails from '@/pages/events/EventDetails.vue'
 import EventEdit from '@/pages/events/EventEdit.vue'
 import EventCheckIn from '@/pages/events/EventCheckIn.vue'
 import EventRSVP from '@/pages/events/EventRSVP.vue'
+import SeriesList from '@/pages/series/SeriesList.vue'
+import SeriesDetails from '@/pages/series/SeriesDetails.vue'
+import SeriesEdit from '@/pages/series/SeriesEdit.vue'
 import TasksList from '@/pages/tasks/TasksList.vue'
 import Callback from '@/pages/auth/Callback.vue'
 import Join from '@/pages/join/Join.vue'
@@ -211,10 +214,47 @@ const routes: RouteRecordRaw[] = [
         ]
       },
       {
+        path: 'series',
+        name: 'Series',
+        meta: { title: 'Workshop Series' },
+        children: [
+          {
+            path: '',
+            name: 'SeriesList',
+            component: SeriesList,
+            meta: { title: 'Workshop Series' }
+          },
+          {
+            path: 'new',
+            name: 'SeriesNew',
+            component: SeriesEdit,
+            meta: {
+              title: 'Create Series',
+              requiresExecBoard: true
+            }
+          },
+          {
+            path: ':id',
+            name: 'SeriesDetails',
+            component: SeriesDetails,
+            meta: { title: 'Series Details' }
+          },
+          {
+            path: ':id/edit',
+            name: 'SeriesEdit',
+            component: SeriesEdit,
+            meta: {
+              title: 'Edit Series',
+              requiresExecBoard: true
+            }
+          }
+        ]
+      },
+      {
         path: 'tasks',
         name: 'Tasks',
         component: TasksList,
-        meta: { 
+        meta: {
           title: 'Tasks',
           requiresExecBoard: true
         }

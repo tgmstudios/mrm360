@@ -30,7 +30,9 @@
     "test:discord:roles": "tsx scripts/testDiscordRoleConfig.ts",
     "test:listmonk:worker": "tsx scripts/testListMonkWorker.ts",
     "test:member-paid-status": "tsx scripts/testMemberPaidStatus.ts",
-    "fix-user-roles": "tsx scripts/fix-user-roles.ts"
+    "fix-user-roles": "tsx scripts/fix-user-roles.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@casl/ability": "^6.0.0",
@@ -48,6 +50,7 @@
     "ioredis": "^5.0.0",
     "jsonwebtoken": "^9.0.0",
     "next": "^14.0.0",
+    "nodemailer": "^8.0.5",
     "prisma": "^5.0.0",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
@@ -64,12 +67,14 @@
     "@types/jest": "^30.0.0",
     "@types/jsonwebtoken": "^9.0.0",
     "@types/node": "^20.0.0",
+    "@types/nodemailer": "^8.0.0",
     "@types/react": "^18.0.0",
     "@types/react-dom": "^18.0.0",
     "@types/uuid": "^9.0.0",
     "eslint": "^8.0.0",
     "eslint-config-next": "^14.0.0",
     "tsx": "^4.0.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "vitest": "^2.1.9"
   }
 }

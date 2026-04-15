@@ -126,6 +126,30 @@
           </select>
         </div>
         
+        <!-- Series -->
+        <div class="space-y-2">
+          <label for="series" class="flex items-center text-sm font-medium text-gray-300">
+            <svg class="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+            </svg>
+            Series
+          </label>
+          <select
+            id="series"
+            v-model="filters.seriesId"
+            class="w-full px-4 py-2.5 bg-gray-700/50 border border-gray-600/50 rounded-lg text-gray-100 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200"
+          >
+            <option value="">All Series</option>
+            <option
+              v-for="s in availableSeries"
+              :key="s.id"
+              :value="s.id"
+            >
+              {{ s.name }}
+            </option>
+          </select>
+        </div>
+
         <!-- Status -->
         <div class="space-y-2">
           <label for="status" class="flex items-center text-sm font-medium text-gray-300">
@@ -380,6 +404,7 @@ import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useEventStore } from '@/stores/eventStore'
 import { useTeamStore } from '@/stores/teamStore'
+import { useSeriesStore } from '@/stores/seriesStore'
 import { usePermissions } from '@/composables/usePermissions'
 import BaseButton from '@/components/common/BaseButton.vue'
 import { CalendarIcon } from '@heroicons/vue/24/outline'
@@ -388,6 +413,7 @@ import type { Event } from '@/types/api'
 const router = useRouter()
 const eventStore = useEventStore()
 const teamStore = useTeamStore()
+const seriesStore = useSeriesStore()
 const { can } = usePermissions()
 
 const loading = ref(false)
@@ -403,6 +429,7 @@ const filters = reactive({
   search: '',
   category: '',
   linkedTeamId: '',
+  seriesId: '',
   dateRange: '',
   status: '' as 'upcoming' | 'ongoing' | 'past'
 })
@@ -413,6 +440,7 @@ const canEdit = computed(() => can('update', 'Event'))
 const canDelete = computed(() => can('delete', 'Event'))
 
 const availableTeams = computed(() => teamStore.teams)
+const availableSeries = computed(() => seriesStore.seriesList)
 
 // Use server-side pagination instead of client-side filtering
 const totalPages = computed(() => eventStore.pagination.totalPages)
@@ -492,10 +520,12 @@ const loadData = async () => {
         query: filters.search || undefined,
         category: filters.category ? filters.category.toUpperCase() as any : undefined,
         linkedTeamId: filters.linkedTeamId || undefined,
+        seriesId: filters.seriesId || undefined,
         sortBy: sortBy.value,
         sortOrder: sortOrder.value
       }),
-      teamStore.fetchTeams()
+      teamStore.fetchTeams(),
+      seriesStore.fetchAllSeries()
     ])
   } catch (error) {
     console.error('Failed to load data:', error)
@@ -509,6 +539,7 @@ const clearFilters = () => {
   filters.search = ''
   filters.category = ''
   filters.linkedTeamId = ''
+  filters.seriesId = ''
   filters.status = '' as 'upcoming' | 'ongoing' | 'past'
   sortBy.value = 'startTime'
   sortOrder.value = 'desc'

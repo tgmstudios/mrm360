@@ -17,7 +17,11 @@ import type {
   UserFilters,
   EventFilters,
   TeamFilters,
-  TeamProvisioningStatus
+  TeamProvisioningStatus,
+  WorkshopSeries,
+  WorkshopSeriesCreate,
+  WorkshopSeriesUpdate,
+  BadgeClass
 } from '@/types/api'
 
 class ApiService {
@@ -235,6 +239,13 @@ class ApiService {
     }
   }
 
+  async deleteCheckIn(eventId: string, userId: string): Promise<{ success: boolean; message: string }> {
+    const response = await this.api.delete(`/events/${eventId}/checkin`, {
+      data: { userId }
+    })
+    return response.data
+  }
+
   async checkInWithQR(eventId: string, qrCode: string): Promise<{ success: boolean; message: string; user?: any }> {
     try {
       const response = await this.api.post(`/events/${eventId}/checkin`, { qrCode })
@@ -369,6 +380,58 @@ class ApiService {
     const response = await this.api.post(`/events/${eventId}/teams/switch`, {
       targetTeamId
     })
+    return response.data
+  }
+
+  // Workshop Series endpoints
+  async getSeries(): Promise<{ success: boolean; data: WorkshopSeries[] }> {
+    const response = await this.api.get('/series')
+    return response.data
+  }
+
+  async getSeriesById(id: string): Promise<WorkshopSeries> {
+    const response = await this.api.get(`/series/${id}`)
+    return response.data.data
+  }
+
+  async createSeries(data: WorkshopSeriesCreate): Promise<WorkshopSeries> {
+    const response = await this.api.post('/series', data)
+    return response.data.data
+  }
+
+  async updateSeries(id: string, data: WorkshopSeriesUpdate): Promise<WorkshopSeries> {
+    const response = await this.api.put(`/series/${id}`, data)
+    return response.data.data
+  }
+
+  async deleteSeries(id: string): Promise<void> {
+    await this.api.delete(`/series/${id}`)
+  }
+
+  async getSeriesProgress(id: string): Promise<{ success: boolean; data: any }> {
+    const response = await this.api.get(`/series/${id}/progress`)
+    return response.data
+  }
+
+  async sendSeriesBadgeInvite(seriesId: string, userId: string): Promise<{ success: boolean; data: any }> {
+    const response = await this.api.post(`/series/${seriesId}/invite`, { userId })
+    return response.data
+  }
+
+  // Badge Classes (from OpenBadge)
+  async getBadgeClasses(): Promise<{ success: boolean; data: BadgeClass[] }> {
+    const response = await this.api.get('/series/badge-classes')
+    return response.data
+  }
+
+  // User Badges
+  async getUserBadges(userId: string): Promise<{ success: boolean; data: any[] }> {
+    const response = await this.api.get(`/users/${userId}/badges`)
+    return response.data
+  }
+
+  async sendBadgeInviteToUser(userId: string, badgeClassId: string): Promise<{ success: boolean; data: any }> {
+    const response = await this.api.post(`/users/${userId}/badges`, { badgeClassId })
     return response.data
   }
 }

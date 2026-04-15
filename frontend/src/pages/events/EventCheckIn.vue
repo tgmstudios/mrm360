@@ -281,6 +281,20 @@
                   >
                     View User
                   </router-link>
+                  <button
+                    @click="deleteCheckIn(checkIn.user.id)"
+                    :disabled="deletingCheckIn === checkIn.user.id"
+                    class="text-red-400 hover:text-red-300 text-sm font-medium disabled:opacity-50"
+                    title="Remove check-in"
+                  >
+                    <svg v-if="deletingCheckIn === checkIn.user.id" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    </svg>
+                  </button>
                 </div>
               </div>
             </div>
@@ -348,6 +362,7 @@ const searchQuery = ref('')
 const searchResults = ref<User[]>([])
 const selectedUser = ref<User | null>(null)
 const searchLoading = ref(false)
+const deletingCheckIn = ref<string | null>(null)
 const searchTimeout = ref<NodeJS.Timeout | null>(null)
 const showSearchResults = ref(false)
 const recentCheckIns = ref<any[]>([])
@@ -882,6 +897,23 @@ const refreshAttendees = async () => {
     await loadRecentCheckIns()
   } finally {
     refreshing.value = false
+  }
+}
+
+const deleteCheckIn = async (userId: string) => {
+  if (!confirm('Remove this check-in? This cannot be undone.')) return
+  deletingCheckIn.value = userId
+  try {
+    await apiService.deleteCheckIn(eventId.value, userId)
+    // Remove from local state
+    if (event.value?.checkIns) {
+      event.value.checkIns = event.value.checkIns.filter(ci => ci.userId !== userId)
+    }
+    recentCheckIns.value = recentCheckIns.value.filter(ci => ci.userId !== userId)
+  } catch (err) {
+    console.error('Failed to delete check-in:', err)
+  } finally {
+    deletingCheckIn.value = null
   }
 }
 

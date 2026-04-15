@@ -1,44 +1,49 @@
 import { Job } from 'bullmq';
 import { logger } from '@/utils/logger';
-import { EmailTask } from '@/types';
+import { emailService } from '@/services/emailService';
+import { EmailTemplateName, TemplateData } from '@/services/emailTemplates';
 
-export async function processEmailJob(job: Job<EmailTask>) {
-  const { to, subject, body, template } = job.data;
-  
-  logger.info(`Processing email job ${job.id} to ${to}`);
-  
+export interface EmailJobPayload {
+  to: string | string[];
+  subject: string;
+  body: string;
+  template?: EmailTemplateName;
+  templateData?: TemplateData;
+}
+
+export async function processEmailJob(job: Job<EmailJobPayload>) {
+  const { to, subject, body, template, templateData } = job.data;
+
+  logger.info(`Processing email job ${job.id}`, { to, subject, template });
+
   try {
-    // Mock email sending - replace with actual email service
-    logger.info(`Sending email to ${to}: ${subject}`);
-    logger.debug(`Email body: ${body}`);
-    
-    if (template) {
-      logger.info(`Using template: ${template}`);
+    if (template && templateData) {
+      const result = await emailService.sendTemplatedEmail({
+        to,
+        template,
+        data: templateData,
+      });
+      logger.info(`Email job ${job.id} completed (template: ${template})`, { messageId: result.messageId });
+      return { success: true, messageId: result.messageId, recipient: to };
     }
-    
-    // Simulate email processing time
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    logger.info(`Email job ${job.id} completed successfully`);
-    
-    return {
-      success: true,
-      messageId: `mock-${Date.now()}`,
-      recipient: to
-    };
+
+    const result = await emailService.sendEmail({
+      to,
+      subject,
+      html: body,
+    });
+    logger.info(`Email job ${job.id} completed`, { messageId: result.messageId });
+    return { success: true, messageId: result.messageId, recipient: to };
   } catch (error) {
     logger.error(`Email job ${job.id} failed:`, error);
     throw error;
   }
 }
 
-export async function processEmailJobFailed(job: Job<EmailTask>, error: Error) {
+export async function processEmailJobFailed(job: Job<EmailJobPayload>, error: Error) {
   logger.error(`Email job ${job.id} failed permanently:`, {
     error: error.message,
     data: job.data,
     attempts: job.attemptsMade
   });
-  
-  // Could implement dead letter queue logic here
-  // or send notification to admin
 }

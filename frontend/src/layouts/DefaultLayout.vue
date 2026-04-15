@@ -441,8 +441,9 @@ const navigationItems = computed(() => {
   
   if (canManageEvents()) {
     items.push({ name: 'Events', to: '/events' })
+    items.push({ name: 'Series', to: '/series' })
   }
-  
+
   if (canManageTasks()) {
     items.push({ name: 'Tasks', to: '/tasks' })
   }
@@ -590,6 +591,15 @@ const breadcrumbs = computed(() => {
       crumbs.push({ name: 'Event Check-In', path: currentPath })
     } else if (currentPath.match(/\/events\/[^\/]+$/)) {
       crumbs.push({ name: 'Event Details', path: currentPath })
+    }
+  } else if (currentPath.startsWith('/series')) {
+    crumbs.push({ name: 'Workshop Series', path: '/series' })
+    if (currentPath === '/series/new') {
+      crumbs.push({ name: 'Create Series', path: currentPath })
+    } else if (currentPath.includes('/edit')) {
+      crumbs.push({ name: 'Edit Series', path: currentPath })
+    } else if (currentPath.match(/\/series\/[^\/]+$/)) {
+      crumbs.push({ name: 'Series Details', path: currentPath })
     }
   } else if (currentPath.startsWith('/tasks')) {
     crumbs.push({ name: 'Tasks', path: '/tasks' })

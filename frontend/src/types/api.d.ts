@@ -178,6 +178,48 @@ export interface IntegrationResult {
   duration: number
 }
 
+// Workshop Series types
+export interface WorkshopSeries {
+  id: string
+  name: string
+  description?: string
+  badgeClassId: string
+  requiredCheckIns: number
+  autoIssue: boolean
+  events: Event[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface WorkshopSeriesCreate {
+  name: string
+  description?: string
+  badgeClassId: string
+  requiredCheckIns: number
+  autoIssue?: boolean
+}
+
+export interface WorkshopSeriesUpdate {
+  name?: string
+  description?: string
+  badgeClassId?: string
+  requiredCheckIns?: number
+  autoIssue?: boolean
+}
+
+export interface BadgeClass {
+  id: string
+  issuerId: string
+  name: string
+  description: string
+  imageUrl: string
+  criteriaUrl?: string
+  criteriaNarrative?: string
+  tags: string[]
+  createdAt: string
+  updatedAt: string
+}
+
 // Event types
 export interface Event {
   id: string
@@ -189,6 +231,8 @@ export interface Event {
   linkedTeamId?: string
   linkedTeam?: Team
   wiretapWorkshopId?: string
+  seriesId?: string
+  series?: WorkshopSeries
   attendanceType: 'STRICT' | 'SOFT'
   attendanceCap?: number
   waitlistEnabled: boolean
@@ -224,6 +268,7 @@ export interface EventCreate {
   category: 'MEETING' | 'COMPETITION' | 'WORKSHOP' | 'SOCIAL' | 'TRAINING'
   linkedTeamId?: string
   wiretapWorkshopId?: string
+  seriesId?: string
   attendanceType: 'STRICT' | 'SOFT'
   attendanceCap?: number
   waitlistEnabled?: boolean
@@ -238,6 +283,7 @@ export interface EventUpdate {
   category?: 'MEETING' | 'COMPETITION' | 'WORKSHOP' | 'SOCIAL' | 'TRAINING'
   linkedTeamId?: string
   wiretapWorkshopId?: string
+  seriesId?: string
   attendanceType?: 'STRICT' | 'SOFT'
   attendanceCap?: number
   waitlistEnabled?: boolean
@@ -370,6 +416,7 @@ export interface EventFilters extends SearchFilters {
   startDate?: string
   endDate?: string
   linkedTeamId?: string
+  seriesId?: string
   category?: 'MEETING' | 'COMPETITION' | 'WORKSHOP' | 'SOCIAL' | 'TRAINING'
 }
 

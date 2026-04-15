@@ -19,6 +19,7 @@ const createEventSchema = z.object({
   category: z.enum(['MEETING', 'COMPETITION', 'WORKSHOP', 'SOCIAL', 'TRAINING']),
   linkedTeamId: z.string().optional(),
   wiretapWorkshopId: z.string().optional(),
+  seriesId: z.string().optional(),
   attendanceType: z.enum(['STRICT', 'SOFT']),
   attendanceCap: z.number().int().positive().optional(),
   waitlistEnabled: z.boolean().optional(),
@@ -31,6 +32,7 @@ const listEventsSchema = z.object({
   query: z.string().optional(), // Alias for search
   category: z.enum(['MEETING', 'COMPETITION', 'WORKSHOP', 'SOCIAL', 'TRAINING']).optional(),
   linkedTeamId: z.string().optional(),
+  seriesId: z.string().optional(),
   startDate: z.string().optional().transform(val => val ? new Date(val) : undefined),
   endDate: z.string().optional().transform(val => val ? new Date(val) : undefined),
   sortBy: z.string().optional().default('startTime'),
@@ -199,6 +201,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         result = await eventManager.getEventsForUser(user.id, {
           category: queryParams.category as any,
           linkedTeamId: queryParams.linkedTeamId,
+          seriesId: queryParams.seriesId,
           startDate: queryParams.startDate,
           endDate: queryParams.endDate,
           search: searchTerm,
@@ -209,6 +212,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         result = await eventManager.getAllEvents({
           category: queryParams.category as any,
           linkedTeamId: queryParams.linkedTeamId,
+          seriesId: queryParams.seriesId,
           startDate: queryParams.startDate,
           endDate: queryParams.endDate,
           search: searchTerm,
