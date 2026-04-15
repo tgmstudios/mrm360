@@ -15,9 +15,9 @@ if [ "$CONTAINER_TYPE" = "backend" ]; then
   echo "Generating Prisma client..."
   pnpm run db:generate
 
-  # Run database migrations
+  # Run database migrations (use deploy for non-interactive environments)
   echo "Running database migrations..."
-  pnpm run db:migrate
+  pnpm exec prisma migrate deploy
 
   echo "Prisma setup completed."
 fi
