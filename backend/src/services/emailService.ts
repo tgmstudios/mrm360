@@ -2,11 +2,18 @@ import nodemailer, { Transporter } from 'nodemailer';
 import { logger } from '@/utils/logger';
 import { emailTemplates, EmailTemplateName, TemplateData } from './emailTemplates';
 
+export interface EmailAttachment {
+  filename: string;
+  content: string;
+  contentType?: string;
+}
+
 export interface SendEmailOptions {
   to: string | string[];
   subject: string;
   html: string;
   replyTo?: string;
+  attachments?: EmailAttachment[];
 }
 
 export interface SendTemplatedEmailOptions {
@@ -14,6 +21,7 @@ export interface SendTemplatedEmailOptions {
   template: EmailTemplateName;
   data: TemplateData;
   replyTo?: string;
+  attachments?: EmailAttachment[];
 }
 
 class EmailService {
@@ -56,6 +64,7 @@ class EmailService {
       subject: options.subject,
       html: options.html,
       replyTo: options.replyTo,
+      attachments: options.attachments,
     });
 
     logger.info('Email sent', { messageId: result.messageId, to: recipients });
@@ -75,6 +84,7 @@ class EmailService {
       subject,
       html,
       replyTo: options.replyTo,
+      attachments: options.attachments,
     });
   }
 

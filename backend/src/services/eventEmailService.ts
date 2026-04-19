@@ -1,9 +1,15 @@
 import { Event, User } from '@prisma/client';
 import { TaskManager } from '@/managers/taskManager';
 import { EmailTemplateName, TemplateData } from './emailTemplates';
+import { EmailAttachment } from '@/tasks/workers/emailWorker';
+import { buildEventIcs } from '@/utils/ics';
 import { logger } from '@/utils/logger';
 
 const taskManager = new TaskManager();
+
+function getTimeZone(): string {
+  return process.env.TIMEZONE || 'UTC';
+}
 
 function formatEventDate(date: Date): string {
   return new Date(date).toLocaleDateString('en-US', {
@@ -11,16 +17,23 @@ function formatEventDate(date: Date): string {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
+    timeZone: getTimeZone(),
   });
 }
 
 function formatEventTime(start: Date, end: Date): string {
+  const timeZone = getTimeZone();
   const fmt = (d: Date) =>
     new Date(d).toLocaleTimeString('en-US', {
       hour: 'numeric',
       minute: '2-digit',
+      timeZone,
     });
-  return `${fmt(start)} - ${fmt(end)}`;
+  const tzLabel = new Date(start)
+    .toLocaleTimeString('en-US', { timeZone, timeZoneName: 'short' })
+    .split(' ')
+    .pop();
+  return `${fmt(start)} - ${fmt(end)}${tzLabel ? ` ${tzLabel}` : ''}`;
 }
 
 function buildTemplateData(user: { firstName: string; lastName: string; email: string }, event: Event, extra?: Record<string, any>): TemplateData {
@@ -34,10 +47,28 @@ function buildTemplateData(user: { firstName: string; lastName: string; email: s
   };
 }
 
+function buildEventIcsAttachment(event: Event, user: { email: string; firstName: string; lastName: string }): EmailAttachment {
+  const ics = buildEventIcs({
+    uid: `event-${event.id}@mrm360`,
+    title: event.title,
+    description: event.description || undefined,
+    start: event.startTime,
+    end: event.endTime,
+    attendeeEmail: user.email,
+    attendeeName: `${user.firstName} ${user.lastName}`.trim(),
+  });
+  return {
+    filename: 'invite.ics',
+    content: ics,
+    contentType: 'text/calendar; charset=utf-8; method=REQUEST',
+  };
+}
+
 async function enqueueEventEmail(
   to: string,
   template: EmailTemplateName,
-  data: TemplateData
+  data: TemplateData,
+  attachments?: EmailAttachment[]
 ): Promise<void> {
   try {
     await taskManager.enqueueEmailJob({
@@ -46,6 +77,7 @@ async function enqueueEventEmail(
       body: '',
       template,
       templateData: data,
+      attachments,
     });
   } catch (error) {
     // Email failures should not block the main operation
@@ -54,7 +86,12 @@ async function enqueueEventEmail(
 }
 
 export async function sendRsvpConfirmedEmail(user: { firstName: string; lastName: string; email: string }, event: Event): Promise<void> {
-  await enqueueEventEmail(user.email, 'rsvpConfirmed', buildTemplateData(user, event));
+  await enqueueEventEmail(
+    user.email,
+    'rsvpConfirmed',
+    buildTemplateData(user, event),
+    [buildEventIcsAttachment(event, user)],
+  );
 }
 
 export async function sendRsvpDeclinedEmail(user: { firstName: string; lastName: string; email: string }, event: Event): Promise<void> {
@@ -66,7 +103,12 @@ export async function sendRsvpWaitlistedEmail(user: { firstName: string; lastNam
 }
 
 export async function sendWaitlistPromotedEmail(user: { firstName: string; lastName: string; email: string }, event: Event): Promise<void> {
-  await enqueueEventEmail(user.email, 'waitlistPromoted', buildTemplateData(user, event));
+  await enqueueEventEmail(
+    user.email,
+    'waitlistPromoted',
+    buildTemplateData(user, event),
+    [buildEventIcsAttachment(event, user)],
+  );
 }
 
 export async function sendCheckInConfirmedEmail(

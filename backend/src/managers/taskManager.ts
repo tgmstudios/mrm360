@@ -10,6 +10,7 @@ export interface EmailJobData {
   body: string;
   template?: string;
   templateData?: Record<string, any>;
+  attachments?: Array<{ filename: string; content: string; contentType?: string }>;
 }
 
 export interface QRCodeJobData {
