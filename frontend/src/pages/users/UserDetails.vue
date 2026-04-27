@@ -401,17 +401,17 @@
           </div>
         </div>
 
-        <!-- VPN Profile Email Card -->
+        <!-- VPN Config Card -->
         <div class="bg-gray-800 shadow rounded-lg border border-gray-700">
           <div class="px-4 py-5 sm:p-6">
             <h3 class="text-lg leading-6 font-medium text-gray-100 mb-4">
               VPN Access
             </h3>
             <p class="text-sm text-gray-400 mb-4">
-              Send VPN profile to member's email
+              Start a VPN enrollment for this member and share the token with them.
             </p>
             <button
-              @click="sendVPNEmail"
+              @click="startVPNEnrollment"
               :disabled="isSendingVPN"
               class="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-purple-800 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center"
             >
@@ -419,14 +419,13 @@
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
-              <span>{{ isSendingVPN ? 'Sending...' : 'Email VPN Profile' }}</span>
+              <span>{{ isSendingVPN ? 'Generating...' : 'Start VPN Enrollment' }}</span>
             </button>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Modals removed - no modals in this app -->
   </div>
 
   <!-- Loading State -->
@@ -436,6 +435,64 @@
       <p class="mt-4 text-sm text-gray-400">Loading member profile...</p>
     </div>
   </div>
+
+  <!-- VPN Enrollment Modal -->
+  <Teleport to="body">
+    <div v-if="showVPNModal" class="fixed inset-0 z-50 flex items-center justify-center">
+      <div class="absolute inset-0 bg-black/70" @click="showVPNModal = false" />
+      <div class="relative bg-gray-800 border border-gray-600 rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4">
+        <div class="flex items-start justify-between mb-6">
+          <div>
+            <h2 class="text-xl font-bold text-gray-100">VPN Enrollment Token</h2>
+            <p class="text-sm text-gray-400 mt-1">
+              {{ vpnEnrollment?.isNew ? 'Account created.' : 'New token generated.' }}
+              Share this with <strong class="text-gray-200">{{ user?.firstName }}</strong>.
+            </p>
+          </div>
+          <button @click="showVPNModal = false" class="text-gray-400 hover:text-gray-200 ml-4">
+            <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="bg-blue-900/40 border border-blue-700 rounded-lg p-4 mb-5">
+          <p class="text-sm text-blue-200">
+            The member should visit the enrollment portal and paste this token to configure their WireGuard device.
+          </p>
+        </div>
+
+        <div class="mb-5">
+          <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Enrollment Token</label>
+          <div class="flex items-center space-x-2">
+            <code class="flex-1 bg-gray-900 border border-gray-600 rounded-lg px-4 py-3 text-sm font-mono text-green-400 break-all">
+              {{ vpnEnrollment?.enrollmentToken }}
+            </code>
+            <button
+              @click="copyToken(vpnEnrollment?.enrollmentToken || '')"
+              class="shrink-0 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg px-3 py-3"
+              title="Copy token"
+            >
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <a
+          :href="vpnEnrollment?.enrollmentUrl"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="block w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg text-center transition-colors duration-200"
+        >
+          Open Enrollment Portal
+        </a>
+
+        <p class="text-xs text-gray-500 text-center mt-4">This token is single-use. Share it promptly.</p>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -464,6 +521,10 @@ const isSubmitting = ref(false)
 const isDeleting = ref(false)
 const isSendingVPN = ref(false)
 const qrCodeRef = ref<any>(null)
+
+// VPN enrollment modal
+const showVPNModal = ref(false)
+const vpnEnrollment = ref<{ enrollmentToken: string; enrollmentUrl: string; isNew: boolean } | null>(null)
 
 // Badge state
 const showBadgeInvite = ref(false)
@@ -563,16 +624,13 @@ const downloadQRCode = async () => {
   }
 
   try {
-    // Wait for the QR code component to be rendered
     await nextTick()
     
-    // Get the image element from the displayed QR code component
     if (!qrCodeRef.value) {
       console.error('QR code component not found')
       return
     }
     
-    // The QRCodeVue3 component renders an img element
     const imgElement = qrCodeRef.value.$el?.querySelector('img')
     
     if (!imgElement) {
@@ -580,7 +638,6 @@ const downloadQRCode = async () => {
       return
     }
 
-    // Get the image source URL from the img src
     const imageSrc = imgElement.src
     
     if (!imageSrc) {
@@ -588,12 +645,10 @@ const downloadQRCode = async () => {
       return
     }
 
-    // Create download link directly from the image source
     const link = document.createElement('a')
     link.download = `qr-code-${user.value?.firstName || 'user'}.png`
     link.href = imageSrc
     
-    // Trigger download
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -606,38 +661,45 @@ const downloadQRCode = async () => {
   }
 }
 
-
-// VPN Email
-const sendVPNEmail = async () => {
-  if (!user.value) return
-  
-  isSendingVPN.value = true
-  
+const copyToken = async (text: string) => {
   try {
-    const response = await fetch(`${window.ENV.VITE_API_BASE_URL}/admin/vpn-email`, {
+    await navigator.clipboard.writeText(text)
+    toast.success('Token copied to clipboard!')
+  } catch {
+    toast.error('Failed to copy token')
+  }
+}
+
+const startVPNEnrollment = async () => {
+  if (!user.value) return
+
+  isSendingVPN.value = true
+
+  try {
+    const response = await fetch(`${window.ENV.VITE_API_BASE_URL}/admin/vpn-config`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${authStore.accessToken}`
       },
-      body: JSON.stringify({
-        userId: user.value.id,
-        organization: 'CCSOMembers'
-      })
+      body: JSON.stringify({ userId: user.value.id })
     })
-    
+
     const data = await response.json()
-    
+
     if (response.ok && data.success) {
-      toast.success(`VPN profile emailed to ${user.value.email}`)
+      vpnEnrollment.value = {
+        enrollmentToken: data.enrollmentToken,
+        enrollmentUrl: 'https://edge.psuccso.org/enrollment-start',
+        isNew: data.isNew,
+      }
+      showVPNModal.value = true
     } else {
-      const errorMessage = data.error || 'Failed to send VPN email'
-      console.error('VPN email failed:', errorMessage)
-      toast.error(errorMessage)
+      toast.error(data.error || 'Failed to start VPN enrollment')
     }
   } catch (error) {
-    console.error('Error sending VPN email:', error)
-    toast.error('An error occurred while sending VPN email')
+    console.error('Error starting VPN enrollment:', error)
+    toast.error('An error occurred while starting VPN enrollment')
   } finally {
     isSendingVPN.value = false
   }
@@ -686,8 +748,6 @@ const sendBadgeInvite = async () => {
   }
 }
 
-// Modal methods removed - no modals in this app
-
 const confirmDelete = async () => {
   if (!user.value) return
   
@@ -706,25 +766,17 @@ const confirmDelete = async () => {
 // Load user data on mount
 onMounted(async () => {
   try {
-    // Always fetch users to ensure we have the latest data
     await userStore.fetchUsers()
-    
-    // Fetch groups to get names
     await groupStore.fetchGroups()
     
-    // If user is still not found after fetching, try to fetch the specific user
     if (!user.value) {
       try {
         await userStore.fetchUser(userId.value)
       } catch (error) {
         console.error('Error fetching user:', error)
-        // Handle error - could redirect to users list or show error message
       }
     }
     
-
-    
-    // Initialize form with current user data
     if (user.value) {
       form.value = {
         firstName: user.value.firstName,
@@ -734,7 +786,6 @@ onMounted(async () => {
       }
     }
 
-    // Load badge data
     await Promise.all([loadBadgeClasses(), loadUserBadges()])
   } catch (error) {
     console.error('Error loading data:', error)
