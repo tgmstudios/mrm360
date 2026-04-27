@@ -43,12 +43,14 @@ export default withCORS(async function handler(req: NextApiRequest, res: NextApi
 
     logger.info('Requesting Defguard enrollment', { userId: user.id, username });
 
+    const groupId = organization === 'CCSOAdmins' ? 1 : 2;
+
     const result = await getDefguardService().requestEnrollment(
       username,
       user.email,
       firstName,
       lastName,
-      2,
+      groupId,
     );
 
     if (!result.success) {
