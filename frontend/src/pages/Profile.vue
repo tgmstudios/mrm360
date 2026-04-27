@@ -271,46 +271,24 @@
             <h3 class="text-lg font-semibold text-gray-100 mb-4">
               VPN Access
             </h3>
-            
+
             <!-- Member VPN -->
             <div class="mb-6">
               <h4 class="text-md font-medium text-gray-200 mb-2">Member VPN</h4>
               <p class="text-sm text-gray-400 mb-4">
                 Access to CCSO internal resources and network.
               </p>
-              
-              <div class="space-y-3">
-                <button
-                  @click="requestVPNProfile('CCSOMembers')"
-                  :disabled="isRequestingMemberVPN"
-                  class="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-purple-800 text-white font-medium py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center"
-                >
-                  <svg v-if="isRequestingMemberVPN" class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  <span>{{ isRequestingMemberVPN ? 'Processing...' : 'Get Member VPN Profile' }}</span>
-                </button>
-                
-                <div v-if="memberVPNUrl" class="space-y-2">
-                  <label class="block text-sm font-medium text-gray-300">Profile Download URL:</label>
-                  <div class="flex gap-2">
-                    <input
-                      type="text"
-                      :value="memberVPNUrl"
-                      readonly
-                      class="flex-1 px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-gray-200 text-sm"
-                    />
-                    <button
-                      @click="copyToClipboard(memberVPNUrl)"
-                      class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200"
-                    >
-                      Copy
-                    </button>
-                  </div>
-                  <p class="text-xs text-gray-400">Click the URL to download your VPN configuration file.</p>
-                </div>
-              </div>
+              <button
+                @click="requestVPNProfile('CCSOMembers')"
+                :disabled="isRequestingMemberVPN"
+                class="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-purple-800 text-white font-medium py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center"
+              >
+                <svg v-if="isRequestingMemberVPN" class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>{{ isRequestingMemberVPN ? 'Processing...' : 'Enroll Member VPN' }}</span>
+              </button>
             </div>
 
             <!-- Admin VPN (only for admins) -->
@@ -319,44 +297,82 @@
               <p class="text-sm text-gray-400 mb-4">
                 Full access to OpenStack and infrastructure management components. <span class="text-yellow-400 font-semibold">Admin only.</span>
               </p>
-              
-              <div class="space-y-3">
-                <button
-                  @click="requestVPNProfile('CCSOAdmins')"
-                  :disabled="isRequestingAdminVPN"
-                  class="w-full bg-red-600 hover:bg-red-700 disabled:bg-red-800 text-white font-medium py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center"
-                >
-                  <svg v-if="isRequestingAdminVPN" class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  <span>{{ isRequestingAdminVPN ? 'Processing...' : 'Get Admin VPN Profile' }}</span>
-                </button>
-                
-                <div v-if="adminVPNUrl" class="space-y-2">
-                  <label class="block text-sm font-medium text-gray-300">Admin Profile Download URL:</label>
-                  <div class="flex gap-2">
-                    <input
-                      type="text"
-                      :value="adminVPNUrl"
-                      readonly
-                      class="flex-1 px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-gray-200 text-sm"
-                    />
-                    <button
-                      @click="copyToClipboard(adminVPNUrl)"
-                      class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200"
-                    >
-                      Copy
-                    </button>
-                  </div>
-                  <p class="text-xs text-gray-400">Click the URL to download your admin VPN configuration file.</p>
-                </div>
-              </div>
+              <button
+                @click="requestVPNProfile('CCSOAdmins')"
+                :disabled="isRequestingAdminVPN"
+                class="w-full bg-red-600 hover:bg-red-700 disabled:bg-red-800 text-white font-medium py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center"
+              >
+                <svg v-if="isRequestingAdminVPN" class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>{{ isRequestingAdminVPN ? 'Processing...' : 'Enroll Admin VPN' }}</span>
+              </button>
             </div>
           </div>
         </div>
       </div>
     </div>
+  <!-- VPN Enrollment Modal -->
+  <Teleport to="body">
+    <div v-if="showVPNModal" class="fixed inset-0 z-50 flex items-center justify-center">
+      <div class="absolute inset-0 bg-black/70" @click="showVPNModal = false" />
+      <div class="relative bg-gray-800 border border-gray-600 rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4">
+        <!-- Header -->
+        <div class="flex items-start justify-between mb-6">
+          <div>
+            <h2 class="text-xl font-bold text-gray-100">VPN Enrollment</h2>
+            <p class="text-sm text-gray-400 mt-1">
+              {{ vpnEnrollment?.isNew ? 'Your VPN account has been created.' : 'A new enrollment token has been generated.' }}
+            </p>
+          </div>
+          <button @click="showVPNModal = false" class="text-gray-400 hover:text-gray-200 ml-4">
+            <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Instructions -->
+        <div class="bg-blue-900/40 border border-blue-700 rounded-lg p-4 mb-5">
+          <p class="text-sm text-blue-200">
+            Click <strong>Open Enrollment Portal</strong> and paste your token when prompted to set up your WireGuard VPN device.
+          </p>
+        </div>
+
+        <!-- Token -->
+        <div class="mb-5">
+          <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Enrollment Token</label>
+          <div class="flex items-center space-x-2">
+            <code class="flex-1 bg-gray-900 border border-gray-600 rounded-lg px-4 py-3 text-sm font-mono text-green-400 break-all">
+              {{ vpnEnrollment?.enrollmentToken }}
+            </code>
+            <button
+              @click="copyToClipboard(vpnEnrollment?.enrollmentToken || '')"
+              class="shrink-0 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg px-3 py-3"
+              title="Copy token"
+            >
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Open portal button -->
+        <a
+          :href="vpnEnrollment?.enrollmentUrl"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="block w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg text-center transition-colors duration-200"
+        >
+          Open Enrollment Portal
+        </a>
+
+        <p class="text-xs text-gray-500 text-center mt-4">This token is single-use. Enroll promptly.</p>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -387,9 +403,9 @@ const isUpdatingNewsletter = ref(false)
 const isRequestingMemberVPN = ref(false)
 const isRequestingAdminVPN = ref(false)
 
-// VPN state
-const memberVPNUrl = ref<string>('')
-const adminVPNUrl = ref<string>('')
+// VPN enrollment modal
+const showVPNModal = ref(false)
+const vpnEnrollment = ref<{ enrollmentToken: string; enrollmentUrl: string; isNew: boolean } | null>(null)
 
 // Data
 const classRanks = [
@@ -645,13 +661,12 @@ const updateNewsletterPreference = async () => {
 
 const requestVPNProfile = async (organization: string) => {
   if (!user.value) return
-  
+
   const isAdmin = organization === 'CCSOAdmins'
   const loadingRef = isAdmin ? isRequestingAdminVPN : isRequestingMemberVPN
-  const urlRef = isAdmin ? adminVPNUrl : memberVPNUrl
-  
+
   loadingRef.value = true
-  
+
   try {
     const response = await fetch(`${window.ENV.VITE_API_BASE_URL}/user/vpn-request`, {
       method: 'POST',
@@ -661,23 +676,22 @@ const requestVPNProfile = async (organization: string) => {
       },
       body: JSON.stringify({ organization })
     })
-    
+
     const data = await response.json()
-    
+
     if (response.ok && data.success) {
-      urlRef.value = data.profileUrl
-      const message = data.isExisting 
-        ? 'VPN profile ready! Download URL generated.'
-        : 'VPN profile created! Download URL ready.'
-      toast.success(message)
+      vpnEnrollment.value = {
+        enrollmentToken: data.enrollmentToken,
+        enrollmentUrl: 'https://edge.psuccso.org/enrollment-start',
+        isNew: data.isNew,
+      }
+      showVPNModal.value = true
     } else {
-      const errorMessage = data.error || 'Failed to request VPN profile'
-      console.error('VPN request failed:', errorMessage)
-      toast.error(errorMessage)
+      toast.error(data.error || 'Failed to request VPN enrollment')
     }
   } catch (error) {
-    console.error('Error requesting VPN profile:', error)
-    toast.error('An error occurred while requesting VPN profile')
+    console.error('Error requesting VPN enrollment:', error)
+    toast.error('An error occurred while requesting VPN enrollment')
   } finally {
     loadingRef.value = false
   }
