@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { Prisma } from '@prisma/client';
 
 const mocks = vi.hoisted(() => ({
   findUserByQrCode: vi.fn(),
@@ -9,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   countConfirmedRsvps: vi.fn(),
   createRsvp: vi.fn(),
   updateRsvp: vi.fn(),
+  TaskManager: vi.fn(),
 }));
 
 vi.mock('@/utils/logger', () => ({
@@ -23,7 +25,7 @@ vi.mock('@/services/eventEmailService', () => ({
 }));
 
 vi.mock('@/managers/taskManager', () => ({
-  TaskManager: vi.fn(),
+  TaskManager: mocks.TaskManager,
 }));
 
 import { EventManager } from '@/managers/eventManager';
@@ -67,5 +69,42 @@ describe('EventManager.checkInAttendance', () => {
     expect(mocks.findRsvp).not.toHaveBeenCalled();
     expect(mocks.countConfirmedRsvps).not.toHaveBeenCalled();
     expect(mocks.createCheckIn).not.toHaveBeenCalled();
+  });
+
+  it('returns already checked in when a concurrent check-in create hits the unique constraint', async () => {
+    mocks.findCheckIn.mockResolvedValue(null);
+    mocks.findRsvp.mockResolvedValue({ status: 'CONFIRMED' });
+    mocks.findEvent.mockResolvedValue({
+      ...fullEvent,
+      autoAssignEnabled: true,
+      teamsEnabled: true,
+      membersPerTeam: 4,
+    });
+    mocks.createCheckIn.mockRejectedValue(new Prisma.PrismaClientKnownRequestError(
+      'Unique constraint failed on the fields: (`userId`,`eventId`)',
+      { code: 'P2002', clientVersion: '5.0.0' },
+    ));
+
+    const manager = new EventManager({
+      user: { findFirst: mocks.findUserByQrCode },
+      event: { findUnique: mocks.findEvent },
+      rSVP: {
+        findUnique: mocks.findRsvp,
+        count: mocks.countConfirmedRsvps,
+        create: mocks.createRsvp,
+        update: mocks.updateRsvp,
+      },
+      checkIn: {
+        findUnique: mocks.findCheckIn,
+        create: mocks.createCheckIn,
+      },
+    } as any);
+    const triggerAutoAssignment = vi.spyOn(manager, 'triggerAutoAssignment');
+
+    await expect(manager.checkInAttendance({ qrCode: 'qr-1', eventId: 'event-1' }))
+      .resolves.toEqual({ success: false, message: 'User already checked in' });
+
+    expect(triggerAutoAssignment).not.toHaveBeenCalled();
+    expect(mocks.TaskManager).not.toHaveBeenCalled();
   });
 });

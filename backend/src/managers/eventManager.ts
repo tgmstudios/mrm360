@@ -690,14 +690,27 @@ export class EventManager {
       }
 
       // Create check-in record
-      await this.prisma.checkIn.create({
-        data: {
-          userId: user.id,
-          eventId: data.eventId,
-          qrCode: data.qrCode,
-          checkedInAt: new Date(),
-        },
-      });
+      try {
+        await this.prisma.checkIn.create({
+          data: {
+            userId: user.id,
+            eventId: data.eventId,
+            qrCode: data.qrCode,
+            checkedInAt: new Date(),
+          },
+        });
+      } catch (error) {
+        if (
+          typeof error === 'object'
+          && error !== null
+          && 'code' in error
+          && error.code === 'P2002'
+        ) {
+          return { success: false, message: 'User already checked in' };
+        }
+
+        throw error;
+      }
 
       // Trigger auto-assignment if enabled and user is confirmed
       if (rsvp.status === 'CONFIRMED' && event.autoAssignEnabled && event.teamsEnabled && event.membersPerTeam) {
