@@ -563,6 +563,20 @@ export class EventManager {
         return { success: false, message: 'Event not found' };
       }
 
+      // Return an intentional result for repeat QR scans before RSVP or capacity checks.
+      const existingCheckIn = await this.prisma.checkIn.findUnique({
+        where: {
+          userId_eventId: {
+            userId: user.id,
+            eventId: data.eventId,
+          },
+        },
+      });
+
+      if (existingCheckIn) {
+        return { success: false, message: 'User already checked in' };
+      }
+
       // Check if user is RSVP'd, auto-RSVP if not (but respect capacity and eligibility)
       let rsvp = await this.prisma.rSVP.findUnique({
         where: {
